@@ -1,0 +1,20 @@
+sandbox
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Editor backups
+*.bak
+*.orig
+
+# Temporary files
+*.tmp
+.temp/
