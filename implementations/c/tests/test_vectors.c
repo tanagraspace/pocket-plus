@@ -196,6 +196,16 @@ TEST(test_vector_simple) {
         /* Load packet data */
         bitvector_from_bytes(&input, &input_data[i * 90], 90);
 
+        /* Debug raw bytes for packets 19-20 */
+        if (i == 19 || i == 20) {
+            fprintf(stderr, "\nPacket %d raw bytes around byte 17 (position 142 region):\n", i);
+            fprintf(stderr, "  Bytes 15-19: ");
+            for (int b = 15; b < 20 && b < 90; b++) {
+                fprintf(stderr, "%02X ", input_data[i * 90 + b]);
+            }
+            fprintf(stderr, "\n");
+        }
+
         /* Set parameters according to test vector periods
          * Reference uses countdown counters that trigger AFTER init phase:
          * - pt=1 at packets: (pt_limit + robustness + 1) + k*pt_limit
@@ -219,9 +229,11 @@ TEST(test_vector_simple) {
         const int ft_first_trigger = 20 + robustness;      /* 21 for Rt=1 */
         const int rt_first_trigger = 50 + robustness;      /* 51 for Rt=1 */
 
-        params.new_mask_flag = (i >= pt_first_trigger && i % 10 == (pt_first_trigger % 10)) ? 1 : 0;
-        params.send_mask_flag = (i >= ft_first_trigger && i % 20 == (ft_first_trigger % 20)) ? 1 : 0;
-        params.uncompressed_flag = (i >= rt_first_trigger && i % 50 == (rt_first_trigger % 50)) ? 1 : 0;
+        /* Use (i+1) for 1-based packet number since triggers are defined in 1-based terms */
+        int packet_num = i + 1;
+        params.new_mask_flag = (packet_num >= pt_first_trigger && packet_num % 10 == (pt_first_trigger % 10)) ? 1 : 0;
+        params.send_mask_flag = (packet_num >= ft_first_trigger && packet_num % 20 == (ft_first_trigger % 20)) ? 1 : 0;
+        params.uncompressed_flag = (packet_num >= rt_first_trigger && packet_num % 50 == (rt_first_trigger % 50)) ? 1 : 0;
 
         /* CCSDS requirement: Force ft=1, rt=1, pt=0 for first Rt+1 packets
          * For Rt=1: first 2 packets (i=0, 1) */
@@ -252,12 +264,12 @@ TEST(test_vector_simple) {
             memcpy(actual_output + actual_size, packet_bytes, packet_size);
             actual_size += packet_size;
 
-            /* Debug first few packets */
-            if (i < 25) {
+            /* Debug all packets until we pass byte 300 */
+            if (actual_size <= 300) {
                 printf("    Packet %d: %zu bits = %zu bytes (ft=%d, rt=%d, pt=%d), total_bytes=%zu\n",
                        i, packet_output.num_bits, packet_size, params.send_mask_flag,
                        params.uncompressed_flag, params.new_mask_flag, actual_size);
-                if (i < 2 || i == 20) {
+                if (i < 2 || i == 20 || i == 30) {
                     printf("      All %zu bytes: ", packet_size);
                     for (size_t b = 0; b < packet_size && b < 10; b++) {
                         printf("%02X ", packet_bytes[b]);

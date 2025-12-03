@@ -19,102 +19,133 @@ POCKET+ (CCSDS 124.0-B-1) is a lossless compression algorithm designed for fixed
 
 The CCSDS spec states that the **first Rₜ+1 packets** must be sent uncompressed with ḟₜ=1, ṙₜ=1, ṗₜ=0.
 
-**CORRECT:**
-```c
-// For Rₜ=1: packets 0 and 1 are init packets (2 packets total)
-if (packet_index <= Rₜ) {
-    ft = 1;  // send_mask_flag
-    rt = 1;  // uncompressed_flag
-    pt = 0;  // new_mask_flag
-}
-```
+**Example for Rₜ=1:**
+- Packet 0 (first packet): init phase → ḟₜ=1, ṙₜ=1, ṗₜ=0
+- Packet 1 (second packet): init phase → ḟₜ=1, ṙₜ=1, ṗₜ=0
+- Packet 2 (third packet): **normal operation begins**
 
-**WRONG:**
-```c
-// This applies init phase to 3 packets (0, 1, 2) instead of 2!
-if (packet_index < Rₜ + 2) {  // ❌ OFF-BY-ONE ERROR
-    ft = 1;
-    rt = 1;
-    pt = 0;
-}
-```
+**Common mistake:** Applying init phase to Rₜ+2 packets instead of Rₜ+1 packets.
+
+**Correct condition:** `packet_index ≤ Rₜ` triggers init phase
+**Wrong condition:** `packet_index < Rₜ + 2` (applies to 3 packets when Rₜ=1)
 
 ### 2. Flag Timing: Countdown Counters, Not Modulo Arithmetic
 
 The reference implementation uses **countdown counters** that start at the period limit and decrement each packet. Flags trigger when the counter reaches 1, then reset.
 
-**Pattern for Rₜ=1:**
-- ṗₜ=1 (new mask) at packets: 11, 21, 31, ... (not 10, 20, 30!)
-- ḟₜ=1 (send mask) at packets: 21, 41, 61, ... (not 20, 40, 60!)
-- ṙₜ=1 (uncompressed) at packets: 51, 101, 151, ... (not 50, 100, 150!)
+**Pattern for Rₜ=1, periods (10, 20, 50):**
+- ṗₜ=1 (new mask) at packets: **11, 21, 31, 41...** (not 10, 20, 30!)
+- ḟₜ=1 (send mask) at packets: **21, 41, 61, 81...** (not 20, 40, 60!)
+- ṙₜ=1 (uncompressed) at packets: **51, 101, 151, 201...** (not 50, 100, 150!)
 
-**CORRECT:**
-```c
-// First trigger happens at: period + Rₜ
-// For pt_period=10, Rₜ=1: first trigger at packet 11
-int pt_first_trigger = 10 + Rₜ;  // 11
-int ft_first_trigger = 20 + Rₜ;  // 21
-int rt_first_trigger = 50 + Rₜ;  // 51
+**Key insight:** First trigger happens at `period + Rₜ`, not at `period`.
 
-pt = (i >= pt_first_trigger && i % 10 == (pt_first_trigger % 10)) ? 1 : 0;
-ft = (i >= ft_first_trigger && i % 20 == (ft_first_trigger % 20)) ? 1 : 0;
-rt = (i >= rt_first_trigger && i % 50 == (rt_first_trigger % 50)) ? 1 : 0;
+**Example for pt_period=10, Rₜ=1:**
+- pt_first_trigger = 10 + 1 = **packet 11**
+- Subsequent triggers: packets 21, 31, 41... (every 10 packets)
 
-// Then override for init phase
-if (i <= Rₜ) {
-    ft = 1; rt = 1; pt = 0;
-}
-```
-
-**WRONG:**
-```c
-// This triggers flags one packet too early!
-pt = ((i + 1) % 10 == 0) ? 1 : 0;  // ❌ Triggers at 9, 19, 29
-ft = ((i + 1) % 20 == 0) ? 1 : 0;  // ❌ Triggers at 19, 39, 59
-```
+**Common mistake:** Using `(packet_num % period) == 0` which triggers one packet too early (at packets 10, 20, 30 instead of 11, 21, 31).
 
 ### 3. Vₜ Calculation: Skip D_{t-1}!
 
 Per CCSDS Section 5.3.2.2, Cₜ is defined as the largest value where **D_{t-i} = ∅ for all 1 < i ≤ Cₜ + Rₜ**.
 
-Note the strict inequality: **1 < i**, which means **start from i=2** (check D_{t-2}, D_{t-3}, ...), **not i=1**!
+**Critical detail:** The strict inequality **1 < i** means start from **i=2**, checking D_{t-2}, D_{t-3}, ..., **NOT D_{t-1}**!
 
-**CORRECT:**
-```c
-// For t > Rₜ, count consecutive packets with no mask changes
-uint8_t Ct = 0;
+**Correct algorithm:**
+1. For t ≤ Rₜ: Vₜ = Rₜ (initialization phase)
+2. For t > Rₜ: Count consecutive packets with no mask changes
+   - Start checking from D_{t-2} (skip D_{t-1})
+   - Stop when finding a change or reaching maximum Cₜ = 15 - Rₜ
+   - Vₜ = Rₜ + Cₜ
 
-// Start from i=2 (skip D_{t-1} per spec: "1 < i")
-for (size_t i = 2; i <= 15 && i <= t; i++) {
-    size_t hist_idx = (history_index - i + MAX_HISTORY) % MAX_HISTORY;
-    if (hamming_weight(change_history[hist_idx]) > 0) {
-        break;  // Found a change, stop
-    }
-    Ct++;
-}
+**Example for t=2, Rₜ=1:**
+- Check D₀ only (skip D₁ per spec requirement)
+- If D₀ = ∅, then Cₜ=1
+- Result: Vₜ = 1 + 1 = 2
 
-Vt = Rt + Ct;  // Effective robustness
+**Common mistake:** Starting from i=1 includes D_{t-1} in the check, which violates the spec and produces incorrect Vₜ values, causing divergence within the first few packets.
+
+### 4. Packet Indexing: 0-Based vs 1-Based in Flag Calculations
+
+The CCSDS reference implementation uses **1-based packet numbering** (packets 1, 2, 3...). If your implementation uses **0-based loop indexing** (i=0, 1, 2...), you MUST convert to 1-based when calculating flag triggers.
+
+**The Reference Uses 1-Based Packet Numbers:**
+- Packet 1 = first packet (our i=0)
+- Packet 11 = eleventh packet (our i=10) ← first ṗₜ trigger for Rₜ=1
+- Packet 21 = twenty-first packet (our i=20) ← first ḟₜ trigger for Rₜ=1
+
+**Example for Rₜ=1, pt_period=10:**
+
+| Loop Index (i) | Packet Number | Expected ṗₜ | Wrong (using i) | Impact |
+|----------------|---------------|-------------|-----------------|---------|
+| i=10 | Packet 11 | **1** (trigger!) | 0 | Flag missed! |
+| i=20 | Packet 21 | **1** (trigger!) | 0 | Flag missed! |
+| i=30 | Packet 31 | **1** (trigger!) | 0 | Flag missed! |
+
+**The Fix:** Use `packet_num = i + 1` when calculating flag triggers.
+- For i=10: packet_num=11, check if `11 % 10 == 1` ✓ Triggers correctly!
+- For i=20: packet_num=21, check if `21 % 10 == 1` ✓ Triggers correctly!
+
+**Common mistake:** Using loop index `i` directly for modulo arithmetic when flag triggers are defined in 1-based terms.
+
+**Why this matters:**
+- Wrong flags corrupt the dₜ calculation (flag_no_mask_updates_in_Xt)
+- Wrong ṗₜ causes mask/build updates at incorrect times
+- Wrong ḟₜ omits required mask transmission
+- Wrong ṙₜ sends compressed data when uncompressed is expected
+- **Result:** Complete divergence within 20-30 packets
+
+### 5. Component kₜ: Inverted Mask Values (Not Direct Mask Values!)
+
+The kₜ component encodes mask values at changed positions, but **outputs the INVERSE** of the mask bits.
+
+**CCSDS spec says:** "kₜ: mask values for changed positions"
+**What this actually means:** Output '1' for positive updates (mask changed to 0), '0' for negative updates (mask changed to 1)
+
+**Correct encoding:**
+- When Xₜ has '1' at position i (bit changed):
+  - If mask[i] = 0 (now predictable): output **1** in kₜ
+  - If mask[i] = 1 (now unpredictable): output **0** in kₜ
+- This is the **INVERSE** of the mask values
+
+**Example:**
+- Xₜ = '1' at positions [43, 142]
+- Mask values at those positions: [0, 0] (both predictable)
+- kₜ output (extracted in reverse order): **11** (not 00!)
+
+**Why this matters:**
+- The eₜ flag indicates if there are "positive updates" (mask bits changed from 1→0, becoming predictable)
+- kₜ outputs '1' to mark these positive updates
+- Extracting mask values directly gives the opposite encoding
+- **Result:** 2-bit error per changed position, causing divergence at byte ~30% into output
+
+**Implementation:**
 ```
-
-**WRONG:**
-```c
-// Starting from i=1 checks D_{t-1}, which violates "1 < i"
-for (size_t i = 1; i <= 15 && i <= t; i++) {  // ❌ WRONG!
-    // This will produce incorrect Vₜ values
-}
+inverted_mask[i] = !mask[i]  // Invert the entire mask
+kt = BE(inverted_mask, Xt)   // Extract inverted values at changed positions
 ```
-
-**Why this matters:** Starting from i=1 causes Vₜ to be calculated incorrectly for early packets, leading to divergence in the compressed output within the first few packets.
 
 ### Summary
 
-These three bugs were responsible for:
-- **109 bytes of excess output** (752 bytes instead of 643)
-- **Divergence starting at byte 93** (out of 643 total)
+**Progressive Bug Fixes:**
 
-After fixing all three issues:
-- Output size: **644 bytes** (only 1 byte over!)
-- First divergence: **byte 251** (99.8% correct!)
+After fixing bugs #1-3 (init phase, Vₜ calculation, flag timing):
+- Output size: **644 bytes** (only 1 byte over, expected 643)
+- First divergence: **byte 251** (60.9% prefix match)
+- Size accuracy: **99.8%**
+
+After fixing bug #4 (0-based vs 1-based packet indexing):
+- Output size: **641 bytes** (2 bytes short, expected 643)
+- First divergence: **byte 286** (44.5% prefix match)
+- Size accuracy: **99.7%**
+
+After fixing bug #5 (kₜ component inverted mask encoding):
+- Output size: **641 bytes** (2 bytes short, expected 643)
+- First divergence: **byte 320** (49.8% prefix match)
+- Size accuracy: **99.7%**
+
+**Note:** The kₜ inversion fix improved prefix matching from 44.5% to 49.8%. The remaining 2-byte shortage indicates missing bits somewhere in the encoding pipeline.
 
 ## High-Level Data Flow
 

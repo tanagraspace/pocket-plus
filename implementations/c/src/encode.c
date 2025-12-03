@@ -190,10 +190,19 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
     }
 
     /* Append terminator '10' MSB-first (bits: 1, 0) */
+    size_t bits_before_terminator = output->num_bits;
+
     int result = bitbuffer_append_bit(output, 1);
     if (result != POCKET_OK) return result;
 
     result = bitbuffer_append_bit(output, 0);
+
+    /* Debug: trace '10' terminator for all packets */
+    if (g_debug_packet_num >= 0 && g_debug_packet_num < 100) {
+        fprintf(stderr, "[PKT%zu] RLE: Added '10' terminator at bits %zu-%zu (total RLE bits: %zu)\n",
+                g_debug_packet_num, bits_before_terminator, output->num_bits - 1, output->num_bits);
+    }
+
     return result;
 }
 
