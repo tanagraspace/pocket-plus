@@ -1,0 +1,37 @@
+# Housekeeping Synthetic Test Vector
+# Realistic spacecraft housekeeping telemetry patterns
+
+name: housekeeping
+description: |
+  Synthetic test vector simulating realistic spacecraft housekeeping data.
+  Includes typical patterns: stable parameters, slow-changing sensors,
+  counters, and status flags.
+
+# Input configuration
+input:
+  type: synthetic
+  packet_length: 90  # bytes
+  num_packets: 10000
+  seed: 1337  # Fixed seed for reproducibility
+
+# Compression parameters (typical spacecraft settings)
+compression:
+  packet_length: 90
+  pt: 20  # Track changes every 20 packets
+  ft: 50  # Full mask every 50 packets
+  rt: 100 # Full packet every 100 packets
+  robustness: 2
+
+# Expected outcomes
+expected:
+  compression_ratio_min: 7.0
+  compression_ratio_max: 10.0
+  compression_ratio_typical: 8.5
+
+# Output configuration
+output:
+  dir: /workspace/output/vectors/housekeeping
+  input_file: housekeeping.bin
+  compressed_file: housekeeping.bin.pkt
+  decompressed_file: housekeeping.bin.pkt.depkt
+  metadata_file: metadata.json

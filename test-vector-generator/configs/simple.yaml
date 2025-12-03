@@ -1,0 +1,36 @@
+# Simple Synthetic Test Vector
+# High compressibility patterns for basic validation
+
+name: simple
+description: |
+  Synthetic test vector with predictable, high-compressibility patterns.
+  Designed for quick validation and testing.
+
+# Input configuration
+input:
+  type: synthetic
+  packet_length: 90  # bytes
+  num_packets: 100
+  seed: 42  # Fixed seed for reproducibility
+
+# Compression parameters
+compression:
+  packet_length: 90
+  pt: 10  # More frequent tracking
+  ft: 20  # More frequent full mask
+  rt: 50  # More frequent full packet
+  robustness: 1
+
+# Expected outcomes
+expected:
+  compression_ratio_min: 10.0
+  compression_ratio_max: 15.0
+  compression_ratio_typical: 12.0
+
+# Output configuration
+output:
+  dir: /workspace/output/vectors/simple
+  input_file: simple.bin
+  compressed_file: simple.bin.pkt
+  decompressed_file: simple.bin.pkt.depkt
+  metadata_file: metadata.json

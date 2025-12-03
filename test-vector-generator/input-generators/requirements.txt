@@ -1,0 +1,3 @@
+# Python dependencies for test vector generation
+numpy==1.24.3
+pyyaml==6.0

@@ -1,0 +1,26 @@
+# Ignore output directory contents (will be generated)
+output/*
+!output/.gitkeep
+
+# Ignore Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Ignore git
+.git
+.gitignore
+
+# Ignore documentation
+README.md
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Ignore OS files
+.DS_Store
+Thumbs.db

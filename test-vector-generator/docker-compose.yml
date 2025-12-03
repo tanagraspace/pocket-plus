@@ -1,0 +1,25 @@
+services:
+  test-vector-generator:
+    build:
+      context: ..
+      dockerfile: test-vector-generator/Dockerfile
+    image: pocket-plus-test-vector-generator:latest
+    container_name: pocket-plus-test-vectors
+    volumes:
+      # Mount output directory to persist generated test vectors
+      - ./output:/workspace/output
+      # Mount configs for easy modification without rebuild
+      - ./configs:/workspace/configs:ro
+      # Mount scripts for easy development
+      - ./scripts:/workspace/scripts:ro
+      # Mount input generators for easy development
+      - ./input-generators:/workspace/input-generators:ro
+    environment:
+      # Ensure deterministic behavior
+      - PYTHONHASHSEED=0
+      - LC_ALL=C
+      # Optional: Set specific test vector to generate
+      - VECTOR_TYPE=${VECTOR_TYPE:-all}
+    command: /workspace/scripts/generate-all.sh
+    stdin_open: true
+    tty: true

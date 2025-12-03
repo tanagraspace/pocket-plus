@@ -1,0 +1,42 @@
+# Edge Cases Test Vector
+# Boundary values and aggressive compression parameters
+
+name: edge-cases
+description: |
+  Synthetic test vector with mixed stable/changing sections.
+  - Bytes 0-29: Completely stable (0x00)
+  - Bytes 30-59: Step-wise incrementing (0→95, +5 every 25 packets)
+  - Bytes 60-89: Completely stable (0xFF)
+
+  Tests the algorithm's efficiency with partial packet changes - only 1/3 of each
+  packet changes while the rest remains stable. This is different from 'simple'
+  which has more varied patterns throughout the packet.
+
+# Input configuration
+input:
+  type: synthetic
+  packet_length: 90  # bytes
+  num_packets: 500
+  seed: 9999  # Fixed seed for reproducibility
+
+# Compression parameters (same as simple, for compatibility)
+compression:
+  packet_length: 90
+  pt: 10  # Frequent tracking
+  ft: 20  # Frequent full mask
+  rt: 50  # Frequent full packet
+  robustness: 1  # Standard robustness
+
+# Expected outcomes (excellent compression with very stable patterns)
+expected:
+  compression_ratio_min: 12.0
+  compression_ratio_max: 18.0
+  compression_ratio_typical: 15.0
+
+# Output configuration
+output:
+  dir: /workspace/output/vectors/edge-cases
+  input_file: edge-cases.bin
+  compressed_file: edge-cases.bin.pkt
+  decompressed_file: edge-cases.bin.pkt.depkt
+  metadata_file: metadata.json
