@@ -1,0 +1,35 @@
+{
+  "name": "simple",
+  "generated_at": "2025-12-03T01:53:42Z",
+  "input": {
+    "file": "simple.bin",
+    "size": 9000,
+    "md5": "2ec573b753ffe1defcd0085ac2b69c35",
+    "type": "synthetic"
+  },
+  "compression": {
+    "packet_length": 90,
+    "parameters": {
+      "pt": 10,
+      "ft": 20,
+      "rt": 50,
+      "robustness": 1
+    }
+  },
+  "output": {
+    "compressed": {
+      "file": "simple.bin.pkt",
+      "size": 643,
+      "md5": "0500628becb19ff0091be030006b59d4"
+    },
+    "decompressed": {
+      "file": "simple.bin.pkt.depkt",
+      "size": 9000,
+      "md5": "2ec573b753ffe1defcd0085ac2b69c35"
+    }
+  },
+  "results": {
+    "compression_ratio": 13.99,
+    "roundtrip_verified": true
+  }
+}

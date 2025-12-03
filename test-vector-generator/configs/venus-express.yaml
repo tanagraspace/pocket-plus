@@ -1,0 +1,40 @@
+# Venus Express ADCS Telemetry Test Vector
+# Real spacecraft data from ESA
+# Reference: 1028packets.ccsds (1 week's worth of ADCS packet ID 1028)
+
+name: venus-express
+description: |
+  Real spacecraft telemetry from Venus Express ADCS subsystem.
+  This is the gold standard test vector based on actual flight data.
+  Contains 1 week's worth of ADCS (Attitude Determination and Control System)
+  packets with identifier 1028, totaling 151,200 packets.
+
+# Input configuration
+input:
+  type: real_data
+  source: /workspace/input-data/1028packets.ccsds
+  packet_length: 90  # bytes
+  num_packets: 151200
+  expected_size: 13608000  # bytes (13.6 MB)
+  expected_md5: ac0ce25d660efa5ee18f92b71aa9a85d
+
+# Compression parameters (from actual OPS-SAT usage)
+compression:
+  packet_length: 90
+  pt: 20  # Tracking period
+  ft: 50  # Full mask transmission
+  rt: 100 # Full packet transmission
+  robustness: 2
+
+# Expected outcomes (based on OPS-SAT results)
+expected:
+  compression_ratio_min: 8.0
+  compression_ratio_max: 10.0
+  compression_ratio_typical: 9.0
+
+# Output configuration
+output:
+  dir: /workspace/output/vectors/venus-express
+  compressed_file: venus-express.ccsds.pkt
+  decompressed_file: venus-express.ccsds.pkt.depkt
+  metadata_file: metadata.json

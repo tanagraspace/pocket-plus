@@ -1,0 +1,9 @@
+# Ignore compiled binaries
+pocket_compress
+pocket_decompress
+*.o
+*.out
+
+# Ignore generated test data
+*.pkt
+*.depkt

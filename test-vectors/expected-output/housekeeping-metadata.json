@@ -1,0 +1,35 @@
+{
+  "name": "housekeeping",
+  "generated_at": "2025-12-03T01:53:43Z",
+  "input": {
+    "file": "housekeeping.bin",
+    "size": 900000,
+    "md5": "252aaf6ce87b68f07ce0ebff8de41883",
+    "type": "synthetic"
+  },
+  "compression": {
+    "packet_length": 90,
+    "parameters": {
+      "pt": 20,
+      "ft": 50,
+      "rt": 100,
+      "robustness": 2
+    }
+  },
+  "output": {
+    "compressed": {
+      "file": "housekeeping.bin.pkt",
+      "size": 223079,
+      "md5": "99303f132de0e45a1b7955fc6405bac9"
+    },
+    "decompressed": {
+      "file": "housekeeping.bin.pkt.depkt",
+      "size": 900000,
+      "md5": "252aaf6ce87b68f07ce0ebff8de41883"
+    }
+  },
+  "results": {
+    "compression_ratio": 4.03,
+    "roundtrip_verified": true
+  }
+}

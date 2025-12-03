@@ -1,0 +1,35 @@
+{
+  "name": "edge-cases",
+  "generated_at": "2025-12-03T01:53:44Z",
+  "input": {
+    "file": "edge-cases.bin",
+    "size": 45000,
+    "md5": "85b64defe358551d41296c9bf1eb93d2",
+    "type": "synthetic"
+  },
+  "compression": {
+    "packet_length": 90,
+    "parameters": {
+      "pt": 10,
+      "ft": 20,
+      "rt": 50,
+      "robustness": 1
+    }
+  },
+  "output": {
+    "compressed": {
+      "file": "edge-cases.bin.pkt",
+      "size": 10127,
+      "md5": "f644091aacb4de71a3327334777b0f35"
+    },
+    "decompressed": {
+      "file": "edge-cases.bin.pkt.depkt",
+      "size": 45000,
+      "md5": "85b64defe358551d41296c9bf1eb93d2"
+    }
+  },
+  "results": {
+    "compression_ratio": 4.44,
+    "roundtrip_verified": true
+  }
+}
