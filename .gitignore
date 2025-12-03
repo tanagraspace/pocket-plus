@@ -18,3 +18,11 @@ Thumbs.db
 # Temporary files
 *.tmp
 .temp/
+
+# Build artifacts
+test-vector-generator/c-reference/pocket_compress.dSYM/
+test-vector-generator/c-reference/pocket_decompress.dSYM/
+
+# Generated output files
+test-vectors/input/simple.bin.pkt
+test-vectors/input_90byte_100pkt.dat.pkt

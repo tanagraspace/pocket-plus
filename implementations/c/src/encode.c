@@ -112,6 +112,9 @@ int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
  * Note: Trailing zeros are not encoded (deducible from vector length)
  * ======================================================================== */
 
+/* Debug: Global packet counter (set by compress.c) */
+extern size_t g_debug_packet_num;
+
 int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
     if (output == NULL || input == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -149,9 +152,34 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
             /* Calculate delta (number of zeros + 1) */
             int delta = old_bit_position - new_bit_position;
 
+            /* Debug for packet 2 */
+            size_t bits_before = 0;
+            if (g_debug_packet_num == 2) {
+                fprintf(stderr, "[OUR-PKT2] RLE: word=%d bit_in_word=%d global_bit=%d delta=%d\n",
+                        word, bit_position_in_word, new_bit_position, delta);
+
+                /* Show output bits before encoding this delta */
+                bits_before = output->num_bits;
+                fprintf(stderr, "[OUR-PKT2] Output bits before COUNT(%d): %zu\n", delta, bits_before);
+            }
+
             /* Encode the count */
             int result = pocket_count_encode(output, (uint32_t)delta);
             if (result != POCKET_OK) return result;
+
+            /* Debug continued */
+            if (g_debug_packet_num == 2) {
+                size_t bits_after = output->num_bits;
+                size_t bits_added = bits_after - bits_before;
+                fprintf(stderr, "[OUR-PKT2] Output bits after COUNT(%d): %zu (added %zu bits)\n",
+                        delta, bits_after, bits_added);
+                fprintf(stderr, "[OUR-PKT2] Encoded bits: ");
+                for (size_t i = bits_before; i < bits_after; i++) {
+                    int bit = (output->data[i/8] >> (7 - (i%8))) & 1;
+                    fprintf(stderr, "%d", bit);
+                }
+                fprintf(stderr, "\n");
+            }
 
             /* Update old position for next iteration */
             old_bit_position = new_bit_position;
@@ -211,7 +239,9 @@ int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitve
         }
     }
 
-    /* Extract bits in reverse order (MSB to LSB as per CCSDS) */
+    /* Extract bits in reverse order (highest position to lowest)
+     * With MSB-first indexing, higher bit indices are closer to LSB
+     * CCSDS BE(a,b) extracts from highest to lowest position */
     for (size_t i = pos_count; i > 0; i--) {
         size_t pos = positions[i - 1];
         int bit = bitvector_get_bit(data, pos);

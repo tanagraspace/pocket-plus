@@ -112,11 +112,12 @@ int bitbuffer_append_bitvector(bitbuffer_t *bb, const bitvector_t *bv) {
             }
         }
 
-        /* Within this byte, append bits from MSB to LSB */
-        /* Bit positions within byte: 7 (MSB) down to 0 (LSB) */
+        /* With MSB-first bitvector indexing: bit 0 is MSB, bit 7 is LSB
+         * We want to append bits in order: MSB first, LSB last
+         * So we iterate through positions 0, 1, 2, ..., bits_in_this_byte-1 */
         size_t start_bit = byte_idx * 8;
-        for (size_t bit_offset = bits_in_this_byte; bit_offset > 0; bit_offset--) {
-            size_t pos = start_bit + (bit_offset - 1);
+        for (size_t bit_offset = 0; bit_offset < bits_in_this_byte; bit_offset++) {
+            size_t pos = start_bit + bit_offset;
             int bit = bitvector_get_bit(bv, pos);
 
             int result = bitbuffer_append_bit(bb, bit);

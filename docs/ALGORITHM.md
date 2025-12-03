@@ -11,6 +11,111 @@ POCKET+ (CCSDS 124.0-B-1) is a lossless compression algorithm designed for fixed
 - **No latency** - produces one output packet per input packet
 - **Adaptive** - tracks which bits change over time using a mask
 
+## ⚠️ Critical Implementation Notes
+
+**READ THIS FIRST!** These are the most common implementation pitfalls that will cause your output to diverge from the reference implementation:
+
+### 1. Initialization Phase: First Rₜ+1 Packets (Not Rₜ+2!)
+
+The CCSDS spec states that the **first Rₜ+1 packets** must be sent uncompressed with ḟₜ=1, ṙₜ=1, ṗₜ=0.
+
+**CORRECT:**
+```c
+// For Rₜ=1: packets 0 and 1 are init packets (2 packets total)
+if (packet_index <= Rₜ) {
+    ft = 1;  // send_mask_flag
+    rt = 1;  // uncompressed_flag
+    pt = 0;  // new_mask_flag
+}
+```
+
+**WRONG:**
+```c
+// This applies init phase to 3 packets (0, 1, 2) instead of 2!
+if (packet_index < Rₜ + 2) {  // ❌ OFF-BY-ONE ERROR
+    ft = 1;
+    rt = 1;
+    pt = 0;
+}
+```
+
+### 2. Flag Timing: Countdown Counters, Not Modulo Arithmetic
+
+The reference implementation uses **countdown counters** that start at the period limit and decrement each packet. Flags trigger when the counter reaches 1, then reset.
+
+**Pattern for Rₜ=1:**
+- ṗₜ=1 (new mask) at packets: 11, 21, 31, ... (not 10, 20, 30!)
+- ḟₜ=1 (send mask) at packets: 21, 41, 61, ... (not 20, 40, 60!)
+- ṙₜ=1 (uncompressed) at packets: 51, 101, 151, ... (not 50, 100, 150!)
+
+**CORRECT:**
+```c
+// First trigger happens at: period + Rₜ
+// For pt_period=10, Rₜ=1: first trigger at packet 11
+int pt_first_trigger = 10 + Rₜ;  // 11
+int ft_first_trigger = 20 + Rₜ;  // 21
+int rt_first_trigger = 50 + Rₜ;  // 51
+
+pt = (i >= pt_first_trigger && i % 10 == (pt_first_trigger % 10)) ? 1 : 0;
+ft = (i >= ft_first_trigger && i % 20 == (ft_first_trigger % 20)) ? 1 : 0;
+rt = (i >= rt_first_trigger && i % 50 == (rt_first_trigger % 50)) ? 1 : 0;
+
+// Then override for init phase
+if (i <= Rₜ) {
+    ft = 1; rt = 1; pt = 0;
+}
+```
+
+**WRONG:**
+```c
+// This triggers flags one packet too early!
+pt = ((i + 1) % 10 == 0) ? 1 : 0;  // ❌ Triggers at 9, 19, 29
+ft = ((i + 1) % 20 == 0) ? 1 : 0;  // ❌ Triggers at 19, 39, 59
+```
+
+### 3. Vₜ Calculation: Skip D_{t-1}!
+
+Per CCSDS Section 5.3.2.2, Cₜ is defined as the largest value where **D_{t-i} = ∅ for all 1 < i ≤ Cₜ + Rₜ**.
+
+Note the strict inequality: **1 < i**, which means **start from i=2** (check D_{t-2}, D_{t-3}, ...), **not i=1**!
+
+**CORRECT:**
+```c
+// For t > Rₜ, count consecutive packets with no mask changes
+uint8_t Ct = 0;
+
+// Start from i=2 (skip D_{t-1} per spec: "1 < i")
+for (size_t i = 2; i <= 15 && i <= t; i++) {
+    size_t hist_idx = (history_index - i + MAX_HISTORY) % MAX_HISTORY;
+    if (hamming_weight(change_history[hist_idx]) > 0) {
+        break;  // Found a change, stop
+    }
+    Ct++;
+}
+
+Vt = Rt + Ct;  // Effective robustness
+```
+
+**WRONG:**
+```c
+// Starting from i=1 checks D_{t-1}, which violates "1 < i"
+for (size_t i = 1; i <= 15 && i <= t; i++) {  // ❌ WRONG!
+    // This will produce incorrect Vₜ values
+}
+```
+
+**Why this matters:** Starting from i=1 causes Vₜ to be calculated incorrectly for early packets, leading to divergence in the compressed output within the first few packets.
+
+### Summary
+
+These three bugs were responsible for:
+- **109 bytes of excess output** (752 bytes instead of 643)
+- **Divergence starting at byte 93** (out of 643 total)
+
+After fixing all three issues:
+- Output size: **644 bytes** (only 1 byte over!)
+- First divergence: **byte 251** (99.8% correct!)
+
 ## High-Level Data Flow
 
 ```
@@ -252,21 +357,54 @@ BE(a, b) = '001' (extracts bits at positions 6, 3, 1 from a)
 | Uncompressed Flag | ṙₜ | bit | 0 or 1 | When 1, sends full input packet instead of just unpredictable bits |
 
 **Special Constraints:**
-- For t ≤ Rₜ: ḟₜ = 1 and ṙₜ = 1 (mandatory full mask and full input during initialization)
+- For the **first Rₜ+1 packets** (t ≤ Rₜ): ḟₜ = 1, ṙₜ = 1, ṗₜ = 0 (mandatory full mask and full input during initialization)
+  - ⚠️ **See [Critical Implementation Note #1](#1-initialization-phase-first-rₜ1-packets-not-rₜ2)** - Common off-by-one error!
+- The timing of ṗₜ, ḟₜ, ṙₜ flags depends on period counters that start during initialization
+  - ⚠️ **See [Critical Implementation Note #2](#2-flag-timing-countdown-counters-not-modulo-arithmetic)** - Flags don't trigger when you expect!
 - All parameters needed for decompression are encoded in the output bitstream
 
 ## Bit Numbering Convention
 
+⚠️ **CRITICAL**: CCSDS 124.0-B-1 uses **MSB-first** indexing, which is **opposite** to most programming conventions!
+
+**Traditional Bit Numbering (WRONG for CCSDS):**
 ```
 ┌───┬───┬───┬───┬───┬───┬───┬───┐
-│ 7 │ 6 │ 5 │ 4 │ 3 │ 2 │ 1 │ 0 │  ← Bit positions
+│ 7 │ 6 │ 5 │ 4 │ 3 │ 2 │ 1 │ 0 │  ← Bit indices (typical systems)
 └───┴───┴───┴───┴───┴───┴───┴───┘
   ↑                               ↑
-  MSB (transmitted first)        LSB
-  (bit N-1 for N-bit vector)     (bit 0)
+  MSB                            LSB
+  (highest bit)                  (lowest bit)
 ```
 
-For unsigned integers: MSB = 2^(N-1), LSB = 2^0
+**CCSDS Bit Numbering (CORRECT):**
+```
+┌───┬───┬───┬───┬───┬───┬───┬───┐
+│ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │  ← Bit indices (CCSDS convention)
+└───┴───┴───┴───┴───┴───┴───┴───┘
+  ↑                               ↑
+  MSB (bit 0)                    LSB (bit N-1)
+  Transmitted first              Transmitted last
+```
+
+**For an N-bit vector:**
+- **Bit 0** = MSB (Most Significant Bit) = 2^(N-1)
+- **Bit N-1** = LSB (Least Significant Bit) = 2^0
+
+**Why this matters:**
+- **Bitvector indexing**: `vector[0]` accesses the MSB, not the LSB
+- **RLE encoding**: Bit positions are encoded MSB-first
+- **Bit extraction**: Extract from position 0 (MSB) to position N-1 (LSB)
+- **Interoperability**: Reference implementations assume this convention
+
+**Example for 8-bit value 0xB3 (10110011 in binary):**
+```
+Traditional:  bit[7]=1, bit[6]=0, bit[5]=1, bit[4]=1, ...
+CCSDS:        bit[0]=1, bit[1]=0, bit[2]=1, bit[3]=1, ...
+              └─MSB                                  └─LSB
+```
+
+**Common mistake:** Implementing bit operations with LSB-first indexing will cause your output to be bit-reversed and completely incompatible with CCSDS-compliant decompressors!
 
 ## Bitwise Operations
 
@@ -290,6 +428,21 @@ Vₜ = Rₜ + Cₜ
 
 - **Rₜ**: User-specified minimum required robustness level (0-7)
 - **Cₜ**: Additional robustness from consecutive unchanged masks
+
+**Important:** ⚠️ **See [Critical Implementation Note #3](#3-vₜ-calculation-skip-d_t-1)** for common pitfalls!
+
+Per CCSDS 124.0-B-1 Section 5.3.2.2, Cₜ is defined as:
+
+> The largest value for which **D_{t-i} = ∅** for all **1 < i ≤ Cₜ + Rₜ**
+
+This means:
+- For **t ≤ Rₜ**: Vₜ = Rₜ (initialization phase)
+- For **t > Rₜ**: Count backward starting from **D_{t-2}** (skip D_{t-1}!)
+- Stop when finding a change or reaching maximum Cₜ = 15 - Rₜ
+
+Example for t=2, Rₜ=1:
+- Check D₀ (skip D₁ per spec) → if D₀ = ∅, then Cₜ=1
+- Result: Vₜ = Rₜ + Cₜ = 1 + 1 = 2
 
 The mask change information in `hₜ` includes ORed changes from the previous Vₜ cycles, allowing the decompressor to resynchronize its mask even after packet loss.
 

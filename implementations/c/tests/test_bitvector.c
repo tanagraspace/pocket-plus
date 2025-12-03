@@ -100,13 +100,13 @@ TEST(test_bitvector_get_set_bit) {
     bitvector_init(&bv, 8);
     bitvector_zero(&bv);
 
-    /* Set bit 0 (LSB) */
+    /* Set bit 0 (MSB of first byte in MSB-first indexing) */
     bitvector_set_bit(&bv, 0, 1);
     assert(bitvector_get_bit(&bv, 0) == 1);
-    /* With big-endian word packing, byte 0 is at bits 24-31 of word 0 */
-    assert(bv.data[0] == 0x01000000);
+    /* With big-endian word packing, byte 0 is at bits 24-31 of word 0, bit 0 is bit 31 */
+    assert(bv.data[0] == 0x80000000);
 
-    /* Set bit 7 (MSB of first byte) */
+    /* Set bit 7 (LSB of first byte) */
     bitvector_set_bit(&bv, 7, 1);
     assert(bitvector_get_bit(&bv, 7) == 1);
     assert(bv.data[0] == 0x81000000);
@@ -114,7 +114,7 @@ TEST(test_bitvector_get_set_bit) {
     /* Clear bit 0 */
     bitvector_set_bit(&bv, 0, 0);
     assert(bitvector_get_bit(&bv, 0) == 0);
-    assert(bv.data[0] == 0x80000000);
+    assert(bv.data[0] == 0x01000000);
 }
 
 TEST(test_bitvector_copy) {

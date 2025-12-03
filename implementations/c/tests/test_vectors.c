@@ -160,74 +160,150 @@ TEST(test_vector_simple) {
     const uint8_t robustness = 1;
     const int num_packets = input_size / 90;
 
+    /* Packet boundary mode:
+     * 0 = Bit-level continuity (CCSDS compliant, no padding)
+     * 1 = Byte-boundary padding (matches reference implementation) */
+    const int byte_boundary_padding = 1;
+
     printf("    Processing %d packets of %zu bits each\n", num_packets, packet_length);
+    printf("    Boundary mode: %s\n",
+           byte_boundary_padding ? "byte-boundary padding" : "bit-level continuity");
 
     pocket_compressor_t comp;
     int result = pocket_compressor_init(&comp, packet_length, NULL, robustness);
     assert(result == POCKET_OK);
 
-    /* Compress all packets */
+    /* Combined output buffer */
     uint8_t actual_output[10000];
     size_t actual_size = 0;
+    bitbuffer_t combined_bitbuffer;
 
-    /* Track packet sizes for debugging */
-    size_t packet_sizes[100];
+    if (byte_boundary_padding) {
+        /* Byte-boundary mode: each packet padded to byte boundary */
+        /* Use byte-based accumulation */
+    } else {
+        /* Bit-level continuity: continuous bit stream */
+        bitbuffer_init(&combined_bitbuffer);
+    }
 
     for (int i = 0; i < num_packets; i++) {
         bitvector_t input;
-        bitbuffer_t output;
+        bitbuffer_t packet_output;
 
         bitvector_init(&input, packet_length);
-        bitbuffer_init(&output);
+        bitbuffer_init(&packet_output);
 
         /* Load packet data */
         bitvector_from_bytes(&input, &input_data[i * 90], 90);
 
-        /* Set parameters according to test vector periods */
+        /* Set parameters according to test vector periods
+         * Reference uses countdown counters that trigger AFTER init phase:
+         * - pt=1 at packets: (pt_limit + robustness + 1) + k*pt_limit
+         * - ft=1 at packets: (ft_limit + robustness + 1) + k*ft_limit
+         * - rt=1 at packets: (rt_limit + robustness + 1) + k*rt_limit
+         * For robustness=1, pt_limit=10, ft_limit=20, rt_limit=50:
+         * - pt=1 at i: 11, 21, 31, ... (i % 10 == 1, i >= 11)
+         * - ft=1 at i: 21, 41, 61, ... (i % 20 == 1, i >= 21)
+         * - rt=1 at i: 51, 101, 151, ... (i % 50 == 1, i >= 51)
+         */
         pocket_params_t params;
         params.min_robustness = robustness;
-        params.new_mask_flag = ((i + 1) % 10 == 0) ? 1 : 0;  /* pt=10 */
-        params.send_mask_flag = ((i + 1) % 20 == 0) ? 1 : 0; /* ft=20 */
-        params.uncompressed_flag = ((i + 1) % 50 == 0) ? 1 : 0; /* rt=50 */
 
-        /* CCSDS requirement: Force ft=1, rt=1, pt=0 for first Rt+1 packets */
-        if (i < robustness + 1) {
+        /* Countdown starts at limit, decrements for (Rt+2) init packets, then continues
+         * Trigger happens when counter reaches 1, which is after (limit-1) decrements
+         * First trigger = (Rt+2) + (limit-1 - (Rt+2)) = limit-1 packets after init
+         * Actually: First trigger at packet: limit + (Rt+2) - 1 = limit + Rt + 1
+         * For Rt=1: pt first at 10+1+1-1=11, ft first at 20+1+1-1=21
+         * Wait, that's still 11... let me recalculate */
+        const int pt_first_trigger = 10 + robustness;      /* 11 for Rt=1 */
+        const int ft_first_trigger = 20 + robustness;      /* 21 for Rt=1 */
+        const int rt_first_trigger = 50 + robustness;      /* 51 for Rt=1 */
+
+        params.new_mask_flag = (i >= pt_first_trigger && i % 10 == (pt_first_trigger % 10)) ? 1 : 0;
+        params.send_mask_flag = (i >= ft_first_trigger && i % 20 == (ft_first_trigger % 20)) ? 1 : 0;
+        params.uncompressed_flag = (i >= rt_first_trigger && i % 50 == (rt_first_trigger % 50)) ? 1 : 0;
+
+        /* CCSDS requirement: Force ft=1, rt=1, pt=0 for first Rt+1 packets
+         * For Rt=1: first 2 packets (i=0, 1) */
+        if (i <= robustness) {
             params.send_mask_flag = 1;
             params.uncompressed_flag = 1;
             params.new_mask_flag = 0;
         }
 
+        /* Debug flag calculation for packets 10, 11, 20, 21 */
+        if (i == 10 || i == 11 || i == 20 || i == 21) {
+            printf("    DEBUG packet %d: pt_first_trigger=%d, i%%10=%d, trigger%%10=%d, pt=%d\n",
+                   i, pt_first_trigger, i % 10, pt_first_trigger % 10, params.new_mask_flag);
+            printf("    DEBUG packet %d: ft_first_trigger=%d, i%%20=%d, trigger%%20=%d, ft=%d\n",
+                   i, ft_first_trigger, i % 20, ft_first_trigger % 20, params.send_mask_flag);
+        }
+
         /* Compress packet */
-        result = pocket_compress_packet(&comp, &input, &output, &params);
+        result = pocket_compress_packet(&comp, &input, &packet_output, &params);
         assert(result == POCKET_OK);
 
-        /* Append to output buffer */
-        size_t packet_bytes = bitbuffer_to_bytes(&output,
-                                                 &actual_output[actual_size],
-                                                 sizeof(actual_output) - actual_size);
-        packet_sizes[i] = packet_bytes;
-        actual_size += packet_bytes;
+        if (byte_boundary_padding) {
+            /* Convert packet to bytes (pads to byte boundary) */
+            uint8_t packet_bytes[2000];
+            size_t packet_size = bitbuffer_to_bytes(&packet_output, packet_bytes, sizeof(packet_bytes));
 
-        /* Debug first few packets */
-        if (i < 5) {
-            printf("    Packet %d: %zu bits = %zu bytes (ft=%d, rt=%d, pt=%d)\n",
-                   i, output.num_bits, packet_bytes, params.send_mask_flag,
-                   params.uncompressed_flag, params.new_mask_flag);
+            /* Append to output */
+            memcpy(actual_output + actual_size, packet_bytes, packet_size);
+            actual_size += packet_size;
 
-            /* Show first bytes of packet for detailed debugging */
-            if (i >= 1 && i <= 3) {
-                printf("      First %zu bytes (got):      ", packet_bytes < 16 ? packet_bytes : 16);
-                size_t show_bytes = (packet_bytes < 16) ? packet_bytes : 16;
-                for (size_t j = 0; j < show_bytes; j++) {
-                    printf("%02X ", actual_output[actual_size - packet_bytes + j]);
+            /* Debug first few packets */
+            if (i < 25) {
+                printf("    Packet %d: %zu bits = %zu bytes (ft=%d, rt=%d, pt=%d), total_bytes=%zu\n",
+                       i, packet_output.num_bits, packet_size, params.send_mask_flag,
+                       params.uncompressed_flag, params.new_mask_flag, actual_size);
+                if (i < 2 || i == 20) {
+                    printf("      All %zu bytes: ", packet_size);
+                    for (size_t b = 0; b < packet_size && b < 10; b++) {
+                        printf("%02X ", packet_bytes[b]);
+                    }
+                    printf("\n");
                 }
-                printf("\n");
+            }
+        } else {
+            /* Bit-level continuity: append bits directly */
+            size_t before_append = combined_bitbuffer.num_bits;
+
+            for (size_t bit = 0; bit < packet_output.num_bits; bit++) {
+                int bit_value = (packet_output.data[bit / 8] >> (7 - (bit % 8))) & 1;
+                bitbuffer_append_bit(&combined_bitbuffer, bit_value);
+            }
+
+            /* Debug first few packets */
+            if (i < 2) {
+                printf("    Packet %d: %zu bits (ft=%d, rt=%d, pt=%d)\n",
+                       i, packet_output.num_bits, params.send_mask_flag,
+                       params.uncompressed_flag, params.new_mask_flag);
+                printf("      Combined buffer: %zu bits before, %zu bits after\n",
+                       before_append, combined_bitbuffer.num_bits);
+                printf("      Packet first byte: 0x%02X, Combined byte %zu: 0x%02X\n",
+                       packet_output.data[0],
+                       before_append / 8,
+                       combined_bitbuffer.data[before_append / 8]);
             }
         }
     }
 
-    printf("    Compressed to %zu bytes (ratio: %.2fx)\n",
-           actual_size, (float)input_size / actual_size);
+    /* Finalize output based on mode */
+    if (!byte_boundary_padding) {
+        actual_size = bitbuffer_to_bytes(&combined_bitbuffer, actual_output, sizeof(actual_output));
+    }
+
+    size_t total_bits = byte_boundary_padding ? (actual_size * 8) : combined_bitbuffer.num_bits;
+    printf("    Compressed to %zu bits = %zu bytes (ratio: %.2fx)\n",
+           total_bits, actual_size, (float)input_size / actual_size);
+
+    /* Save our output to /tmp for comparison */
+    FILE *out_fp = fopen("/tmp/our_output.bin", "wb");
+    if (out_fp) {
+        fwrite(actual_output, 1, actual_size, out_fp);
+        fclose(out_fp);
+    }
 
     /* Debug: Find first byte where outputs diverge */
     size_t first_diff = 0;

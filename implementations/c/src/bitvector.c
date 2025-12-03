@@ -91,8 +91,9 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     size_t word_index = byte_index / 4;
     size_t byte_in_word = byte_index % 4;
 
-    /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc. */
-    size_t bit_in_word = (3 - byte_in_word) * 8 + bit_in_byte;
+    /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
+     * Within each byte, bit 0 is the MSB (leftmost), so we reverse bit_in_byte */
+    size_t bit_in_word = (3 - byte_in_word) * 8 + (7 - bit_in_byte);
 
     return (bv->data[word_index] >> bit_in_word) & 1;
 }
@@ -110,8 +111,9 @@ void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
     size_t word_index = byte_index / 4;
     size_t byte_in_word = byte_index % 4;
 
-    /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc. */
-    size_t bit_in_word = (3 - byte_in_word) * 8 + bit_in_byte;
+    /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
+     * Within each byte, bit 0 is the MSB (leftmost), so we reverse bit_in_byte */
+    size_t bit_in_word = (3 - byte_in_word) * 8 + (7 - bit_in_byte);
 
     if (value) {
         /* Set bit to 1 */
@@ -209,6 +211,12 @@ void bitvector_not(bitvector_t *result, const bitvector_t *a) {
     result->num_words = a->num_words;
 }
 
+/**
+ * Left shift by 1 bit (inserts 0 at LSB): result = a << 1
+ * With MSB-first indexing: shifts towards lower bit indices (towards MSB)
+ * Example: 10110011 << 1 = 01100110
+ * Bit 0 (MSB) receives bit from bit 1, LSB (bit N-1) becomes 0
+ */
 void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     if (result == NULL || a == NULL) {
         return;
@@ -218,12 +226,14 @@ void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     result->length = a->length;
     result->num_words = a->num_words;
 
-    /* Shift each bit left by 1 position */
-    for (size_t i = a->length - 1; i > 0; i--) {
-        int bit = bitvector_get_bit(a, i - 1);
+    /* MSB-first: left shift means shift towards MSB (lower indices)
+     * Bit 0 → MSB, Bit N-1 → LSB
+     * Left shift: move all bits one position towards MSB, insert 0 at LSB */
+    for (size_t i = 0; i < a->length - 1; i++) {
+        int bit = bitvector_get_bit(a, i + 1);
         bitvector_set_bit(result, i, bit);
     }
-    /* Bit 0 (LSB) is always 0 after left shift */
+    bitvector_set_bit(result, a->length - 1, 0);  /* Clear LSB */
 }
 
 void bitvector_reverse(bitvector_t *result, const bitvector_t *a) {
