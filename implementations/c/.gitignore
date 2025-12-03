@@ -1,0 +1,8 @@
+# Build artifacts
+build/
+*.o
+*.a
+test_vectors
+compress_test
+*_test
+*.dSYM

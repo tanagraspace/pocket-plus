@@ -1,8 +1,8 @@
 # POCKET+ C Implementation Makefile
 
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -Iinclude
-LDFLAGS =
+CFLAGS = -Wall -Wextra -std=c99 -Iinclude -pedantic -Werror
+LDFLAGS = -lm
 
 SRC_DIR = src
 INCLUDE_DIR = include

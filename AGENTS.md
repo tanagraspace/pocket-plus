@@ -10,11 +10,12 @@ POCKET+ is a multi-language implementation of the CCSDS 124.0-B-1 lossless compr
 
 ```
 pocket-plus/
-├── c/          # C implementation
-├── python/     # Python implementation
-├── go/         # Go implementation
-├── docs/       # Shared documentation
-└── test-vectors/  # Shared test data
+├── implementations/
+│   ├── c/          # C implementation
+│   ├── python/     # Python implementation
+│   └── go/         # Go implementation
+├── docs/           # Shared documentation
+└── test-vectors/   # Shared test data
 ```
 
 ## Key Principles
@@ -29,10 +30,9 @@ pocket-plus/
 - Use **prefixed git tags**: `c/vX.Y.Z`, `python/vX.Y.Z`, `go/vX.Y.Z`
 - Follow [Semantic Versioning](https://semver.org/)
 - Update version in language-specific files:
-  - C: `c/VERSION` and `c/include/pocket_plus.h`
-  - Python: `python/pyproject.toml` and `python/pocket_plus/__init__.py`
+  - C: `implementations/c/VERSION` and `implementations/c/include/pocket_plus.h`
+  - Python: `implementations/python/pyproject.toml` and `implementations/python/pocket_plus/__init__.py`
   - Go: Git tag (Go uses tags directly)
-- Maintain `CHANGELOG.md` in each implementation directory
 
 ## Commit Conventions
 
@@ -61,7 +61,7 @@ python: fix decompression bug
 - Minimize dynamic memory allocation
 - Use fixed-size integer types (`uint8_t`, etc.)
 - Provide clear error codes
-- Test with Makefile: `cd c && make test`
+- Test with Makefile: `cd implementations/c && make test`
 
 ### Python Implementation
 - Include type hints for all public APIs

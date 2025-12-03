@@ -14,9 +14,10 @@ This monorepo contains implementations in multiple programming languages:
 
 ```
 pocket-plus/
-├── c/                  # C implementation
-├── python/             # Python implementation
-├── go/                 # Go implementation
+├── implementations/
+│   ├── c/              # C implementation
+│   ├── python/         # Python implementation
+│   └── go/             # Go implementation
 ├── docs/               # Shared documentation
 ├── test-vectors/       # Shared test data for validation
 ├── LICENSE
@@ -29,32 +30,32 @@ pocket-plus/
 
 **Version**: 0.1.0
 **Status**: In development
-**Location**: [`c/`](c/)
+**Location**: [`implementations/c/`](implementations/c/)
 
-Optimized for embedded systems and spacecraft processors. See [c/README.md](c/README.md) for details.
+Optimized for embedded systems and spacecraft processors. See [implementations/c/README.md](implementations/c/README.md) for details.
 
 ### Python Implementation
 
 **Version**: 0.1.0
 **Status**: In development
-**Location**: [`python/`](python/)
+**Location**: [`implementations/python/`](implementations/python/)
 
-High-level implementation with type hints and comprehensive testing. See [python/README.md](python/README.md) for details.
+High-level implementation with type hints and comprehensive testing. See [implementations/python/README.md](implementations/python/README.md) for details.
 
 ### Go Implementation
 
 **Version**: 0.1.0
 **Status**: In development
-**Location**: [`go/`](go/)
+**Location**: [`implementations/go/`](implementations/go/)
 
-Idiomatic Go implementation with streaming and buffer-based APIs. See [go/README.md](go/README.md) for details.
+Idiomatic Go implementation with streaming and buffer-based APIs. See [implementations/go/README.md](implementations/go/README.md) for details.
 
 ## Quick Start
 
 ### C
 
 ```bash
-cd c
+cd implementations/c
 make
 make test
 ```
@@ -62,7 +63,7 @@ make test
 ### Python
 
 ```bash
-cd python
+cd implementations/python
 pip install -e ".[dev]"
 pytest
 ```
@@ -70,7 +71,7 @@ pytest
 ### Go
 
 ```bash
-cd go
+cd implementations/go
 go test ./...
 ```
 
@@ -94,9 +95,9 @@ To release a new version of an implementation:
 
 ```bash
 # Example: releasing Python v1.0.0
-cd python
+cd implementations/python
 # Update version in pyproject.toml
-git add pyproject.toml CHANGELOG.md
+git add pyproject.toml
 git commit -m "python: release v1.0.0"
 git tag python/v1.0.0
 git push origin python/v1.0.0
