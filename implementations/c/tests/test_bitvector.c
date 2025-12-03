@@ -103,18 +103,18 @@ TEST(test_bitvector_get_set_bit) {
     /* Set bit 0 (LSB) */
     bitvector_set_bit(&bv, 0, 1);
     assert(bitvector_get_bit(&bv, 0) == 1);
-    /* With little-endian word packing, byte 0 is at bits 0-7 of word 0 */
-    assert(bv.data[0] == 0x00000001);
+    /* With big-endian word packing, byte 0 is at bits 24-31 of word 0 */
+    assert(bv.data[0] == 0x01000000);
 
     /* Set bit 7 (MSB of first byte) */
     bitvector_set_bit(&bv, 7, 1);
     assert(bitvector_get_bit(&bv, 7) == 1);
-    assert(bv.data[0] == 0x00000081);
+    assert(bv.data[0] == 0x81000000);
 
     /* Clear bit 0 */
     bitvector_set_bit(&bv, 0, 0);
     assert(bitvector_get_bit(&bv, 0) == 0);
-    assert(bv.data[0] == 0x00000080);
+    assert(bv.data[0] == 0x80000000);
 }
 
 TEST(test_bitvector_copy) {
@@ -144,7 +144,7 @@ TEST(test_bitvector_xor) {
 
     bitvector_xor(&result, &a, &b);
 
-    assert(result.data[0] == 0x00000079);  /* 01111001 */
+    assert(result.data[0] == 0x79000000);  /* 01111001 */
 }
 
 TEST(test_bitvector_or) {
@@ -158,7 +158,7 @@ TEST(test_bitvector_or) {
 
     bitvector_or(&result, &a, &b);
 
-    assert(result.data[0] == 0x000000FB);  /* 11111011 */
+    assert(result.data[0] == 0xFB000000);  /* 11111011 */
 }
 
 TEST(test_bitvector_and) {
@@ -172,7 +172,7 @@ TEST(test_bitvector_and) {
 
     bitvector_and(&result, &a, &b);
 
-    assert(result.data[0] == 0x00000082);  /* 10000010 */
+    assert(result.data[0] == 0x82000000);  /* 10000010 */
 }
 
 TEST(test_bitvector_not) {
@@ -184,7 +184,7 @@ TEST(test_bitvector_not) {
 
     bitvector_not(&result, &a);
 
-    assert(result.data[0] == 0x0000004C);  /* 01001100 in byte 0 */
+    assert(result.data[0] == 0x4C000000);  /* 01001100 in byte 0 */
 }
 
 /* ========================================================================
@@ -201,7 +201,7 @@ TEST(test_bitvector_left_shift) {
     bitvector_left_shift(&result, &a);
 
     /* Shift left by 1, insert 0 at LSB: 01100110 */
-    assert(result.data[0] == 0x00000066);
+    assert(result.data[0] == 0x66000000);
 }
 
 TEST(test_bitvector_reverse) {
@@ -214,7 +214,7 @@ TEST(test_bitvector_reverse) {
     bitvector_reverse(&result, &a);
 
     /* Reversed: 11001101 */
-    assert(result.data[0] == 0x000000CD);
+    assert(result.data[0] == 0xCD000000);
 }
 
 /* ========================================================================
@@ -236,12 +236,12 @@ TEST(test_bitvector_equals) {
     bitvector_init(&a, 8);
     bitvector_init(&b, 8);
 
-    a.data[0] = 0x000000AB;
-    b.data[0] = 0x000000AB;
+    a.data[0] = 0xAB000000;
+    b.data[0] = 0xAB000000;
 
     assert(bitvector_equals(&a, &b) == 1);
 
-    b.data[0] = 0x000000CD;
+    b.data[0] = 0xCD000000;
     assert(bitvector_equals(&a, &b) == 0);
 }
 
@@ -258,7 +258,7 @@ TEST(test_bitvector_from_bytes) {
 
     assert(result == POCKET_OK);
     /* Big-endian packing: word[0] = (byte[0] << 24) | (byte[1] << 16) */
-    assert(bv.data[0] == 0x0000CDAB);
+    assert(bv.data[0] == 0xABCD0000);
 }
 
 TEST(test_bitvector_to_bytes) {
@@ -266,7 +266,7 @@ TEST(test_bitvector_to_bytes) {
     bitvector_init(&bv, 16);
 
     /* Set word with big-endian packing: bytes {0xAB, 0xCD} */
-    bv.data[0] = 0x0000CDAB;
+    bv.data[0] = 0xABCD0000;
 
     uint8_t bytes[2];
     int result = bitvector_to_bytes(&bv, bytes, 2);
