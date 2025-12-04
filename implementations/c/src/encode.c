@@ -152,15 +152,16 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
             /* Calculate delta (number of zeros + 1) */
             int delta = old_bit_position - new_bit_position;
 
-            /* Debug for packet 2 */
+            /* Debug for packets 2 and 40 */
             size_t bits_before = 0;
-            if (g_debug_packet_num == 2) {
-                fprintf(stderr, "[OUR-PKT2] RLE: word=%d bit_in_word=%d global_bit=%d delta=%d\n",
-                        word, bit_position_in_word, new_bit_position, delta);
+            if (g_debug_packet_num == 2 || g_debug_packet_num == 40) {
+                fprintf(stderr, "[PKT%zu] RLE: word=%d bit_in_word=%d global_bit=%d delta=%d\n",
+                        g_debug_packet_num, word, bit_position_in_word, new_bit_position, delta);
 
                 /* Show output bits before encoding this delta */
                 bits_before = output->num_bits;
-                fprintf(stderr, "[OUR-PKT2] Output bits before COUNT(%d): %zu\n", delta, bits_before);
+                fprintf(stderr, "[PKT%zu] Output bits before COUNT(%d): %zu\n",
+                        g_debug_packet_num, delta, bits_before);
             }
 
             /* Encode the count */
@@ -168,12 +169,12 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
             if (result != POCKET_OK) return result;
 
             /* Debug continued */
-            if (g_debug_packet_num == 2) {
+            if (g_debug_packet_num == 2 || g_debug_packet_num == 40) {
                 size_t bits_after = output->num_bits;
                 size_t bits_added = bits_after - bits_before;
-                fprintf(stderr, "[OUR-PKT2] Output bits after COUNT(%d): %zu (added %zu bits)\n",
-                        delta, bits_after, bits_added);
-                fprintf(stderr, "[OUR-PKT2] Encoded bits: ");
+                fprintf(stderr, "[PKT%zu] Output bits after COUNT(%d): %zu (added %zu bits)\n",
+                        g_debug_packet_num, delta, bits_after, bits_added);
+                fprintf(stderr, "[PKT%zu] Encoded bits: ", g_debug_packet_num);
                 for (size_t i = bits_before; i < bits_after; i++) {
                     int bit = (output->data[i/8] >> (7 - (i%8))) & 1;
                     fprintf(stderr, "%d", bit);
@@ -253,6 +254,51 @@ int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitve
      * CCSDS BE(a,b) extracts from highest to lowest position */
     for (size_t i = pos_count; i > 0; i--) {
         size_t pos = positions[i - 1];
+        int bit = bitvector_get_bit(data, pos);
+
+        int result = bitbuffer_append_bit(output, bit);
+        if (result != POCKET_OK) return result;
+    }
+
+    return POCKET_OK;
+}
+
+/**
+ * Extract bits from 'data' at positions marked by '1' in 'mask', in FORWARD order.
+ * Used for kt component encoding.
+ * Forward order: processes positions from lowest to highest index.
+ */
+int pocket_bit_extract_forward(bitbuffer_t *output, const bitvector_t *data, const bitvector_t *mask) {
+    if (output == NULL || data == NULL || mask == NULL) {
+        return POCKET_ERROR_INVALID_ARG;
+    }
+
+    if (data->length != mask->length) {
+        return POCKET_ERROR_INVALID_ARG;
+    }
+
+    size_t hamming_weight = bitvector_hamming_weight(mask);
+
+    if (hamming_weight == 0) {
+        /* No bits to extract */
+        return POCKET_OK;
+    }
+
+    /* Collect positions of '1' bits in mask */
+    size_t positions[POCKET_MAX_PACKET_LENGTH];
+    size_t pos_count = 0;
+
+    for (size_t i = 0; i < mask->length && pos_count < hamming_weight; i++) {
+        if (bitvector_get_bit(mask, i)) {
+            positions[pos_count++] = i;
+        }
+    }
+
+    /* Extract bits in FORWARD order (lowest position to highest)
+     * For kt component: processes mask values at changed positions
+     * in order from lowest position index to highest */
+    for (size_t i = 0; i < pos_count; i++) {
+        size_t pos = positions[i];
         int bit = bitvector_get_bit(data, pos);
 
         int result = bitbuffer_append_bit(output, bit);

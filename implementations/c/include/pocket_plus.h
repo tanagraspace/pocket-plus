@@ -268,6 +268,16 @@ int pocket_bit_extract(
     const bitvector_t *mask
 );
 
+/**
+ * Extract bits in forward order (lowest position to highest).
+ * Used for kt component encoding.
+ */
+int pocket_bit_extract_forward(
+    bitbuffer_t *output,
+    const bitvector_t *data,
+    const bitvector_t *mask
+);
+
 /* ========================================================================
  * Compression API (CCSDS Section 5.3)
  * ======================================================================== */

@@ -264,14 +264,14 @@ TEST(test_vector_simple) {
             memcpy(actual_output + actual_size, packet_bytes, packet_size);
             actual_size += packet_size;
 
-            /* Debug all packets until we pass byte 300 */
-            if (actual_size <= 300) {
+            /* Debug all packets until we pass byte 330 */
+            if (actual_size <= 330) {
                 printf("    Packet %d: %zu bits = %zu bytes (ft=%d, rt=%d, pt=%d), total_bytes=%zu\n",
                        i, packet_output.num_bits, packet_size, params.send_mask_flag,
                        params.uncompressed_flag, params.new_mask_flag, actual_size);
-                if (i < 2 || i == 20 || i == 30) {
+                if (i < 2 || i == 20 || i == 30 || i == 40) {
                     printf("      All %zu bytes: ", packet_size);
-                    for (size_t b = 0; b < packet_size && b < 10; b++) {
+                    for (size_t b = 0; b < packet_size; b++) {
                         printf("%02X ", packet_bytes[b]);
                     }
                     printf("\n");

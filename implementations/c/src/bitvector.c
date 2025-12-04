@@ -92,7 +92,8 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     size_t byte_in_word = byte_index % 4;
 
     /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-     * Within each byte, bit 0 is the MSB (leftmost), so we reverse bit_in_byte */
+     * MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
+     * This matches the reference implementation */
     size_t bit_in_word = (3 - byte_in_word) * 8 + (7 - bit_in_byte);
 
     return (bv->data[word_index] >> bit_in_word) & 1;
@@ -112,7 +113,8 @@ void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
     size_t byte_in_word = byte_index % 4;
 
     /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-     * Within each byte, bit 0 is the MSB (leftmost), so we reverse bit_in_byte */
+     * MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
+     * This matches the reference implementation */
     size_t bit_in_word = (3 - byte_in_word) * 8 + (7 - bit_in_byte);
 
     if (value) {
