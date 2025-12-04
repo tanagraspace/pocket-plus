@@ -51,7 +51,7 @@ static int tests_passed = 0;
 TEST(test_compressor_init_valid) {
     pocket_compressor_t comp;
 
-    int result = pocket_compressor_init(&comp, 8, NULL, 0);
+    int result = pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);
 
     assert(result == POCKET_OK);
     assert(comp.F == 8);
@@ -67,7 +67,7 @@ TEST(test_compressor_init_with_initial_mask) {
     bitvector_init(&initial_mask, 8);
     initial_mask.data[0] = 0x0F000000;  /* Some initial mask */
 
-    int result = pocket_compressor_init(&comp, 8, &initial_mask, 1);
+    int result = pocket_compressor_init(&comp, 8, &initial_mask, 1, 0, 0, 0);
 
     assert(result == POCKET_OK);
     assert(comp.F == 8);
@@ -80,11 +80,11 @@ TEST(test_compressor_init_invalid_length) {
     pocket_compressor_t comp;
 
     /* F = 0 should fail */
-    int result = pocket_compressor_init(&comp, 0, NULL, 0);
+    int result = pocket_compressor_init(&comp, 0, NULL, 0, 0, 0, 0);
     assert(result == POCKET_ERROR_INVALID_ARG);
 
     /* F > max should fail */
-    result = pocket_compressor_init(&comp, POCKET_MAX_PACKET_LENGTH + 1, NULL, 0);
+    result = pocket_compressor_init(&comp, POCKET_MAX_PACKET_LENGTH + 1, NULL, 0, 0, 0, 0);
     assert(result == POCKET_ERROR_INVALID_ARG);
 }
 
@@ -92,7 +92,7 @@ TEST(test_compressor_init_invalid_robustness) {
     pocket_compressor_t comp;
 
     /* Robustness > 7 should fail */
-    int result = pocket_compressor_init(&comp, 8, NULL, 8);
+    int result = pocket_compressor_init(&comp, 8, NULL, 8, 0, 0, 0);
     assert(result == POCKET_ERROR_INVALID_ARG);
 }
 
@@ -102,7 +102,7 @@ TEST(test_compressor_reset) {
     bitbuffer_t output;
 
     /* Initialize and compress one packet */
-    pocket_compressor_init(&comp, 8, NULL, 0);
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);
     bitvector_init(&input, 8);
     input.data[0] = 0xAA000000;
     bitbuffer_init(&output);
@@ -132,7 +132,7 @@ TEST(test_compress_first_packet) {
     bitbuffer_t output;
     pocket_params_t params;
 
-    pocket_compressor_init(&comp, 8, NULL, 0);
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);
     bitvector_init(&input, 8);
     bitbuffer_init(&output);
 
@@ -158,7 +158,7 @@ TEST(test_compress_two_identical_packets) {
     bitbuffer_t output1, output2;
     pocket_params_t params;
 
-    pocket_compressor_init(&comp, 8, NULL, 0);
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);
     bitvector_init(&input, 8);
     input.data[0] = 0xCC000000;
 
@@ -188,7 +188,7 @@ TEST(test_compress_with_change) {
     bitbuffer_t output;
     pocket_params_t params;
 
-    pocket_compressor_init(&comp, 8, NULL, 0);
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);
     bitvector_init(&input1, 8);
     bitvector_init(&input2, 8);
     bitbuffer_init(&output);
@@ -218,7 +218,7 @@ TEST(test_compress_null_params) {
     bitvector_t input;
     bitbuffer_t output;
 
-    pocket_compressor_init(&comp, 8, NULL, 0);
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);
     bitvector_init(&input, 8);
     bitbuffer_init(&output);
     input.data[0] = 0xFF000000;
@@ -234,7 +234,7 @@ TEST(test_compress_invalid_input) {
     bitvector_t input;
     bitbuffer_t output;
 
-    pocket_compressor_init(&comp, 8, NULL, 0);
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);
     bitvector_init(&input, 16);  /* Wrong length! */
     bitbuffer_init(&output);
 
@@ -253,7 +253,7 @@ TEST(test_compute_robustness_window_rt_zero) {
     pocket_compressor_t comp;
     bitvector_t Dt, Xt, expected;
 
-    pocket_compressor_init(&comp, 8, NULL, 0);  /* Rₜ = 0 */
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);  /* Rₜ = 0 */
     bitvector_init(&Dt, 8);
     bitvector_init(&Xt, 8);
     bitvector_init(&expected, 8);
@@ -276,7 +276,7 @@ TEST(test_compute_robustness_window_with_history) {
     bitbuffer_t output;
     pocket_params_t params = {0};
 
-    pocket_compressor_init(&comp, 8, NULL, 1);  /* Rₜ = 1 */
+    pocket_compressor_init(&comp, 8, NULL, 1, 0, 0, 0);  /* Rₜ = 1 */
     bitvector_init(&input1, 8);
     bitvector_init(&input2, 8);
     bitvector_init(&Xt, 8);
@@ -313,7 +313,7 @@ TEST(test_compute_effective_robustness_base_case) {
     pocket_compressor_t comp;
     bitvector_t Dt;
 
-    pocket_compressor_init(&comp, 8, NULL, 2);  /* Rₜ = 2 */
+    pocket_compressor_init(&comp, 8, NULL, 2, 0, 0, 0);  /* Rₜ = 2 */
     bitvector_init(&Dt, 8);
 
     /* Dₜ has changes */
@@ -331,7 +331,7 @@ TEST(test_compute_effective_robustness_with_no_changes) {
     bitbuffer_t output;
     pocket_params_t params = {0};
 
-    pocket_compressor_init(&comp, 8, NULL, 1);  /* Rₜ = 1 */
+    pocket_compressor_init(&comp, 8, NULL, 1, 0, 0, 0);  /* Rₜ = 1 */
     bitvector_init(&input, 8);
     bitvector_init(&Dt, 8);
     bitbuffer_init(&output);
@@ -410,7 +410,7 @@ TEST(test_compute_ct_flag_single_update) {
     /* Test cₜ = 0 when new_mask_flag set only once */
     pocket_compressor_t comp;
 
-    pocket_compressor_init(&comp, 8, NULL, 1);
+    pocket_compressor_init(&comp, 8, NULL, 1, 0, 0, 0);
 
     /* Simulate one new_mask_flag set at t=0 */
     comp.new_mask_flag_history[0] = 1;
@@ -430,7 +430,7 @@ TEST(test_compute_ct_flag_multiple_updates) {
     /* Test cₜ = 1 when new_mask_flag set 2+ times */
     pocket_compressor_t comp;
 
-    pocket_compressor_init(&comp, 8, NULL, 1);
+    pocket_compressor_init(&comp, 8, NULL, 1, 0, 0, 0);
 
     /* Simulate two new_mask_flag sets */
     comp.new_mask_flag_history[0] = 1;
@@ -459,7 +459,7 @@ TEST(test_robustness_window_rt_zero) {
     bitbuffer_t output;
     pocket_params_t params = {0};
 
-    pocket_compressor_init(&comp, 8, NULL, 0);  /* Rₜ = 0 */
+    pocket_compressor_init(&comp, 8, NULL, 0, 0, 0, 0);  /* Rₜ = 0 */
     bitvector_init(&input1, 8);
     bitvector_init(&input2, 8);
     bitbuffer_init(&output);
@@ -492,7 +492,7 @@ TEST(test_robustness_window_with_history) {
     bitbuffer_t output;
     pocket_params_t params = {0};
 
-    pocket_compressor_init(&comp, 8, NULL, 1);  /* Rₜ = 1 */
+    pocket_compressor_init(&comp, 8, NULL, 1, 0, 0, 0);  /* Rₜ = 1 */
     bitvector_init(&input, 8);
     bitbuffer_init(&output);
 
@@ -539,7 +539,7 @@ TEST(test_effective_robustness_no_changes) {
     bitbuffer_t output;
     pocket_params_t params = {0};
 
-    pocket_compressor_init(&comp, 8, NULL, 1);  /* Rₜ = 1 */
+    pocket_compressor_init(&comp, 8, NULL, 1, 0, 0, 0);  /* Rₜ = 1 */
     bitvector_init(&input, 8);
     bitbuffer_init(&output);
 
@@ -577,7 +577,7 @@ TEST(test_compression_with_robustness) {
     bitbuffer_t output;
     pocket_params_t params = {0};
 
-    pocket_compressor_init(&comp, 16, NULL, 2);  /* Rₜ = 2 */
+    pocket_compressor_init(&comp, 16, NULL, 2, 0, 0, 0);  /* Rₜ = 2 */
     bitvector_init(&input1, 16);
     bitvector_init(&input2, 16);
     bitvector_init(&input3, 16);

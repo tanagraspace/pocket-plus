@@ -145,73 +145,28 @@ static int compress_and_verify(
         return 0;
     }
 
-    printf("\n    Input: %zu bytes, Expected output: %zu bytes\n",
-           input_size, expected_size);
-
-    /* Initialize compressor */
-    size_t packet_size_bytes = packet_length_bits / 8;
-    int num_packets = input_size / packet_size_bytes;
-
-    printf("    Processing %d packets of %zu bits each\n", num_packets, packet_length_bits);
-
+    /* Initialize compressor with automatic parameter management */
     pocket_compressor_t comp;
-    int result = pocket_compressor_init(&comp, packet_length_bits, NULL, robustness);
+    int result = pocket_compressor_init(&comp, packet_length_bits, NULL, robustness,
+                                        pt_limit, ft_limit, rt_limit);
     if (result != POCKET_OK) {
         fprintf(stderr, "\n  FAIL: Compressor init failed\n");
         return 0;
     }
 
-    /* Compress all packets */
+    /* Compress entire input using high-level API */
     uint8_t actual_output[10000];
     size_t actual_size = 0;
 
-    for (int i = 0; i < num_packets; i++) {
-        bitvector_t input;
-        bitbuffer_t packet_output;
-
-        bitvector_init(&input, packet_length_bits);
-        bitbuffer_init(&packet_output);
-
-        /* Load packet data */
-        bitvector_from_bytes(&input, &input_data[i * packet_size_bytes], packet_size_bytes);
-
-        /* Calculate parameters according to test vector periods */
-        pocket_params_t params;
-        params.min_robustness = robustness;
-
-        int packet_num = i + 1;
-        const int pt_first_trigger = pt_limit + robustness;
-        const int ft_first_trigger = ft_limit + robustness;
-        const int rt_first_trigger = rt_limit + robustness;
-
-        params.new_mask_flag = (packet_num >= pt_first_trigger && packet_num % pt_limit == (pt_first_trigger % pt_limit)) ? 1 : 0;
-        params.send_mask_flag = (packet_num >= ft_first_trigger && packet_num % ft_limit == (ft_first_trigger % ft_limit)) ? 1 : 0;
-        params.uncompressed_flag = (packet_num >= rt_first_trigger && packet_num % rt_limit == (rt_first_trigger % rt_limit)) ? 1 : 0;
-
-        /* CCSDS requirement: Force ft=1, rt=1, pt=0 for first Rt+1 packets */
-        if (i <= robustness) {
-            params.send_mask_flag = 1;
-            params.uncompressed_flag = 1;
-            params.new_mask_flag = 0;
-        }
-
-        /* Compress packet */
-        result = pocket_compress_packet(&comp, &input, &packet_output, &params);
-        if (result != POCKET_OK) {
-            fprintf(stderr, "\n  FAIL: Compression failed at packet %d\n", i);
-            return 0;
-        }
-
-        /* Accumulate output (byte-boundary padding per packet) */
-        uint8_t packet_bytes[2000];
-        size_t packet_size = bitbuffer_to_bytes(&packet_output, packet_bytes, sizeof(packet_bytes));
-
-        memcpy(actual_output + actual_size, packet_bytes, packet_size);
-        actual_size += packet_size;
+    result = pocket_compress(&comp, input_data, input_size,
+                            actual_output, sizeof(actual_output), &actual_size);
+    if (result != POCKET_OK) {
+        fprintf(stderr, "\n  FAIL: Compression failed with error %d\n", result);
+        return 0;
     }
 
-    printf("    Compressed: %zu bytes (ratio: %.2fx)\n",
-           actual_size, (float)input_size / actual_size);
+    printf("    Input: %zu bytes → Compressed: %zu bytes (ratio: %.2fx)\n",
+           input_size, actual_size, (float)input_size / actual_size);
 
     /* Compare with expected output */
     return compare_output(actual_output, actual_size,

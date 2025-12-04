@@ -305,6 +305,14 @@ struct pocket_compressor {
 
     /* Cycle counter */
     size_t t;                                           /* Current time index */
+
+    /* Parameter management (for automatic mode) */
+    int pt_limit;                                       /* New mask period (0 = manual control) */
+    int ft_limit;                                       /* Send mask period (0 = manual control) */
+    int rt_limit;                                       /* Uncompressed period (0 = manual control) */
+    int pt_counter;                                     /* Countdown to next pt=1 */
+    int ft_counter;                                     /* Countdown to next ft=1 */
+    int rt_counter;                                     /* Countdown to next rt=1 */
 };
 
 /**
@@ -314,13 +322,19 @@ struct pocket_compressor {
  * @param F Input vector length (1 to POCKET_MAX_PACKET_LENGTH)
  * @param initial_mask M₀ - initial mask (NULL = all zeros)
  * @param robustness Rₜ - robustness level (0-7)
+ * @param pt_limit New mask period (0 = manual control via pocket_params_t)
+ * @param ft_limit Send mask period (0 = manual control via pocket_params_t)
+ * @param rt_limit Uncompressed period (0 = manual control via pocket_params_t)
  * @return POCKET_OK on success, error code otherwise
  */
 int pocket_compressor_init(
     pocket_compressor_t *comp,
     size_t F,
     const bitvector_t *initial_mask,
-    uint8_t robustness
+    uint8_t robustness,
+    int pt_limit,
+    int ft_limit,
+    int rt_limit
 );
 
 /**
@@ -342,6 +356,32 @@ int pocket_compress_packet(
     const bitvector_t *input,
     bitbuffer_t *output,
     const pocket_params_t *params
+);
+
+/**
+ * High-level compression: compress entire input data into packets.
+ *
+ * Automatically handles:
+ * - Packet splitting
+ * - pt/ft/rt parameter management (if limits were set during init)
+ * - CCSDS init phase (first Rt+1 packets with ft=1, rt=1, pt=0)
+ * - Output accumulation with byte-boundary padding
+ *
+ * @param comp Compressor state (must be initialized with limits)
+ * @param input_data Raw input byte array
+ * @param input_size Size of input in bytes (must be multiple of packet_size)
+ * @param output_buffer User-provided output buffer
+ * @param output_buffer_size Size of output buffer
+ * @param output_size Returns actual bytes written
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_compress(
+    pocket_compressor_t *comp,
+    const uint8_t *input_data,
+    size_t input_size,
+    uint8_t *output_buffer,
+    size_t output_buffer_size,
+    size_t *output_size
 );
 
 /**

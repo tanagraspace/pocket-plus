@@ -32,7 +32,10 @@ int pocket_compressor_init(
     pocket_compressor_t *comp,
     size_t F,
     const bitvector_t *initial_mask,
-    uint8_t robustness
+    uint8_t robustness,
+    int pt_limit,
+    int ft_limit,
+    int rt_limit
 ) {
     if (comp == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -49,6 +52,9 @@ int pocket_compressor_init(
     /* Store configuration */
     comp->F = F;
     comp->robustness = robustness;
+    comp->pt_limit = pt_limit;
+    comp->ft_limit = ft_limit;
+    comp->rt_limit = rt_limit;
 
     /* Initialize all bit vectors */
     bitvector_init(&comp->mask, F);
@@ -105,6 +111,11 @@ void pocket_compressor_reset(pocket_compressor_t *comp) {
     for (int i = 0; i < POCKET_MAX_HISTORY; i++) {
         bitvector_zero(&comp->change_history[i]);
     }
+
+    /* Reset countdown counters (match reference implementation behavior) */
+    comp->pt_counter = comp->pt_limit;
+    comp->ft_counter = comp->ft_limit;
+    comp->rt_counter = comp->rt_limit;
 }
 
 /* ========================================================================
@@ -461,5 +472,109 @@ int pocket_compress_packet(
     /* Advance history index (circular buffer) */
     comp->history_index = (comp->history_index + 1) % POCKET_MAX_HISTORY;
 
+    return POCKET_OK;
+}
+
+/* ========================================================================
+ * High-Level Compression (Automatic)
+ * ======================================================================== */
+
+int pocket_compress(
+    pocket_compressor_t *comp,
+    const uint8_t *input_data,
+    size_t input_size,
+    uint8_t *output_buffer,
+    size_t output_buffer_size,
+    size_t *output_size
+) {
+    if (comp == NULL || input_data == NULL || output_buffer == NULL || output_size == NULL) {
+        return POCKET_ERROR_INVALID_ARG;
+    }
+
+    /* Calculate packet size in bytes */
+    size_t packet_size_bytes = (comp->F + 7) / 8;
+
+    /* Verify input size is a multiple of packet size */
+    if (input_size % packet_size_bytes != 0) {
+        return POCKET_ERROR_INVALID_ARG;
+    }
+
+    /* Calculate number of packets */
+    int num_packets = input_size / packet_size_bytes;
+
+    /* Reset compressor state */
+    pocket_compressor_reset(comp);
+
+    /* Output accumulation */
+    size_t total_output_bytes = 0;
+
+    /* Process each packet */
+    for (int i = 0; i < num_packets; i++) {
+        bitvector_t input;
+        bitbuffer_t packet_output;
+
+        bitvector_init(&input, comp->F);
+        bitbuffer_init(&packet_output);
+
+        /* Load packet data */
+        bitvector_from_bytes(&input, &input_data[i * packet_size_bytes], packet_size_bytes);
+
+        /* Compute parameters */
+        pocket_params_t params;
+        params.min_robustness = comp->robustness;
+
+        /* If limits are set, manage parameters automatically */
+        if (comp->pt_limit > 0 && comp->ft_limit > 0 && comp->rt_limit > 0) {
+            /* 1-based packet number for modulo calculations */
+            int packet_num = i + 1;
+
+            /* Calculate first trigger points (matches reference implementation) */
+            int pt_first_trigger = comp->pt_limit + comp->robustness;
+            int ft_first_trigger = comp->ft_limit + comp->robustness;
+            int rt_first_trigger = comp->rt_limit + comp->robustness;
+
+            /* CCSDS init phase: first Rt+1 packets must have ft=1, rt=1, pt=0 */
+            if (i <= (int)comp->robustness) {
+                params.send_mask_flag = 1;
+                params.uncompressed_flag = 1;
+                params.new_mask_flag = 0;
+            } else {
+                /* Normal operation: use modulo arithmetic (matches reference) */
+                params.new_mask_flag = (packet_num >= pt_first_trigger &&
+                                       packet_num % comp->pt_limit == (pt_first_trigger % comp->pt_limit)) ? 1 : 0;
+                params.send_mask_flag = (packet_num >= ft_first_trigger &&
+                                        packet_num % comp->ft_limit == (ft_first_trigger % comp->ft_limit)) ? 1 : 0;
+                params.uncompressed_flag = (packet_num >= rt_first_trigger &&
+                                           packet_num % comp->rt_limit == (rt_first_trigger % comp->rt_limit)) ? 1 : 0;
+            }
+        } else {
+            /* Manual control: use defaults (ft=0, rt=0, pt=0 for normal operation) */
+            params.send_mask_flag = 0;
+            params.uncompressed_flag = 0;
+            params.new_mask_flag = 0;
+        }
+
+        /* Compress packet */
+        int result = pocket_compress_packet(comp, &input, &packet_output, &params);
+        if (result != POCKET_OK) {
+            return result;
+        }
+
+        /* Convert packet to bytes with byte-boundary padding */
+        uint8_t packet_bytes[POCKET_MAX_OUTPUT_BYTES];
+        size_t packet_size = bitbuffer_to_bytes(&packet_output, packet_bytes, sizeof(packet_bytes));
+
+        /* Check if output buffer has space */
+        if (total_output_bytes + packet_size > output_buffer_size) {
+            return POCKET_ERROR_OVERFLOW;
+        }
+
+        /* Append to output buffer */
+        memcpy(output_buffer + total_output_bytes, packet_bytes, packet_size);
+        total_output_bytes += packet_size;
+    }
+
+    /* Return total output size */
+    *output_size = total_output_bytes;
     return POCKET_OK;
 }
