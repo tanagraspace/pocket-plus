@@ -24,9 +24,6 @@
 #include "pocket_plus.h"
 #include <string.h>
 
-/* Debug: Global packet counter for debugging */
-size_t g_debug_packet_num = 0;
-
 /* ========================================================================
  * Compressor Initialization
  * ======================================================================== */
@@ -52,9 +49,6 @@ int pocket_compressor_init(
     /* Store configuration */
     comp->F = F;
     comp->robustness = robustness;
-
-    /* Debug: Print init parameters */
-    fprintf(stderr, "DEBUG: pocket_compressor_init: F=%zu, robustness=%u\n", F, robustness);
 
     /* Initialize all bit vectors */
     bitvector_init(&comp->mask, F);
@@ -159,55 +153,15 @@ void pocket_compute_robustness_window(
     /* Determine how many historical changes to include */
     size_t num_changes = (comp->t < comp->robustness) ? comp->t : comp->robustness;
 
-    /* Debug for packet 1 and 2 */
-    if (comp->t == 1 || comp->t == 2) {
-        fprintf(stderr, "\n=== Xt computation for packet %zu ===\n", comp->t);
-        fprintf(stderr, "Robustness=%u, t=%zu, num_changes=%zu, history_index=%zu\n",
-                comp->robustness, comp->t, num_changes, comp->history_index);
-
-        /* Print current change (D_t) before ORing */
-        fprintf(stderr, "D_t (current change) first 64 bits: ");
-        for (size_t j = 0; j < 64 && j < current_change->length; j++) {
-            fprintf(stderr, "%d", bitvector_get_bit(current_change, j));
-            if ((j+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\nD_t Hamming weight: %zu\n", bitvector_hamming_weight(current_change));
-
-        if (comp->t == 2) {
-            fprintf(stderr, "[OUR-PKT2] D_t words:\n");
-            for (size_t w = 0; w < current_change->num_words && w < 3; w++) {
-                fprintf(stderr, "[OUR-PKT2]   D_t[%zu]=0x%08X\n", w, current_change->data[w]);
-            }
-        }
-    }
-
     /* OR with historical changes (going backwards from current) */
     for (size_t i = 1; i <= num_changes; i++) {
         /* Calculate index of change from i iterations ago */
         size_t hist_idx = (comp->history_index - i + POCKET_MAX_HISTORY) % POCKET_MAX_HISTORY;
 
-        /* Debug for packet 1 and 2 */
-        if (comp->t == 1 || comp->t == 2) {
-            fprintf(stderr, "Including D(t-%zu) from history[%zu], first 64 bits: ", i, hist_idx);
-            for (size_t j = 0; j < 64 && j < comp->change_history[hist_idx].length; j++) {
-                fprintf(stderr, "%d", bitvector_get_bit(&comp->change_history[hist_idx], j));
-                if ((j+1) % 8 == 0) fprintf(stderr, " ");
-            }
-            fprintf(stderr, "\nHamming weight: %zu\n", bitvector_hamming_weight(&comp->change_history[hist_idx]));
-        }
-
         bitvector_t temp;
         bitvector_init(&temp, comp->F);
         bitvector_or(&temp, &combined, &comp->change_history[hist_idx]);
         bitvector_copy(&combined, &temp);
-    }
-
-    /* Debug: Print combined vector before copying to Xt */
-    if (comp->t == 2) {
-        fprintf(stderr, "[OUR-PKT2] Combined vector (Num_of_words=%zu):\n", combined.num_words);
-        for (size_t w = 0; w < combined.num_words; w++) {
-            fprintf(stderr, "[OUR-PKT2]   combined.data[%zu]=0x%08X\n", w, combined.data[w]);
-        }
     }
 
     /* Don't reverse - RLE will process from LSB to MSB directly */
@@ -326,9 +280,6 @@ int pocket_compress_packet(
         return POCKET_ERROR_INVALID_ARG;
     }
 
-    /* Debug: Set global packet number */
-    g_debug_packet_num = comp->t;
-
     /* Get parameters (use defaults if NULL) */
     pocket_params_t local_params;
     if (params == NULL) {
@@ -367,109 +318,7 @@ int pocket_compress_packet(
     bitvector_t change;
     bitvector_init(&change, comp->F);
 
-    /* Debug for packet 2: print masks and inputs before computing change */
-    if (comp->t == 2) {
-        fprintf(stderr, "\n[OUR-PKT2] Before change computation:\n");
-        fprintf(stderr, "[OUR-PKT2] I_t (current input) word[1]=0x%08X\n", input->data[1]);
-        fprintf(stderr, "[OUR-PKT2] I_{t-1} (prev input) word[1]=0x%08X\n", comp->prev_input.data[1]);
-
-        bitvector_t input_changes;
-        bitvector_init(&input_changes, comp->F);
-        bitvector_xor(&input_changes, input, &comp->prev_input);
-        fprintf(stderr, "[OUR-PKT2] I_t XOR I_{t-1} word[1]=0x%08X\n", input_changes.data[1]);
-
-        fprintf(stderr, "[OUR-PKT2] M_t (current mask) word[1]=0x%08X\n", comp->mask.data[1]);
-        fprintf(stderr, "[OUR-PKT2] M_{t-1} (prev mask) word[1]=0x%08X\n", prev_mask.data[1]);
-    }
-
     pocket_compute_change(&change, &comp->mask, &prev_mask, comp->t);
-
-    /* Debug: Show change vector and mask states for packets 0, 1, 19, and 20 */
-    if (comp->t <= 1 || comp->t == 19 || comp->t == 20 || comp->t == 20) {
-        fprintf(stderr, "\n=== DEBUG packet %zu ===\n", comp->t);
-
-        /* Show input data */
-        fprintf(stderr, "It (input) first 64 bits: ");
-        for (size_t i = 0; i < 64 && i < input->length; i++) {
-            fprintf(stderr, "%d", bitvector_get_bit(input, i));
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n");
-
-        if (comp->t > 0) {
-            fprintf(stderr, "It-1 (prev input) first 64 bits: ");
-            for (size_t i = 0; i < 64 && i < comp->prev_input.length; i++) {
-                fprintf(stderr, "%d", bitvector_get_bit(&comp->prev_input, i));
-                if ((i+1) % 8 == 0) fprintf(stderr, " ");
-            }
-            fprintf(stderr, "\n");
-
-            /* Show data changes */
-            bitvector_t data_changes;
-            bitvector_init(&data_changes, input->length);
-            bitvector_xor(&data_changes, input, &comp->prev_input);
-            fprintf(stderr, "Data changes (It XOR It-1) first 64 bits: ");
-            for (size_t i = 0; i < 64 && i < data_changes.length; i++) {
-                fprintf(stderr, "%d", bitvector_get_bit(&data_changes, i));
-                if ((i+1) % 8 == 0) fprintf(stderr, " ");
-            }
-            fprintf(stderr, "\nData changes Hamming weight: %zu\n", bitvector_hamming_weight(&data_changes));
-        }
-
-        /* Show mask states */
-        fprintf(stderr, "Mt (current mask) first 64 bits: ");
-        for (size_t i = 0; i < 64 && i < comp->mask.length; i++) {
-            fprintf(stderr, "%d", bitvector_get_bit(&comp->mask, i));
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n");
-
-        fprintf(stderr, "Mt-1 (prev mask) first 64 bits: ");
-        for (size_t i = 0; i < 64 && i < prev_mask.length; i++) {
-            fprintf(stderr, "%d", bitvector_get_bit(&prev_mask, i));
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n");
-
-        /* Show change vector */
-        fprintf(stderr, "Dt (change vector) first 64 bits: ");
-        for (size_t i = 0; i < 64 && i < change.length; i++) {
-            fprintf(stderr, "%d", bitvector_get_bit(&change, i));
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\nDt Hamming weight: %zu\n", bitvector_hamming_weight(&change));
-
-        /* Find first '1' bit in Dt */
-        for (size_t i = 0; i < change.length; i++) {
-            if (bitvector_get_bit(&change, i)) {
-                fprintf(stderr, "Dt: First '1' bit at position %zu\n", i);
-                fprintf(stderr, "At position %zu: Mt=%d, M_(t-1)=%d\n",
-                        i, bitvector_get_bit(&comp->mask, i), bitvector_get_bit(&prev_mask, i));
-
-                /* Show surrounding context */
-                fprintf(stderr, "Context around position %zu:\n", i);
-                fprintf(stderr, "  It bits [%zu-%zu]: ", i > 4 ? i-4 : 0, i+4 < comp->F ? i+4 : comp->F-1);
-                for (size_t j = (i > 4 ? i-4 : 0); j <= (i+4 < comp->F ? i+4 : comp->F-1); j++) {
-                    fprintf(stderr, "%d", bitvector_get_bit(input, j));
-                }
-                fprintf(stderr, "\n");
-
-                if (comp->t > 0) {
-                    fprintf(stderr, "  It-1 bits [%zu-%zu]: ", i > 4 ? i-4 : 0, i+4 < comp->F ? i+4 : comp->F-1);
-                    for (size_t j = (i > 4 ? i-4 : 0); j <= (i+4 < comp->F ? i+4 : comp->F-1); j++) {
-                        fprintf(stderr, "%d", bitvector_get_bit(&comp->prev_input, j));
-                    }
-                    fprintf(stderr, "\n");
-
-                    fprintf(stderr, "  Data changed at position %zu: %d XOR %d = %d\n",
-                            i, bitvector_get_bit(input, i), bitvector_get_bit(&comp->prev_input, i),
-                            bitvector_get_bit(input, i) != bitvector_get_bit(&comp->prev_input, i) ? 1 : 0);
-                }
-
-                break;
-            }
-        }
-    }
 
     /* Store change in history (circular buffer) */
     bitvector_copy(&comp->change_history[comp->history_index], &change);
@@ -490,116 +339,18 @@ int pocket_compress_packet(
     /* Calculate ḋₜ flag */
     uint8_t dt = (params->send_mask_flag == 0 && params->uncompressed_flag == 0) ? 1 : 0;
 
-    /* Debug: Show flags for packets 0-3 and 19 */
-    if (comp->t <= 3 || comp->t == 19 || comp->t == 20) {
-        fprintf(stderr, "DEBUG packet %zu: Flags - pt=%d ft=%d rt=%d dt=%d\n",
-                comp->t, params->new_mask_flag, params->send_mask_flag,
-                params->uncompressed_flag, dt);
-    }
-
     /* ====================================================================
      * Component hₜ: Mask change information
      * hₜ = RLE(Xₜ) ∥ BIT₄(Vₜ) ∥ eₜ ∥ kₜ ∥ cₜ ∥ ḋₜ
      * ==================================================================== */
 
     /* 1. RLE(Xₜ) - Run-length encode the robustness window */
-    size_t before_rle = output->num_bits;
-    if (comp->t < 100) {
-        fprintf(stderr, "[PKT%zu] Encoding component ht: RLE(Xt) starting at bit %zu\n", comp->t, before_rle);
-    }
-
-    /* Debug packet 40 Xt */
-    if (comp->t == 40) {
-        fprintf(stderr, "[PKT40] Xt details: length=%zu, H(Xt)=%zu\n",
-                Xt.length, bitvector_hamming_weight(&Xt));
-        fprintf(stderr, "[PKT40] Xt first 64 bits: ");
-        for (size_t i = 0; i < 64 && i < Xt.length; i++) {
-            fprintf(stderr, "%d", bitvector_get_bit(&Xt, i));
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n");
-
-        /* Find all '1' bits in Xt */
-        fprintf(stderr, "[PKT40] Xt '1' bit positions: ");
-        int count = 0;
-        for (size_t i = 0; i < Xt.length && count < 20; i++) {
-            if (bitvector_get_bit(&Xt, i)) {
-                fprintf(stderr, "%zu ", i);
-                count++;
-            }
-        }
-        fprintf(stderr, "(total: %d)\n", count);
-    }
-
     pocket_rle_encode(output, &Xt);
-    size_t after_rle = output->num_bits;
-
-    /* Debug packet 40 RLE output */
-    if (comp->t == 40) {
-        fprintf(stderr, "[PKT40] RLE(Xt) output: %zu bits\n", after_rle - before_rle);
-        fprintf(stderr, "[PKT40] RLE(Xt) bit pattern: ");
-        for (size_t i = before_rle; i < after_rle; i++) {
-            int bit = (output->data[i/8] >> (7 - (i%8))) & 1;
-            fprintf(stderr, "%d", bit);
-        }
-        fprintf(stderr, "\n");
-
-        /* Show first 5 bytes after RLE */
-        fprintf(stderr, "[PKT40] First 5 bytes after RLE(Xt): ");
-        for (int i = 0; i < 5 && (size_t)i < output->num_bits/8 + 1; i++) {
-            fprintf(stderr, "%02X ", output->data[i]);
-        }
-        fprintf(stderr, "\n");
-    }
 
     /* 2. BIT₄(Vₜ) - 4-bit effective robustness level
      * CCSDS encodes Vt directly (reference implementation confirmed) */
-    if (comp->t == 30 || comp->t == 40) {
-        fprintf(stderr, "DEBUG packet %zu: Vt value = %u (binary: %d%d%d%d)\n",
-                comp->t, Vt, (Vt>>3)&1, (Vt>>2)&1, (Vt>>1)&1, Vt&1);
-    }
-
     for (int i = 3; i >= 0; i--) {
         bitbuffer_append_bit(output, (Vt >> i) & 1);
-    }
-
-    /* Debug output for packets 0-3 and 19 */
-    if (comp->t >= 0 && (comp->t <= 3 || comp->t == 19 || comp->t == 20)) {
-        fprintf(stderr, "DEBUG packet %zu: RLE(Xt)=%zu bits, Vt=%u, H(Xt)=%zu\n",
-                comp->t,
-                after_rle - before_rle, Vt, bitvector_hamming_weight(&Xt));
-
-        /* Show Xₜ bit pattern (first 64 bits) */
-        fprintf(stderr, "DEBUG packet %zu: Xt first 64 bits = ", comp->t);
-        for (size_t i = 0; i < 64 && i < Xt.length; i++) {
-            fprintf(stderr, "%d", bitvector_get_bit(&Xt, i));
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n");
-
-        /* Find the '1' bit position */
-        for (size_t i = 0; i < Xt.length; i++) {
-            if (bitvector_get_bit(&Xt, i)) {
-                fprintf(stderr, "DEBUG packet %zu: Found '1' bit at position %zu (from LSB)\n", comp->t, i);
-                break;
-            }
-        }
-
-        /* Show first 64 bits and bytes of output so far */
-        fprintf(stderr, "DEBUG packet %zu: First bits after RLE+Vt: ", comp->t);
-        for (size_t i = 0; i < 64 && i < output->num_bits; i++) {
-            int bit = (output->data[i/8] >> (7 - (i%8))) & 1;
-            fprintf(stderr, "%d", bit);
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n");
-
-        /* Show first 3 bytes as hex */
-        fprintf(stderr, "DEBUG packet %zu: First 3 bytes: 0x%02X 0x%02X 0x%02X\n",
-                comp->t,
-                output->num_bits >= 8 ? output->data[0] : 0,
-                output->num_bits >= 16 ? output->data[1] : 0,
-                output->num_bits >= 24 ? output->data[2] : 0);
     }
 
     /* 3. eₜ, kₜ, cₜ - Only if Vₜ > 0 and there are mask changes */
@@ -607,43 +358,11 @@ int pocket_compress_packet(
         /* Calculate eₜ */
         int et = pocket_has_positive_updates(&Xt, &comp->mask);
 
-        if (comp->t == 40) {
-            fprintf(stderr, "[PKT40] Encoding flags: et=%d (bit %zu)\n", et, output->num_bits);
-        }
-
         bitbuffer_append_bit(output, et);
 
         if (et == 1) {
             /* kₜ - Output '1' for positive updates (mask=0), '0' for negative updates (mask=1)
              * Reference implementation shows kt outputs 1 when mask bit is 0 at changed positions */
-            size_t before_kt = output->num_bits;
-           if (comp->t == 30) {
-                fprintf(stderr, "DEBUG packet 30: Xt '1' positions: ");
-                int count = 0;
-                for (size_t i = 0; i < Xt.length && count < 10; i++) {
-                    if (bitvector_get_bit(&Xt, i)) {
-                        fprintf(stderr, "%zu ", i);
-                        count++;
-                    }
-                }
-                fprintf(stderr, "\nDEBUG packet 30: MASK values at those positions: ");
-                count = 0;
-                for (size_t i = 0; i < Xt.length && count < 10; i++) {
-                    if (bitvector_get_bit(&Xt, i)) {
-                        fprintf(stderr, "%d ", bitvector_get_bit(&comp->mask, i));
-                        count++;
-                    }
-                }
-                fprintf(stderr, "\nDEBUG packet 30: kt output (INVERSE of mask): ");
-                count = 0;
-                for (size_t i = 0; i < Xt.length && count < 10; i++) {
-                    if (bitvector_get_bit(&Xt, i)) {
-                        fprintf(stderr, "%d ", !bitvector_get_bit(&comp->mask, i));
-                        count++;
-                    }
-                }
-                fprintf(stderr, "\n");
-            }
 
             /* Extract INVERTED mask values (1 where mask=0, 0 where mask=1)
              * Use forward order (lowest position to highest) for kt */
@@ -653,75 +372,17 @@ int pocket_compress_packet(
                 bitvector_set_bit(&inverted_mask, i, !bitvector_get_bit(&comp->mask, i));
             }
 
-            if (comp->t == 40) {
-                fprintf(stderr, "[PKT40] kt: Mask values at Xt positions: ");
-                for (size_t i = 0; i < Xt.length; i++) {
-                    if (bitvector_get_bit(&Xt, i)) {
-                        fprintf(stderr, "%d ", bitvector_get_bit(&comp->mask, i));
-                    }
-                }
-                fprintf(stderr, "\n[PKT40] kt: Inverted values (what we encode in FORWARD order): ");
-                for (size_t i = 0; i < Xt.length; i++) {
-                    if (bitvector_get_bit(&Xt, i)) {
-                        fprintf(stderr, "%d ", !bitvector_get_bit(&comp->mask, i));
-                    }
-                }
-                fprintf(stderr, "\n");
-            }
-
             pocket_bit_extract_forward(output, &inverted_mask, &Xt);
-            size_t after_kt = output->num_bits;
 
             /* Calculate and encode cₜ */
             int ct = pocket_compute_ct_flag(comp, Vt);
 
-            if (comp->t == 40) {
-                fprintf(stderr, "[PKT40] kt output: %zu bits (from bit %zu to %zu)\n",
-                        after_kt - before_kt, before_kt, after_kt - 1);
-                fprintf(stderr, "[PKT40] Encoding ct=%d (bit %zu)\n", ct, output->num_bits);
-            }
-
             bitbuffer_append_bit(output, ct);
-
-            if (comp->t == 1 || comp->t == 20 || comp->t == 30) {
-                fprintf(stderr, "DEBUG packet %zu: et=%d, kt=%zu bits, ct=%d\n",
-                        comp->t, et, after_kt - before_kt, ct);
-            }
-        } else if (comp->t == 0 || comp->t == 1 || comp->t == 19 || comp->t == 20 || comp->t == 30) {
-            fprintf(stderr, "DEBUG packet %zu: et=%d (no kt/ct)\n", comp->t, et);
         }
-    } else if (comp->t == 0 || comp->t == 1 || comp->t == 19 || comp->t == 20 || comp->t == 30) {
-        fprintf(stderr, "DEBUG packet %zu: Skipped et/kt/ct (Vt=%u, H(Xt)=%zu)\n",
-                comp->t, Vt, bitvector_hamming_weight(&Xt));
     }
 
     /* 4. ḋₜ - Flag indicating if both ḟₜ and ṙₜ are zero */
-    if (comp->t == 40) {
-        fprintf(stderr, "[PKT40] Encoding dt=%d (bit %zu)\n", dt, output->num_bits);
-    }
-
     bitbuffer_append_bit(output, dt);
-
-    /* Debug: Show ht size after dt */
-    size_t after_ht = output->num_bits;
-    if (comp->t <= 3 || comp->t == 19 || comp->t == 20 || comp->t == 30 || comp->t == 40) {
-        fprintf(stderr, "DEBUG packet %zu: ht=%zu bits (RLE=%zu, Vt=4, et+kt+ct+dt=%zu)\n",
-                comp->t, after_ht, after_rle - before_rle, after_ht - after_rle - 4);
-    }
-
-    if (comp->t == 40) {
-        fprintf(stderr, "[PKT40] After ht encoding: %zu bits total\n", after_ht);
-        fprintf(stderr, "[PKT40] Bits 32-47 (bytes 4-5): ");
-        for (size_t i = 32; i < 48 && i < output->num_bits; i++) {
-            int bit = (output->data[i/8] >> (7 - (i%8))) & 1;
-            fprintf(stderr, "%d", bit);
-            if ((i+1) % 8 == 0) fprintf(stderr, " ");
-        }
-        fprintf(stderr, "\n[PKT40] Bytes 4-5: 0x%02X 0x%02X\n",
-                output->num_bits > 32 ? output->data[4] : 0,
-                output->num_bits > 40 ? output->data[5] : 0);
-        fprintf(stderr, "[PKT40] Expected bytes 4-5 after ht: 0x?? 0x?? (need to calculate)\n");
-    }
 
     /* ====================================================================
      * Component qₜ: Optional full mask
@@ -730,7 +391,6 @@ int pocket_compress_packet(
 
     if (dt == 0) {  /* Only if ḋₜ = 0 */
         if (params->send_mask_flag) {
-            size_t before_qt = output->num_bits;
             bitbuffer_append_bit(output, 1);  /* Flag: mask follows */
 
             /* Encode mask as RLE(M XOR (M<<)) - no reversal needed */
@@ -741,34 +401,10 @@ int pocket_compress_packet(
             bitvector_left_shift(&mask_shifted, &comp->mask);
             bitvector_xor(&mask_diff, &comp->mask, &mask_shifted);
 
-            if (comp->t == 1) {
-                fprintf(stderr, "DEBUG packet 1: mask_diff first 64 bits = ");
-                for (size_t i = 0; i < 64 && i < mask_diff.length; i++) {
-                    fprintf(stderr, "%d", bitvector_get_bit(&mask_diff, i));
-                    if ((i+1) % 8 == 0) fprintf(stderr, " ");
-                }
-                fprintf(stderr, "\n");
-            }
-
-            size_t before_mask_rle = output->num_bits;
-            if (comp->t < 100) {
-                fprintf(stderr, "[PKT%zu] Encoding component qt: RLE(mask_diff) starting at bit %zu\n", comp->t, before_mask_rle);
-            }
             pocket_rle_encode(output, &mask_diff);
-            size_t after_qt = output->num_bits;
-
-            if (comp->t <= 3 || comp->t == 19 || comp->t == 20 || comp->t == 30 || comp->t == 40) {
-                fprintf(stderr, "DEBUG packet %zu: qt=%zu bits (mask RLE=%zu bits)\n",
-                        comp->t, after_qt - before_qt, after_qt - before_mask_rle);
-            }
         } else {
             bitbuffer_append_bit(output, 0);  /* Flag: no mask */
-            if (comp->t <= 3 || comp->t == 19 || comp->t == 20 || comp->t == 30 || comp->t == 40) {
-                fprintf(stderr, "DEBUG packet %zu: qt=1 bit (no mask)\n", comp->t);
-            }
         }
-    } else if (comp->t <= 3 || comp->t == 19 || comp->t == 20 || comp->t == 30 || comp->t == 40) {
-        fprintf(stderr, "DEBUG packet %zu: No qt (dt=1)\n", comp->t);
     }
 
     /* ====================================================================
@@ -778,28 +414,12 @@ int pocket_compress_packet(
 
     if (params->uncompressed_flag) {
         /* '1' ∥ COUNT(F) ∥ Iₜ */
-        size_t before_ut = output->num_bits;
-        if (comp->t <= 3 || comp->t == 19 || comp->t == 20) {
-            fprintf(stderr, "DEBUG packet %zu: Uncompressed mode - comp->F=%zu, input->length=%zu\n",
-                    comp->t, comp->F, input->length);
-        }
         bitbuffer_append_bit(output, 1);  /* Flag: full input follows */
-        size_t after_flag = output->num_bits;
 
         pocket_count_encode(output, comp->F);
-        size_t after_count = output->num_bits;
 
         bitbuffer_append_bitvector(output, input);
-        size_t after_input = output->num_bits;
-
-        if (comp->t <= 3 || comp->t == 19 || comp->t == 20) {
-            fprintf(stderr, "DEBUG packet %zu: ut components - flag: %zu bit, COUNT(%zu): %zu bits, input: %zu bits\n",
-                    comp->t, after_flag - before_ut, comp->F, after_count - after_flag, after_input - after_count);
-            fprintf(stderr, "DEBUG packet %zu: ut total: %zu bits\n",
-                    comp->t, after_input - before_ut);
-        }
     } else {
-        size_t before_ut = output->num_bits;
 
         if (dt == 0) {
             /* '0' ∥ BE(...) */
@@ -815,61 +435,11 @@ int pocket_compress_packet(
             bitvector_init(&extraction_mask, comp->F);
 
             bitvector_or(&extraction_mask, &comp->mask, &Xt);  /* Mₜ OR Xₜ */
-            size_t mask_weight = bitvector_hamming_weight(&extraction_mask);
 
             pocket_bit_extract(output, input, &extraction_mask);
-
-            if (comp->t <= 5 || comp->t == 19 || comp->t == 20 || comp->t == 30) {
-                fprintf(stderr, "DEBUG packet %zu: ut=BE(It, Xt|Mt), ct=%d, |Xt|Mt|=%zu, ut=%zu bits\n",
-                        comp->t, ct, mask_weight, output->num_bits - before_ut);
-            }
         } else {
             /* BE(Iₜ, Mₜ) - extract only unpredictable bits */
-            size_t mask_weight = bitvector_hamming_weight(&comp->mask);
-
-            if (comp->t == 20 || comp->t == 30) {
-                fprintf(stderr, "DEBUG packet 20: Mask '1' bit positions: ");
-                int count = 0;
-                for (size_t i = 0; i < comp->mask.length && count < 10; i++) {
-                    if (bitvector_get_bit(&comp->mask, i)) {
-                        fprintf(stderr, "%zu ", i);
-                        count++;
-                    }
-                }
-                fprintf(stderr, "\nDEBUG packet 20: Input bits at those positions: ");
-                count = 0;
-                for (size_t i = 0; i < comp->mask.length && count < 10; i++) {
-                    if (bitvector_get_bit(&comp->mask, i)) {
-                        fprintf(stderr, "%d ", bitvector_get_bit(input, i));
-                        count++;
-                    }
-                }
-                fprintf(stderr, "\n");
-            }
-
             pocket_bit_extract(output, input, &comp->mask);
-
-            if (comp->t <= 5 || comp->t == 19 || comp->t == 20 || comp->t == 30) {
-                fprintf(stderr, "DEBUG packet %zu: ut=BE(It, Mt), ct=%d, |Mt|=%zu, ut=%zu bits\n",
-                        comp->t, ct, mask_weight, output->num_bits - before_ut);
-            }
-        }
-    }
-
-    /* Debug: Show total packet size for packets 30 and 40 */
-    if (comp->t == 30 || comp->t == 40) {
-        fprintf(stderr, "DEBUG packet %zu: TOTAL packet = %zu bits = %zu bytes\n",
-                comp->t, output->num_bits, (output->num_bits + 7) / 8);
-
-        if (comp->t == 40) {
-            fprintf(stderr, "[PKT40-FINAL] Complete packet bytes:\n");
-            fprintf(stderr, "[PKT40-FINAL] ");
-            size_t num_bytes = (output->num_bits + 7) / 8;
-            for (size_t i = 0; i < num_bytes; i++) {
-                fprintf(stderr, "%02X ", output->data[i]);
-            }
-            fprintf(stderr, "\n");
-            fprintf(stderr, "[PKT40-FINAL] Expected: E2 3F C4 7D 3C 9E 11 FE 0F 5B C4 84 50\n");
         }
     }
 
@@ -884,15 +454,6 @@ int pocket_compress_packet(
     /* Track new_mask_flag for cₜ calculation */
     comp->new_mask_flag_history[comp->flag_history_index] = params->new_mask_flag;
     comp->flag_history_index = (comp->flag_history_index + 1) % POCKET_MAX_VT_HISTORY;
-
-    /* Debug: Show final output bytes for packets 0-3 and 19 */
-    if (comp->t >= 0 && (comp->t <= 3 || comp->t == 19 || comp->t == 20)) {
-        fprintf(stderr, "FINAL packet %zu: Total bits=%zu, First 3 bytes: 0x%02X 0x%02X 0x%02X\n",
-                comp->t, output->num_bits,
-                output->num_bits >= 8 ? output->data[0] : 0,
-                output->num_bits >= 16 ? output->data[1] : 0,
-                output->num_bits >= 24 ? output->data[2] : 0);
-    }
 
     /* Advance time */
     comp->t++;

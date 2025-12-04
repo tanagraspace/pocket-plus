@@ -112,9 +112,6 @@ int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
  * Note: Trailing zeros are not encoded (deducible from vector length)
  * ======================================================================== */
 
-/* Debug: Global packet counter (set by compress.c) */
-extern size_t g_debug_packet_num;
-
 int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
     if (output == NULL || input == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -152,35 +149,9 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
             /* Calculate delta (number of zeros + 1) */
             int delta = old_bit_position - new_bit_position;
 
-            /* Debug for packets 2 and 40 */
-            size_t bits_before = 0;
-            if (g_debug_packet_num == 2 || g_debug_packet_num == 40) {
-                fprintf(stderr, "[PKT%zu] RLE: word=%d bit_in_word=%d global_bit=%d delta=%d\n",
-                        g_debug_packet_num, word, bit_position_in_word, new_bit_position, delta);
-
-                /* Show output bits before encoding this delta */
-                bits_before = output->num_bits;
-                fprintf(stderr, "[PKT%zu] Output bits before COUNT(%d): %zu\n",
-                        g_debug_packet_num, delta, bits_before);
-            }
-
             /* Encode the count */
             int result = pocket_count_encode(output, (uint32_t)delta);
             if (result != POCKET_OK) return result;
-
-            /* Debug continued */
-            if (g_debug_packet_num == 2 || g_debug_packet_num == 40) {
-                size_t bits_after = output->num_bits;
-                size_t bits_added = bits_after - bits_before;
-                fprintf(stderr, "[PKT%zu] Output bits after COUNT(%d): %zu (added %zu bits)\n",
-                        g_debug_packet_num, delta, bits_after, bits_added);
-                fprintf(stderr, "[PKT%zu] Encoded bits: ", g_debug_packet_num);
-                for (size_t i = bits_before; i < bits_after; i++) {
-                    int bit = (output->data[i/8] >> (7 - (i%8))) & 1;
-                    fprintf(stderr, "%d", bit);
-                }
-                fprintf(stderr, "\n");
-            }
 
             /* Update old position for next iteration */
             old_bit_position = new_bit_position;
@@ -191,18 +162,10 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
     }
 
     /* Append terminator '10' MSB-first (bits: 1, 0) */
-    size_t bits_before_terminator = output->num_bits;
-
     int result = bitbuffer_append_bit(output, 1);
     if (result != POCKET_OK) return result;
 
     result = bitbuffer_append_bit(output, 0);
-
-    /* Debug: trace '10' terminator for all packets */
-    if (g_debug_packet_num >= 0 && g_debug_packet_num < 100) {
-        fprintf(stderr, "[PKT%zu] RLE: Added '10' terminator at bits %zu-%zu (total RLE bits: %zu)\n",
-                g_debug_packet_num, bits_before_terminator, output->num_bits - 1, output->num_bits);
-    }
 
     return result;
 }

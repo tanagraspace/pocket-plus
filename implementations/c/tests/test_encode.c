@@ -233,22 +233,21 @@ TEST(test_bit_extract_simple) {
     /* data = 10110011 = 0xB3 */
     data.data[0] = 0xB3000000;
 
-    /* mask = 01001010 = 0x4A (extract bits at positions 1, 3, 6) */
+    /* mask = 01001010 = 0x4A (extract bits at positions 1, 4, 6 with MSB-first) */
     mask.data[0] = 0x4A000000;
 
     int result = pocket_bit_extract(&bb, &data, &mask);
 
     assert(result == POCKET_OK);
 
-    /* Extract bits at positions 1, 3, 6 from 0xB3 (10110011)
-       Position 1 = 1
-       Position 3 = 0
-       Position 6 = 0
-       Result (MSB to LSB order): 001 */
+    /* MSB-first indexing:
+       Mask has '1' at positions 1, 4, 6
+       Data at those positions: data[1]=0, data[4]=0, data[6]=1
+       CCSDS BE extracts highest to lowest: data[6], data[4], data[1] = 1,0,0
+       Result: 100 (binary) → 0b10000000 = 0x80 */
 
     assert(bb.num_bits == 3);
-    /* MSB-first: bits 0,0,1 → 0b00100000 = 0x20 */
-    assert(bb.data[0] == 0x20);
+    assert(bb.data[0] == 0x80);
 }
 
 TEST(test_bit_extract_no_mask) {
@@ -276,14 +275,19 @@ TEST(test_bit_extract_all_mask) {
     bitvector_init(&data, 8);
     bitvector_init(&mask, 8);
 
-    data.data[0] = 0xAB000000;
+    data.data[0] = 0xAB000000;  /* 10101011 */
     mask.data[0] = 0xFF000000;  /* All bits set */
 
     int result = pocket_bit_extract(&bb, &data, &mask);
 
     assert(result == POCKET_OK);
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0xAB);  /* Should be identical to input */
+
+    /* CCSDS BE extracts from highest to lowest position
+       Input: 10101011 (bits 0-7)
+       Extract order: bit[7,6,5,4,3,2,1,0] = 1,1,0,1,0,1,0,1
+       Output: 11010101 = 0xD5 (bit-reversed) */
+    assert(bb.data[0] == 0xD5);
 }
 
 /* ========================================================================
