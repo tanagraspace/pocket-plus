@@ -324,7 +324,32 @@ TEST(test_vector_edge_cases) {
 }
 
 /* ========================================================================
- * Test Vector: Venus Express
+ * Test Vector: High Robustness (hiro)
+ *
+ * Parameters from hiro.yaml:
+ *   packet_length: 90 bytes (720 bits)
+ *   pt: 10 (new mask every 10 packets)
+ *   ft: 20 (send mask every 20 packets)
+ *   rt: 50 (uncompressed every 50 packets)
+ *   robustness: 7 (maximum)
+ *
+ * Tests maximum robustness parameter to exercise packet loss resilience
+ * code paths. Uses same data patterns as simple for comparison.
+ * ======================================================================== */
+
+TEST(test_vector_hiro) {
+    char input_path[256];
+    char expected_path[256];
+    snprintf(input_path, sizeof(input_path), "%s/input/hiro.bin", TEST_VECTORS_DIR);
+    snprintf(expected_path, sizeof(expected_path), "%s/expected-output/hiro.bin.pkt", TEST_VECTORS_DIR);
+
+    if (!compress_and_verify(input_path, expected_path, 720, 10, 20, 50, 7, "hiro")) {
+        tests_failed++;
+    }
+}
+
+/* ========================================================================
+ * Test Vector: Venus Express (largest - run last)
  *
  * Parameters from venus-express.yaml:
  *   packet_length: 90 bytes (720 bits)
@@ -359,7 +384,8 @@ int main(void) {
     RUN_TEST(test_vector_simple);
     RUN_TEST(test_vector_housekeeping);
     RUN_TEST(test_vector_edge_cases);
-    RUN_TEST(test_vector_venus_express);
+    RUN_TEST(test_vector_hiro);
+    RUN_TEST(test_vector_venus_express);  /* Largest test - run last */
 
     printf("\n");
     printf("Results: %d/%d tests passed", tests_passed, tests_run);

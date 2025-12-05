@@ -1,0 +1,35 @@
+{
+  "name": "hiro",
+  "generated_at": "2025-12-05T19:48:39Z",
+  "input": {
+    "file": "hiro.bin",
+    "size": 9000,
+    "md5": "2ec573b753ffe1defcd0085ac2b69c35",
+    "type": "synthetic"
+  },
+  "compression": {
+    "packet_length": 90,
+    "parameters": {
+      "pt": 10,
+      "ft": 20,
+      "rt": 50,
+      "robustness": 7
+    }
+  },
+  "output": {
+    "compressed": {
+      "file": "hiro.bin.pkt",
+      "size": 1533,
+      "md5": "823eed833f5f665f5c9a5d5fe2be559e"
+    },
+    "decompressed": {
+      "file": "hiro.bin.pkt.depkt",
+      "size": 9000,
+      "md5": "2ec573b753ffe1defcd0085ac2b69c35"
+    }
+  },
+  "results": {
+    "compression_ratio": 5.87,
+    "roundtrip_verified": true
+  }
+}

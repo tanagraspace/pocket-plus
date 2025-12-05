@@ -7,7 +7,6 @@ This document tracks fixes and modifications made to the ESA/ESOC reference impl
 ## ✅ Fix #1: Added Missing `fclose()` to Prevent Extra Padding Bytes
 
 ### Date: 2025-12-03
-### Severity: Low (cosmetic only)
 
 ### Description
 
@@ -132,7 +131,6 @@ tail -c 2 simple.bin.pkt.orig | hexdump -C
 ## ✅ Fix #2: Updated Decompressor Loop to Handle Fixed Padding
 
 ### Date: 2025-12-03
-### Severity: High (breaks decompression after Fix #1)
 
 ### Description
 
