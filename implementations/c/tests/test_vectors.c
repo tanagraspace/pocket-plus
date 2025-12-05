@@ -145,7 +145,7 @@ static int decompress_and_verify(
         return 0;
     }
 
-    printf("    Round-trip: hash 0x%08X verified ✓\n", original_hash);
+    printf("    Round-trip: hash 0x%08X verified", original_hash);
     return 1;
 }
 

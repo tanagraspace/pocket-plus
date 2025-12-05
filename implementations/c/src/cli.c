@@ -48,10 +48,18 @@ static const char *BANNER =
  *
  * @param[in] prog_name Program name for usage example.
  */
+static void print_version(void) {
+    printf("pocketplus %d.%d.%d\n",
+           POCKET_VERSION_MAJOR,
+           POCKET_VERSION_MINOR,
+           POCKET_VERSION_PATCH);
+}
+
 static void print_help(const char *prog_name) {
     printf("\n%s\n", BANNER);
-    printf("CCSDS 124.0-B-1 Lossless Compression\n");
-    printf("=====================================\n\n");
+    printf("CCSDS 124.0-B-1 Lossless Compression (v%d.%d.%d)\n",
+           POCKET_VERSION_MAJOR, POCKET_VERSION_MINOR, POCKET_VERSION_PATCH);
+    printf("=================================================\n\n");
     printf("References:\n");
     printf("  CCSDS 124.0-B-1: https://public.ccsds.org/Pubs/124x0b1.pdf\n");
     printf("  ESA POCKET+: https://opssat.esa.int/pocket-plus/\n\n");
@@ -67,7 +75,8 @@ static void print_help(const char *prog_name) {
     printf("  %s -d <input.pkt> <packet_size> <robustness>\n\n", prog_name);
     printf("Options:\n");
     printf("  -d             Decompress (default is compress)\n");
-    printf("  -h, --help     Show this help message\n\n");
+    printf("  -h, --help     Show this help message\n");
+    printf("  -v, --version  Show version information\n\n");
     printf("Compress arguments:\n");
     printf("  input          Input file to compress\n");
     printf("  packet_size    Packet size in bytes (e.g., 90)\n");
@@ -362,6 +371,13 @@ int main(int argc, char **argv) {
         (strcmp(argv[1], "--help") == 0)) {
         print_help(argv[0]);
         return (argc < 2) ? 1 : 0;
+    }
+
+    /* Check for version flag */
+    if ((strcmp(argv[1], "-v") == 0) ||
+        (strcmp(argv[1], "--version") == 0)) {
+        print_version();
+        return 0;
     }
 
     /* Check for decompress flag */

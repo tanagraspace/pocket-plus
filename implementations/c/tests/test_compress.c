@@ -414,7 +414,7 @@ TEST(test_compute_ct_flag_single_update) {
 
     /* Simulate one new_mask_flag set at t=0 */
     comp.new_mask_flag_history[0] = 1;
-    for (int i = 1; i < POCKET_MAX_VT_HISTORY; i++) {
+    for (size_t i = 1U; i < POCKET_MAX_VT_HISTORY; i++) {
         comp.new_mask_flag_history[i] = 0;
     }
     comp.flag_history_index = 1;
@@ -435,7 +435,7 @@ TEST(test_compute_ct_flag_multiple_updates) {
     /* Simulate two new_mask_flag sets */
     comp.new_mask_flag_history[0] = 1;
     comp.new_mask_flag_history[1] = 1;
-    for (int i = 2; i < POCKET_MAX_VT_HISTORY; i++) {
+    for (size_t i = 2U; i < POCKET_MAX_VT_HISTORY; i++) {
         comp.new_mask_flag_history[i] = 0;
     }
     comp.flag_history_index = 2;

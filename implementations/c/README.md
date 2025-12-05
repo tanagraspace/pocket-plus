@@ -69,6 +69,21 @@ pocket_decompress(&decomp, compressed, comp_size, output, output_max, &output_si
 - **Static allocation** - No malloc/free, embedded-friendly
 - **MISRA-C compliant** - Suitable for safety-critical systems
 
+## MISRA-C:2012 Compliance
+
+The core library has **zero Required/Mandatory violations**. Remaining violations are all **Advisory**:
+
+| Rule | Count | Description | Rationale |
+|------|-------|-------------|-----------|
+| 8.7 | 11 | External linkage could be internal | Public API functions require external linkage |
+| 15.5 | 17 | Multiple return statements | Early returns for error handling in decompression |
+| 2.5 | 3 | Unused macros | Version macros used in CLI, not library |
+
+Run MISRA checks with:
+```bash
+cppcheck --addon=misra --enable=all -Iinclude src/*.c
+```
+
 ## File Structure
 
 ```

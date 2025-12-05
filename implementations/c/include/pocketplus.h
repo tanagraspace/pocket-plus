@@ -56,14 +56,14 @@
  * @{
  */
 #ifndef POCKET_MAX_PACKET_LENGTH
-#define POCKET_MAX_PACKET_LENGTH 65535  /**< Maximum packet length in bits (CCSDS max) */
+#define POCKET_MAX_PACKET_LENGTH 65535U  /**< Maximum packet length in bits (CCSDS max) */
 #endif
 
-#define POCKET_MAX_PACKET_BYTES ((POCKET_MAX_PACKET_LENGTH + 7) / 8)  /**< Max packet bytes */
-#define POCKET_MAX_ROBUSTNESS 7      /**< Maximum robustness level (Rₜ) */
-#define POCKET_MAX_HISTORY 16        /**< History depth for change vectors */
-#define POCKET_MAX_VT_HISTORY 16     /**< History size for Vₜ calculation */
-#define POCKET_MAX_OUTPUT_BYTES (POCKET_MAX_PACKET_BYTES * 6)  /**< Max output buffer size */
+#define POCKET_MAX_PACKET_BYTES (((POCKET_MAX_PACKET_LENGTH) + 7U) / 8U)  /**< Max packet bytes */
+#define POCKET_MAX_ROBUSTNESS 7U     /**< Maximum robustness level (Rₜ) */
+#define POCKET_MAX_HISTORY 16U       /**< History depth for change vectors */
+#define POCKET_MAX_VT_HISTORY 16U    /**< History size for Vₜ calculation */
+#define POCKET_MAX_OUTPUT_BYTES ((POCKET_MAX_PACKET_BYTES) * 6U)  /**< Max output buffer size */
 /** @} */
 
 /**
@@ -109,7 +109,7 @@ typedef struct {
  * Bit 0 is the LSB, bit F-1 is the MSB.
  */
 struct bitvector {
-    uint32_t data[(POCKET_MAX_PACKET_BYTES + 3) / 4];  /**< 32-bit word storage */
+    uint32_t data[((POCKET_MAX_PACKET_BYTES) + 3U) / 4U];  /**< 32-bit word storage */
     size_t length;    /**< Number of bits (F) */
     size_t num_words; /**< Number of 32-bit words used */
 };

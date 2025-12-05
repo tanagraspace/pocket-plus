@@ -39,8 +39,8 @@
 
 void bitbuffer_init(bitbuffer_t *bb) {
     if (bb != NULL) {
-        bb->num_bits = 0;
-        memset(bb->data, 0, POCKET_MAX_OUTPUT_BYTES);
+        bb->num_bits = 0U;
+        (void)memset(bb->data, 0, POCKET_MAX_OUTPUT_BYTES);
     }
 }
 
@@ -58,94 +58,98 @@ void bitbuffer_clear(bitbuffer_t *bb) {
 
 
 int bitbuffer_append_bit(bitbuffer_t *bb, int bit) {
-    if (bb == NULL) {
-        return POCKET_ERROR_INVALID_ARG;
+    int result = POCKET_ERROR_INVALID_ARG;
+
+    if (bb != NULL) {
+        /* Check for overflow - POCKET_MAX_OUTPUT_BYTES * 8 bits */
+        size_t max_bits = POCKET_MAX_OUTPUT_BYTES * 8U;
+        if (bb->num_bits >= max_bits) {
+            result = POCKET_ERROR_OVERFLOW;
+        } else {
+            size_t byte_index = bb->num_bits / 8U;
+            size_t bit_index = bb->num_bits % 8U;
+
+            /* CCSDS uses MSB-first bit ordering: first bit goes to position 7 */
+            if (bit != 0) {
+                bb->data[byte_index] |= (uint8_t)(1U << (7U - bit_index));
+            }
+            /* No need to clear bit, buffer is zero-initialized */
+
+            bb->num_bits++;
+            result = POCKET_OK;
+        }
     }
 
-    /* Check for overflow */
-    if (bb->num_bits >= POCKET_MAX_OUTPUT_BYTES * 8) {
-        return POCKET_ERROR_OVERFLOW;
-    }
-
-    size_t byte_index = bb->num_bits / 8;
-    size_t bit_index = bb->num_bits % 8;
-
-    /* CCSDS uses MSB-first bit ordering: first bit goes to position 7 */
-    if (bit) {
-        bb->data[byte_index] |= (1 << (7 - bit_index));
-    }
-    /* No need to clear bit, buffer is zero-initialized */
-
-    bb->num_bits++;
-
-    return POCKET_OK;
+    return result;
 }
 
 
 int bitbuffer_append_bits(bitbuffer_t *bb, const uint8_t *data, size_t num_bits) {
-    if (bb == NULL || data == NULL) {
-        return POCKET_ERROR_INVALID_ARG;
-    }
+    int result = POCKET_ERROR_INVALID_ARG;
 
-    /* Check for overflow */
-    if (bb->num_bits + num_bits > POCKET_MAX_OUTPUT_BYTES * 8) {
-        return POCKET_ERROR_OVERFLOW;
-    }
+    if ((bb != NULL) && (data != NULL)) {
+        /* Check for overflow - POCKET_MAX_OUTPUT_BYTES * 8 bits */
+        size_t max_bits = POCKET_MAX_OUTPUT_BYTES * 8U;
+        if ((bb->num_bits + num_bits) > max_bits) {
+            result = POCKET_ERROR_OVERFLOW;
+        } else {
+            result = POCKET_OK;
 
-    /* Append each bit MSB-first */
-    for (size_t i = 0; i < num_bits; i++) {
-        size_t byte_index = i / 8;
-        size_t bit_index = i % 8;
+            /* Append each bit MSB-first */
+            for (size_t i = 0U; (i < num_bits) && (result == POCKET_OK); i++) {
+                size_t byte_index = i / 8U;
+                size_t bit_index = i % 8U;
 
-        /* Extract bits MSB-first (bit 7, 6, 5, ..., 0) */
-        int bit = (data[byte_index] >> (7 - bit_index)) & 1;
+                /* Extract bits MSB-first (bit 7, 6, 5, ..., 0) */
+                uint32_t shift_amount = 7U - (uint32_t)bit_index;
+                uint32_t shifted = (uint32_t)data[byte_index] >> shift_amount;
+                uint32_t masked = shifted & 1U;
+                int bit = (int)masked;
 
-        int result = bitbuffer_append_bit(bb, bit);
-        if (result != POCKET_OK) {
-            return result;
+                result = bitbuffer_append_bit(bb, bit);
+            }
         }
     }
 
-    return POCKET_OK;
+    return result;
 }
 
 
 int bitbuffer_append_bitvector(bitbuffer_t *bb, const bitvector_t *bv) {
-    if (bb == NULL || bv == NULL) {
-        return POCKET_ERROR_INVALID_ARG;
-    }
+    int result = POCKET_ERROR_INVALID_ARG;
 
-    /* Calculate number of bytes from bit length */
-    size_t num_bytes = (bv->length + 7) / 8;
+    if ((bb != NULL) && (bv != NULL)) {
+        result = POCKET_OK;
 
-    /* CCSDS MSB-first: bytes in order, but bits within each byte from MSB to LSB */
-    for (size_t byte_idx = 0; byte_idx < num_bytes; byte_idx++) {
-        size_t bits_in_this_byte = 8;
+        /* Calculate number of bytes from bit length */
+        size_t num_bytes = (bv->length + 7U) / 8U;
 
-        /* Last byte may have fewer than 8 bits */
-        if (byte_idx == num_bytes - 1) {
-            size_t remainder = bv->length % 8;
-            if (remainder != 0) {
-                bits_in_this_byte = remainder;
+        /* CCSDS MSB-first: bytes in order, but bits within each byte from MSB to LSB */
+        for (size_t byte_idx = 0U; (byte_idx < num_bytes) && (result == POCKET_OK); byte_idx++) {
+            size_t bits_in_this_byte = 8U;
+
+            /* Last byte may have fewer than 8 bits */
+            if (byte_idx == (num_bytes - 1U)) {
+                size_t remainder = bv->length % 8U;
+                if (remainder != 0U) {
+                    bits_in_this_byte = remainder;
+                }
+            }
+
+            /* With MSB-first bitvector indexing: bit 0 is MSB, bit 7 is LSB
+             * We want to append bits in order: MSB first, LSB last
+             * So we iterate through positions 0, 1, 2, ..., bits_in_this_byte-1 */
+            size_t start_bit = byte_idx * 8U;
+            for (size_t bit_offset = 0U; (bit_offset < bits_in_this_byte) && (result == POCKET_OK); bit_offset++) {
+                size_t pos = start_bit + bit_offset;
+                int bit = bitvector_get_bit(bv, pos);
+
+                result = bitbuffer_append_bit(bb, bit);
             }
         }
-
-        /* With MSB-first bitvector indexing: bit 0 is MSB, bit 7 is LSB
-         * We want to append bits in order: MSB first, LSB last
-         * So we iterate through positions 0, 1, 2, ..., bits_in_this_byte-1 */
-        size_t start_bit = byte_idx * 8;
-        for (size_t bit_offset = 0; bit_offset < bits_in_this_byte; bit_offset++) {
-            size_t pos = start_bit + bit_offset;
-            int bit = bitvector_get_bit(bv, pos);
-
-            int result = bitbuffer_append_bit(bb, bit);
-            if (result != POCKET_OK) {
-                return result;
-            }
-        }
     }
 
-    return POCKET_OK;
+    return result;
 }
 
 /** @} */ /* End of Bit Appending Functions */
@@ -157,11 +161,13 @@ int bitbuffer_append_bitvector(bitbuffer_t *bb, const bitvector_t *bv) {
 
 
 size_t bitbuffer_size(const bitbuffer_t *bb) {
-    if (bb == NULL) {
-        return 0;
+    size_t size = 0U;
+
+    if (bb != NULL) {
+        size = bb->num_bits;
     }
 
-    return bb->num_bits;
+    return size;
 }
 
 /** @} */ /* End of Query Functions */
@@ -173,18 +179,18 @@ size_t bitbuffer_size(const bitbuffer_t *bb) {
 
 
 size_t bitbuffer_to_bytes(const bitbuffer_t *bb, uint8_t *data, size_t max_bytes) {
-    if (bb == NULL || data == NULL) {
-        return 0;
+    size_t num_bytes = 0U;
+
+    if ((bb != NULL) && (data != NULL)) {
+        /* Calculate number of bytes needed (ceiling division) */
+        num_bytes = (bb->num_bits + 7U) / 8U;
+
+        if (num_bytes > max_bytes) {
+            num_bytes = max_bytes;
+        }
+
+        (void)memcpy(data, bb->data, num_bytes);
     }
-
-    /* Calculate number of bytes needed (ceiling division) */
-    size_t num_bytes = (bb->num_bits + 7) / 8;
-
-    if (num_bytes > max_bytes) {
-        num_bytes = max_bytes;
-    }
-
-    memcpy(data, bb->data, num_bytes);
 
     return num_bytes;
 }

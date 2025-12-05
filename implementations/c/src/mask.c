@@ -48,24 +48,23 @@ void pocket_update_build(
     size_t t
 ) {
     /* Case 1: t=0 or new_mask_flag set → reset build to 0 */
-    if (t == 0 || new_mask_flag) {
+    if ((t == 0U) || (new_mask_flag != 0)) {
         bitvector_zero(build);
-        return;
+    } else {
+        /* Case 2: Normal operation (t > 0 and new_mask_flag = 0)
+         * Bₜ = (Iₜ XOR Iₜ₋₁) OR Bₜ₋₁
+         */
+
+        /* Create temporary vector for changes */
+        bitvector_t changes;
+        (void)bitvector_init(&changes, build->length);
+
+        /* Calculate changes: Iₜ XOR Iₜ₋₁ */
+        bitvector_xor(&changes, input, prev_input);
+
+        /* Update build: Bₜ = changes OR Bₜ₋₁ */
+        bitvector_or(build, &changes, build);
     }
-
-    /* Case 2: Normal operation (t > 0 and new_mask_flag = 0)
-     * Bₜ = (Iₜ XOR Iₜ₋₁) OR Bₜ₋₁
-     */
-
-    /* Create temporary vector for changes */
-    bitvector_t changes;
-    bitvector_init(&changes, build->length);
-
-    /* Calculate changes: Iₜ XOR Iₜ₋₁ */
-    bitvector_xor(&changes, input, prev_input);
-
-    /* Update build: Bₜ = changes OR Bₜ₋₁ */
-    bitvector_or(build, &changes, build);
 }
 
 /** @} */ /* End of Build Vector Functions */
@@ -92,12 +91,12 @@ void pocket_update_mask(
 ) {
     /* Create temporary vector for changes */
     bitvector_t changes;
-    bitvector_init(&changes, mask->length);
+    (void)bitvector_init(&changes, mask->length);
 
     /* Calculate changes: Iₜ XOR Iₜ₋₁ */
     bitvector_xor(&changes, input, prev_input);
 
-    if (new_mask_flag) {
+    if (new_mask_flag != 0) {
         /* Case 1: new_mask_flag set → Mₜ = (Iₜ XOR Iₜ₋₁) OR Bₜ₋₁ */
         bitvector_or(mask, &changes, build_prev);
     } else {
@@ -127,7 +126,7 @@ void pocket_compute_change(
     const bitvector_t *prev_mask,
     size_t t
 ) {
-    if (t == 0) {
+    if (t == 0U) {
         /* At t=0, D₀ = M₀ (all initially predictable bits) */
         bitvector_copy(change, mask);
     } else {
