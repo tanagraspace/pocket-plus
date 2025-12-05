@@ -155,11 +155,6 @@ int bitvector_from_bytes(bitvector_t *bv, const uint8_t *data, size_t num_bytes)
  */
 int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes);
 
-/**
- * Print bit vector as binary string (for debugging).
- */
-void bitvector_print(const bitvector_t *bv, FILE *fp);
-
 /* ========================================================================
  * Bit Buffer API (Variable-length output buffer)
  * ======================================================================== */

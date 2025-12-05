@@ -1,5 +1,9 @@
 # POCKET+ C Implementation
 
+[![Build](https://github.com/tanagraspace/pocket-plus/actions/workflows/c-build.yml/badge.svg)](https://github.com/tanagraspace/pocket-plus/actions/workflows/c-build.yml)
+![Lines](assets/coverage-lines.svg)
+![Functions](assets/coverage-functions.svg)
+
 C implementation of the POCKET+ lossless compression algorithm (CCSDS 124.0-B-1).
 
 ## Status
@@ -21,13 +25,58 @@ C implementation of the POCKET+ lossless compression algorithm (CCSDS 124.0-B-1)
 
 ## Building
 
+### Locally
+
 ```bash
-make          # Build library (libpocketplus.a)
-make test     # Build and run all tests
-make clean    # Clean build artifacts
+make               # Build library and CLI
+make cli           # Build CLI only
+make test          # Build and run all tests
+make coverage      # Run tests with coverage report
+make coverage-html # Generate HTML coverage report (requires lcov)
+make clean         # Clean build artifacts
 ```
 
-## Usage
+### Docker
+
+Build and run tests with coverage (from repo root):
+
+```bash
+docker-compose run --rm c
+```
+
+Rebuild after source changes:
+
+```bash
+docker-compose run --rm --build c
+```
+
+Artifacts are written directly to local filesystem:
+- `build/` - library, CLI, coverage data, HTML report
+- `assets/` - coverage badges
+
+## CLI
+
+```bash
+./build/pocket_compress <input> <packet_size> <pt> <ft> <rt> <robustness>
+```
+
+**Arguments:**
+- `input` - Input file to compress
+- `packet_size` - Packet size in bytes (e.g., 90)
+- `pt` - New mask period (e.g., 10)
+- `ft` - Send mask period (e.g., 20)
+- `rt` - Uncompressed period (e.g., 50)
+- `robustness` - Robustness level 0-7 (e.g., 1)
+
+**Example:**
+```bash
+./build/pocket_compress data.bin 90 10 20 50 1
+# Output: data.bin.pkt
+```
+
+Run `./build/pocket_compress --help` for full usage info.
+
+## Library Usage
 
 ```c
 #include "pocket_plus.h"
@@ -59,7 +108,8 @@ implementations/c/
 │   ├── bitbuffer.c          # Variable-length output buffer
 │   ├── encode.c             # COUNT, RLE, BE encoding
 │   ├── mask.c               # Mask update logic
-│   └── compress.c           # Main compression algorithm
+│   ├── compress.c           # Main compression algorithm
+│   └── cli.c                # Command-line interface
 └── tests/                   # Unit and integration tests
 ```
 

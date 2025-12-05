@@ -383,22 +383,3 @@ int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes) {
     return POCKET_OK;
 }
 
-/* ========================================================================
- * Debug Output
- * ======================================================================== */
-
-void bitvector_print(const bitvector_t *bv, FILE *fp) {
-    if (bv == NULL || fp == NULL) {
-        return;
-    }
-
-    /* Print from MSB to LSB */
-    for (size_t i = bv->length; i > 0; i--) {
-        fprintf(fp, "%d", bitvector_get_bit(bv, i - 1));
-
-        /* Add space every 8 bits for readability */
-        if ((i - 1) % 8 == 0 && i > 1) {
-            fprintf(fp, " ");
-        }
-    }
-}

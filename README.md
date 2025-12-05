@@ -52,15 +52,31 @@ Idiomatic Go implementation. See [implementations/go/README.md](implementations/
 
 ## Quick Start
 
-### C
+### Docker (recommended)
+
+Build, test, and generate coverage for any implementation:
+
+```bash
+docker-compose run --rm c          # C implementation
+# docker-compose run --rm python   # Python (planned)
+# docker-compose run --rm go       # Go (planned)
+# docker-compose run --rm java     # Java (planned)
+```
+
+Artifacts are written to `implementations/<lang>/build/`.
+
+### Local Build
+
+#### C
 
 ```bash
 cd implementations/c
-make
-make test
+make          # Build library and CLI
+make test     # Run tests
+make coverage # Run tests with coverage report
 ```
 
-### Python
+#### Python
 
 ```bash
 cd implementations/python
@@ -68,7 +84,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-### Go
+#### Go
 
 ```bash
 cd implementations/go

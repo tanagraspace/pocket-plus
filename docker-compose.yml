@@ -1,0 +1,27 @@
+services:
+  c:
+    build:
+      context: .
+      dockerfile: implementations/c/Dockerfile
+    volumes:
+      - ./implementations/c/build:/app/implementations/c/build
+      - ./implementations/c/assets:/app/implementations/c/assets
+      - ./test-vectors:/app/test-vectors:ro
+
+  # go:
+  #   build:
+  #     context: .
+  #     dockerfile: implementations/go/Dockerfile
+  #   volumes:
+  #     - ./implementations/go/build:/app/implementations/go/build
+  #     - ./implementations/go/assets:/app/implementations/go/assets
+  #     - ./test-vectors:/app/test-vectors:ro
+
+  # python:
+  #   build:
+  #     context: .
+  #     dockerfile: implementations/python/Dockerfile
+  #   volumes:
+  #     - ./implementations/python/build:/app/implementations/python/build
+  #     - ./implementations/python/assets:/app/implementations/python/assets
+  #     - ./test-vectors:/app/test-vectors:ro

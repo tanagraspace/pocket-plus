@@ -1,8 +1,14 @@
 name: C Build & Test
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'implementations/c/**'
   pull_request:
     branches: [main]
+    paths:
+      - 'implementations/c/**'
 
 jobs:
   build-and-test:
@@ -76,4 +82,55 @@ jobs:
           path: |
             implementations/c/test-output.txt
             implementations/c/vector-output.txt
+          retention-days: 7
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install lcov
+        run: sudo apt-get install -y lcov
+
+      - name: Run tests with coverage
+        working-directory: implementations/c
+        run: make coverage 2>&1 | tee coverage-output.txt
+
+      - name: Generate coverage report
+        working-directory: implementations/c
+        run: |
+          mkdir -p build/coverage/html
+          lcov --capture --directory build/coverage --output-file build/coverage/coverage.info --include "*/src/*" 2>/dev/null
+          genhtml build/coverage/coverage.info --output-directory build/coverage/html 2>/dev/null
+
+      - name: Parse coverage summary
+        working-directory: implementations/c
+        run: |
+          echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Line Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse gcov output
+          grep -E "^File 'src/|Lines executed:" coverage-output.txt | paste - - | while IFS= read -r line; do
+            file=$(echo "$line" | sed "s/.*File 'src\///" | sed "s/'.*//")
+            coverage=$(echo "$line" | sed "s/.*Lines executed://" | sed "s/ of.*//" | tr -d ' ')
+            echo "| $file | $coverage |" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Calculate and display overall coverage
+          COVERAGE_PCT=$(lcov --summary build/coverage/coverage.info 2>&1 | grep "lines" | sed 's/.*: //' | sed 's/%.*//')
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall Coverage: ${COVERAGE_PCT}%**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: implementations/c/build/coverage/html
           retention-days: 7
