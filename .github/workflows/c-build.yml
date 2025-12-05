@@ -1,0 +1,79 @@
+name: C Build & Test
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build library and CLI
+        working-directory: implementations/c
+        run: make
+
+      - name: Run unit tests
+        working-directory: implementations/c
+        run: |
+          echo "## Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          make test 2>&1 | tee test-output.txt
+          cat test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Parse test results
+        working-directory: implementations/c
+        run: |
+          # Extract pass/fail counts
+          TOTAL_PASSED=$(grep -o '[0-9]*/[0-9]* tests passed' test-output.txt | awk -F'/' '{sum+=$1} END {print sum}')
+          TOTAL_TESTS=$(grep -o '[0-9]*/[0-9]* tests passed' test-output.txt | awk -F'/' '{s+=$2} END {print s}' | awk '{print $1}')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests Passed | $TOTAL_PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Tests | $TOTAL_TESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | ${{ matrix.os }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Test vector validation
+        working-directory: implementations/c
+        shell: bash
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Vector Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Vector | Input | Output | Ratio | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|--------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Run test_vectors and capture output
+          ./build/test_vectors 2>&1 | tee vector-output.txt
+
+          # Parse results
+          # Format: "  test_vector_simple...    Input: 9000 bytes → Compressed: 641 bytes (ratio: 14.04x)"
+          grep "test_vector_" vector-output.txt | grep "Input:" | while IFS= read -r line; do
+            name=$(echo "$line" | sed 's/.*test_vector_//' | sed 's/\.\.\..*//' | tr '_' '-')
+            input=$(echo "$line" | sed 's/.*Input: //' | sed 's/ bytes.*//')
+            output=$(echo "$line" | sed 's/.*Compressed: //' | sed 's/ bytes.*//')
+            ratio=$(echo "$line" | sed 's/.*ratio: //' | sed 's/).*//')
+            echo "| $name | $input bytes | $output bytes | $ratio | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: |
+            implementations/c/test-output.txt
+            implementations/c/vector-output.txt
+          retention-days: 7
