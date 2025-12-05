@@ -11,7 +11,7 @@
  * POCKET+ C Implementation - Compression
  *
  * Authors:
- *   Georges Labrèche <georges@tanagraspace.com>
+ *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
  *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
  *
  * Implements CCSDS 124.0-B-1 Section 5.3 (Encoding Step):

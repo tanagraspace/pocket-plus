@@ -11,7 +11,7 @@
  * POCKET+ C Implementation - Bit Buffer
  *
  * Authors:
- *   Georges Labrèche <georges@tanagraspace.com>
+ *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
  *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
  *
  * Variable-length bit buffer for building compressed output.

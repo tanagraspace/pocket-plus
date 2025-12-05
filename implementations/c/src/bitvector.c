@@ -11,7 +11,7 @@
  * POCKET+ C Implementation - Bit Vector (32-bit Word-Based)
  *
  * Authors:
- *   Georges Labrèche <georges@tanagraspace.com>
+ *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
  *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
  *
  * Uses 32-bit words with big-endian byte packing to match ESA/ESOC reference.
