@@ -129,8 +129,12 @@ static int compress_and_verify(
     uint8_t robustness,
     const char *test_name
 ) {
+    /* Allocate large buffers for test vectors (venus-express is ~14 MB) */
+    static uint8_t input_data[15 * 1024 * 1024];      /* 15 MB for input */
+    static uint8_t expected_output[10 * 1024 * 1024]; /* 10 MB for expected output */
+    static uint8_t actual_output[10 * 1024 * 1024];   /* 10 MB for actual output */
+
     /* Read input file */
-    uint8_t input_data[10000];
     size_t input_size = read_file(input_path, input_data, sizeof(input_data));
     if (input_size == 0) {
         fprintf(stderr, "\n  FAIL: Could not read input file: %s\n", input_path);
@@ -138,7 +142,6 @@ static int compress_and_verify(
     }
 
     /* Read expected output */
-    uint8_t expected_output[10000];
     size_t expected_size = read_file(expected_path, expected_output, sizeof(expected_output));
     if (expected_size == 0) {
         fprintf(stderr, "\n  FAIL: Could not read expected output: %s\n", expected_path);
@@ -155,7 +158,6 @@ static int compress_and_verify(
     }
 
     /* Compress entire input using high-level API */
-    uint8_t actual_output[10000];
     size_t actual_size = 0;
 
     result = pocket_compress(&comp, input_data, input_size,
@@ -197,26 +199,68 @@ TEST(test_vector_simple) {
 
 /* ========================================================================
  * Test Vector: Housekeeping
+ *
+ * Parameters from housekeeping.yaml:
+ *   packet_length: 90 bytes (720 bits)
+ *   pt: 20 (new mask every 20 packets)
+ *   ft: 50 (send mask every 50 packets)
+ *   rt: 100 (uncompressed every 100 packets)
+ *   robustness: 2
  * ======================================================================== */
 
 TEST(test_vector_housekeeping) {
-    printf("\n    Skipping (not yet implemented)\n");
+    char input_path[256];
+    char expected_path[256];
+    snprintf(input_path, sizeof(input_path), "%s/input/housekeeping.bin", TEST_VECTORS_DIR);
+    snprintf(expected_path, sizeof(expected_path), "%s/expected-output/housekeeping.bin.pkt", TEST_VECTORS_DIR);
+
+    if (!compress_and_verify(input_path, expected_path, 720, 20, 50, 100, 2, "housekeeping")) {
+        tests_failed++;
+    }
 }
 
 /* ========================================================================
  * Test Vector: Edge Cases
+ *
+ * Parameters from edge-cases.yaml:
+ *   packet_length: 90 bytes (720 bits)
+ *   pt: 10 (new mask every 10 packets)
+ *   ft: 20 (send mask every 20 packets)
+ *   rt: 50 (uncompressed every 50 packets)
+ *   robustness: 1
  * ======================================================================== */
 
 TEST(test_vector_edge_cases) {
-    printf("\n    Skipping (not yet implemented)\n");
+    char input_path[256];
+    char expected_path[256];
+    snprintf(input_path, sizeof(input_path), "%s/input/edge-cases.bin", TEST_VECTORS_DIR);
+    snprintf(expected_path, sizeof(expected_path), "%s/expected-output/edge-cases.bin.pkt", TEST_VECTORS_DIR);
+
+    if (!compress_and_verify(input_path, expected_path, 720, 10, 20, 50, 1, "edge-cases")) {
+        tests_failed++;
+    }
 }
 
 /* ========================================================================
  * Test Vector: Venus Express
+ *
+ * Parameters from venus-express.yaml:
+ *   packet_length: 90 bytes (720 bits)
+ *   pt: 20 (new mask every 20 packets)
+ *   ft: 50 (send mask every 50 packets)
+ *   rt: 100 (uncompressed every 100 packets)
+ *   robustness: 2
  * ======================================================================== */
 
 TEST(test_vector_venus_express) {
-    printf("\n    Skipping (not yet implemented)\n");
+    char input_path[256];
+    char expected_path[256];
+    snprintf(input_path, sizeof(input_path), "%s/input/venus-express.ccsds", TEST_VECTORS_DIR);
+    snprintf(expected_path, sizeof(expected_path), "%s/expected-output/venus-express.ccsds.pkt", TEST_VECTORS_DIR);
+
+    if (!compress_and_verify(input_path, expected_path, 720, 20, 50, 100, 2, "venus-express")) {
+        tests_failed++;
+    }
 }
 
 /* ========================================================================

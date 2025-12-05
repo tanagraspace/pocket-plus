@@ -46,25 +46,23 @@ The reference implementation uses **countdown counters** that start at the perio
 
 **Common mistake:** Using `(packet_num % period) == 0` which triggers one packet too early (at packets 10, 20, 30 instead of 11, 21, 31).
 
-### 3. Vₜ Calculation: Skip D_{t-1}!
+### 3. Vₜ Calculation: Start from Rₜ+1
 
-Per CCSDS Section 5.3.2.2, Cₜ is defined as the largest value where **D_{t-i} = ∅ for all 1 < i ≤ Cₜ + Rₜ**.
-
-**Critical detail:** The strict inequality **1 < i** means start from **i=2**, checking D_{t-2}, D_{t-3}, ..., **NOT D_{t-1}**!
+Per CCSDS Section 5.3.2.2, Cₜ counts consecutive packets with no mask changes, starting from position Rₜ+1 in the history buffer.
 
 **Correct algorithm:**
 1. For t ≤ Rₜ: Vₜ = Rₜ (initialization phase)
-2. For t > Rₜ: Count consecutive packets with no mask changes
-   - Start checking from D_{t-2} (skip D_{t-1})
+2. For t > Rₜ: Count backward starting from position Rₜ+1
+   - Check D_{t-(Rₜ+1)}, D_{t-(Rₜ+2)}, ...
    - Stop when finding a change or reaching maximum Cₜ = 15 - Rₜ
    - Vₜ = Rₜ + Cₜ
 
-**Example for t=2, Rₜ=1:**
-- Check D₀ only (skip D₁ per spec requirement)
-- If D₀ = ∅, then Cₜ=1
-- Result: Vₜ = 1 + 1 = 2
+**Example for Rₜ=2, t=5:**
+- Start checking from i=3 (Rₜ+1=3)
+- Check D_{t-3}, D_{t-4}, D_{t-5}, ...
+- If all empty, Cₜ increases accordingly
 
-**Common mistake:** Starting from i=1 includes D_{t-1} in the check, which violates the spec and produces incorrect Vₜ values, causing divergence within the first few packets.
+**Common mistake:** Starting from i=2 regardless of Rₜ. This works for R=1 but fails for R=2.
 
 ### 4. Packet Indexing: 0-Based vs 1-Based in Flag Calculations
 
@@ -128,24 +126,7 @@ kt = BE(inverted_mask, Xt)   // Extract inverted values at changed positions
 
 ### Summary
 
-**Progressive Bug Fixes:**
-
-After fixing bugs #1-3 (init phase, Vₜ calculation, flag timing):
-- Output size: **644 bytes** (only 1 byte over, expected 643)
-- First divergence: **byte 251** (60.9% prefix match)
-- Size accuracy: **99.8%**
-
-After fixing bug #4 (0-based vs 1-based packet indexing):
-- Output size: **641 bytes** (2 bytes short, expected 643)
-- First divergence: **byte 286** (44.5% prefix match)
-- Size accuracy: **99.7%**
-
-After fixing bug #5 (kₜ component inverted mask encoding):
-- Output size: **641 bytes** (2 bytes short, expected 643)
-- First divergence: **byte 320** (49.8% prefix match)
-- Size accuracy: **99.7%**
-
-**Note:** The kₜ inversion fix improved prefix matching from 44.5% to 49.8%. The remaining 2-byte shortage indicates missing bits somewhere in the encoding pipeline.
+See [GOTCHAS.md](GOTCHAS.md) for the complete list of implementation pitfalls.
 
 ## High-Level Data Flow
 

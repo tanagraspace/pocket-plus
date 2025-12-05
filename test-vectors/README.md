@@ -1,98 +1,46 @@
 # POCKET+ Test Vectors
 
-This directory contains test vectors for validating POCKET+ implementations across different programming languages.
+Validation data for POCKET+ implementations.
 
-## Purpose
+## Test Vectors
 
-Test vectors ensure that all implementations:
-1. Produce correct compression results
-2. Successfully decompress data
-3. Maintain interoperability across languages
-4. Handle edge cases consistently
+| Name | Input | Output | Ratio | Robustness | Parameters |
+|------|-------|--------|-------|------------|------------|
+| simple | 9 KB (100 pkts) | 641 B | 14.04x | R=1 | pt=10, ft=20, rt=50 |
+| housekeeping | 900 KB (10K pkts) | 223 KB | 4.03x | R=2 | pt=20, ft=50, rt=100 |
+| edge-cases | 45 KB (500 pkts) | 10 KB | 4.44x | R=1 | pt=10, ft=20, rt=50 |
+| venus-express | 13.6 MB (151K pkts) | 5.9 MB | 2.31x | R=2 | pt=20, ft=50, rt=100 |
+
+All packets are 90 bytes.
 
 ## Directory Structure
 
 ```
 test-vectors/
-├── input/              # Original uncompressed test data
-│   ├── simple.bin      # Basic test case
-│   ├── housekeeping.bin # Typical spacecraft housekeeping data
-│   └── edge-cases.bin  # Edge cases and corner conditions
-│
-└── expected-output/    # Expected compressed results
-    ├── simple.compressed
-    ├── housekeeping.compressed
-    └── edge-cases.compressed
+├── input/                  # Uncompressed input files
+│   ├── simple.bin
+│   ├── housekeeping.bin
+│   ├── edge-cases.bin
+│   └── venus-express.ccsds
+└── expected-output/        # Reference compressed output
+    ├── simple.bin.pkt
+    ├── housekeeping.bin.pkt
+    ├── edge-cases.bin.pkt
+    └── venus-express.ccsds.pkt
 ```
-
-## Test Cases
-
-### simple.bin
-- **Description**: Simple test case with predictable patterns
-- **Size**: TBD
-- **Purpose**: Basic validation of compression/decompression
-
-### housekeeping.bin
-- **Description**: Realistic spacecraft housekeeping telemetry data
-- **Size**: TBD
-- **Purpose**: Validate performance on real-world data
-
-### edge-cases.bin
-- **Description**: Edge cases and boundary conditions
-- **Size**: TBD
-- **Purpose**: Ensure robust error handling
 
 ## Usage
 
-### Running Tests
-
-Each implementation should validate against these test vectors:
-
-**C:**
+### C
 ```bash
-cd c
-make test-vectors
+cd implementations/c
+make test  # Runs test_vectors against all test vectors
 ```
 
-**Python:**
-```bash
-cd python
-pytest tests/test_vectors.py
-```
+## Validation
 
-**Go:**
-```bash
-cd go
-go test ./... -v -run TestVectors
-```
+A correct implementation must produce **byte-for-byte identical** output to the expected-output files. Any difference indicates an implementation bug.
 
-## Adding New Test Vectors
+## Generation
 
-When adding new test vectors:
-
-1. Add input file to `input/`
-2. Generate expected output using a validated implementation
-3. Add expected output to `expected-output/`
-4. Document the test case in this README
-5. Update test suites in all language implementations
-
-## Validation Criteria
-
-A valid implementation must:
-- Compress input files to match expected output (bit-for-bit)
-- Decompress output files back to original input
-- Handle all edge cases without crashes
-- Report errors appropriately for invalid input
-
-## Cross-Implementation Testing
-
-Implementations should also verify:
-- Data compressed by C can be decompressed by Python and Go
-- Data compressed by Python can be decompressed by C and Go
-- Data compressed by Go can be decompressed by C and Python
-
-This ensures true interoperability across implementations.
-
-## Notes
-
-Test vectors will be added as the algorithm implementation progresses. Initial implementations may use placeholder test data until the full algorithm is complete.
+Test vectors are generated using the ESA reference implementation. See `test-vector-generator/` for the Docker-based generation pipeline.

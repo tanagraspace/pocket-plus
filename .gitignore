@@ -20,9 +20,10 @@ Thumbs.db
 .temp/
 
 # Build artifacts
-test-vector-generator/c-reference/pocket_compress.dSYM/
-test-vector-generator/c-reference/pocket_decompress.dSYM/
+test-vector-generator/c-reference/*.dSYM/
 
-# Generated output files
-test-vectors/input/simple.bin.pkt
-test-vectors/input_90byte_100pkt.dat.pkt
+# Generated output files and build
+test-vectors/input/*.bin.pkt
+test-vectors/input/*.dat.pkt
+test-vectors/*.bin.pkt
+test-vectors/*.dat.pkt

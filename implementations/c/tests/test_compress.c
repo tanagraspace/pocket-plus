@@ -421,7 +421,7 @@ TEST(test_compute_ct_flag_single_update) {
     comp.t = 1;
 
     uint8_t Vt = 2;  /* Check last 2 iterations */
-    int ct = pocket_compute_ct_flag(&comp, Vt);
+    int ct = pocket_compute_ct_flag(&comp, Vt, 0);  /* current flag = 0 */
 
     assert(ct == 0);  /* Only one update → cₜ = 0 */
 }
@@ -442,7 +442,7 @@ TEST(test_compute_ct_flag_multiple_updates) {
     comp.t = 2;
 
     uint8_t Vt = 2;  /* Check last 2 iterations */
-    int ct = pocket_compute_ct_flag(&comp, Vt);
+    int ct = pocket_compute_ct_flag(&comp, Vt, 0);  /* current flag = 0 */
 
     assert(ct == 1);  /* Two updates → cₜ = 1 */
 }

@@ -430,11 +430,13 @@ int pocket_has_positive_updates(
  *
  * @param comp Compressor state with flag history
  * @param Vt Effective robustness level
+ * @param current_new_mask_flag Current packet's new_mask_flag value
  * @return 1 if multiple updates, 0 otherwise
  */
 int pocket_compute_ct_flag(
     const pocket_compressor_t *comp,
-    uint8_t Vt
+    uint8_t Vt,
+    int current_new_mask_flag
 );
 
 /* ========================================================================

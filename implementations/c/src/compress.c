@@ -200,12 +200,13 @@ uint8_t pocket_compute_effective_robustness(
     }
 
     /* For t > Rt, compute Ct by counting consecutive iterations with no changes
-     * Per CCSDS 5.3.2.2: Ct is largest value for which D_{t-i} = ∅ for all 1 < i ≤ Ct + Rt
-     * This means we start from i=2 (checking D_{t-2}), NOT i=1 (D_{t-1}) */
+     * Reference implementation starts at position Rt+1 earlier (not t-1 or t-2)
+     * and counts consecutive "no change" entries */
     uint8_t Ct = 0;
 
-    /* Count backwards through history starting from t-2 (skip t-1 per CCSDS spec) */
-    for (size_t i = 2; i <= 15 && i <= comp->t; i++) {
+    /* Count backwards through history starting from Rt+1 positions back
+     * (matching reference: start = pt_history_index + Rt + 1) */
+    for (size_t i = Rt + 1; i <= 15 && i <= comp->t; i++) {
         size_t hist_idx = (comp->history_index - i + POCKET_MAX_HISTORY) % POCKET_MAX_HISTORY;
         if (bitvector_hamming_weight(&comp->change_history[hist_idx]) > 0) {
             break;  /* Found a change, stop counting */
@@ -246,20 +247,31 @@ int pocket_has_positive_updates(
 
 int pocket_compute_ct_flag(
     const pocket_compressor_t *comp,
-    uint8_t Vt
+    uint8_t Vt,
+    int current_new_mask_flag
 ) {
-    /* cₜ = 1 if new_mask_flag was set 2+ times in last Vₜ iterations */
+    /* cₜ = 1 if new_mask_flag was set 2+ times in last Vₜ+1 iterations
+     * (including current packet) - matches reference implementation */
 
-    if (comp->t == 0 || Vt == 0) {
+    if (Vt == 0) {
         return 0;
     }
 
-    /* Count how many times new_mask_flag was set in last Vₜ iterations */
+    /* Count how many times new_mask_flag was set.
+     * Reference checks from current (i=pt_history_index) to current+Vt,
+     * which is Vt+1 entries including current packet */
     int count = 0;
-    size_t iterations_to_check = (Vt < comp->t) ? Vt : comp->t;
+
+    /* Include current packet's flag */
+    if (current_new_mask_flag) {
+        count++;
+    }
+
+    /* Check history for Vt previous entries */
+    size_t iterations_to_check = (Vt <= comp->t) ? Vt : comp->t;
 
     for (size_t i = 0; i < iterations_to_check; i++) {
-        /* Calculate history index going backwards from current */
+        /* Calculate history index going backwards from previous */
         size_t hist_idx = (comp->flag_history_index - 1 - i + POCKET_MAX_VT_HISTORY) % POCKET_MAX_VT_HISTORY;
         if (comp->new_mask_flag_history[hist_idx]) {
             count++;
@@ -386,7 +398,7 @@ int pocket_compress_packet(
             pocket_bit_extract_forward(output, &inverted_mask, &Xt);
 
             /* Calculate and encode cₜ */
-            int ct = pocket_compute_ct_flag(comp, Vt);
+            int ct = pocket_compute_ct_flag(comp, Vt, params->new_mask_flag);
 
             bitbuffer_append_bit(output, ct);
         }
@@ -438,7 +450,7 @@ int pocket_compress_packet(
         }
 
         /* Determine extraction mask based on cₜ */
-        int ct = pocket_compute_ct_flag(comp, Vt);
+        int ct = pocket_compute_ct_flag(comp, Vt, params->new_mask_flag);
 
         if (ct == 1 && Vt > 0) {
             /* BE(Iₜ, (Xₜ OR Mₜ)) - extract bits where mask OR changes are set */
@@ -523,29 +535,53 @@ int pocket_compress(
         pocket_params_t params;
         params.min_robustness = comp->robustness;
 
-        /* If limits are set, manage parameters automatically */
+        /* If limits are set, manage parameters automatically using countdown counters
+         * (matches reference implementation exactly) */
         if (comp->pt_limit > 0 && comp->ft_limit > 0 && comp->rt_limit > 0) {
-            /* 1-based packet number for modulo calculations */
-            int packet_num = i + 1;
-
-            /* Calculate first trigger points (matches reference implementation) */
-            int pt_first_trigger = comp->pt_limit + comp->robustness;
-            int ft_first_trigger = comp->ft_limit + comp->robustness;
-            int rt_first_trigger = comp->rt_limit + comp->robustness;
-
-            /* CCSDS init phase: first Rt+1 packets must have ft=1, rt=1, pt=0 */
-            if (i <= (int)comp->robustness) {
+            /* Reference implementation: packet 1 handled separately, loop starts at packet 2 (1-indexed).
+             * In 0-indexed: packet 0 = handled separately, counters start at packet 1. */
+            if (i == 0) {
+                /* First packet: fixed init values, counters not checked */
                 params.send_mask_flag = 1;
                 params.uncompressed_flag = 1;
                 params.new_mask_flag = 0;
             } else {
-                /* Normal operation: use modulo arithmetic (matches reference) */
-                params.new_mask_flag = (packet_num >= pt_first_trigger &&
-                                       packet_num % comp->pt_limit == (pt_first_trigger % comp->pt_limit)) ? 1 : 0;
-                params.send_mask_flag = (packet_num >= ft_first_trigger &&
-                                        packet_num % comp->ft_limit == (ft_first_trigger % comp->ft_limit)) ? 1 : 0;
-                params.uncompressed_flag = (packet_num >= rt_first_trigger &&
-                                           packet_num % comp->rt_limit == (rt_first_trigger % comp->rt_limit)) ? 1 : 0;
+                /* Packets 1+: check and update countdown counters */
+                /* ft counter */
+                if (comp->ft_counter == 1) {
+                    params.send_mask_flag = 1;
+                    comp->ft_counter = comp->ft_limit;
+                } else {
+                    comp->ft_counter--;
+                    params.send_mask_flag = 0;
+                }
+
+                /* pt counter */
+                if (comp->pt_counter == 1) {
+                    params.new_mask_flag = 1;
+                    comp->pt_counter = comp->pt_limit;
+                } else {
+                    comp->pt_counter--;
+                    params.new_mask_flag = 0;
+                }
+
+                /* rt counter */
+                if (comp->rt_counter == 1) {
+                    params.uncompressed_flag = 1;
+                    comp->rt_counter = comp->rt_limit;
+                } else {
+                    comp->rt_counter--;
+                    params.uncompressed_flag = 0;
+                }
+
+                /* Override for remaining init packets: CCSDS requires first Rt+1 packets
+                 * to have ft=1, rt=1, pt=0. Reference checks: if (i < Rt+2) in 1-indexed.
+                 * In 0-indexed: if (i <= Rt). Counters are still decremented per reference. */
+                if (i <= (int)comp->robustness) {
+                    params.send_mask_flag = 1;
+                    params.uncompressed_flag = 1;
+                    params.new_mask_flag = 0;
+                }
             }
         } else {
             /* Manual control: use defaults (ft=0, rt=0, pt=0 for normal operation) */

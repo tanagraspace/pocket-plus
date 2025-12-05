@@ -16,10 +16,12 @@ Each gotcha includes:
 
 1. [Initialization Phase: First Rₜ+1 Packets (Not Rₜ+2!)](#1-initialization-phase-first-rₜ1-packets-not-rₜ2)
 2. [Flag Timing: Countdown Counters, Not Modulo Arithmetic](#2-flag-timing-countdown-counters-not-modulo-arithmetic)
-3. [Vₜ Calculation: Skip D_{t-1}!](#3-vₜ-calculation-skip-d_t-1)
+3. [Vₜ Calculation: Start from Rₜ+1, Not Position 2!](#3-vₜ-calculation-start-from-rₜ1-not-position-2)
 4. [Packet Indexing: 0-Based vs 1-Based in Flag Calculations](#4-packet-indexing-0-based-vs-1-based-in-flag-calculations)
 5. [Component kₜ: Inverted Mask Values (Not Direct Mask Values!)](#5-component-kₜ-inverted-mask-values-not-direct-mask-values)
 6. [Component kₜ: Forward Extraction Order (Not Reverse!)](#6--component-kₜ-forward-extraction-order-not-reverse)
+7. [Reference Implementation's Final Padding (FIXED)](#-gotcha-7-reference-implementations-final-padding-fixed)
+8. [cₜ Calculation: Include Current Packet's pₜ Flag!](#8-cₜ-calculation-include-current-packets-pₜ-flag)
 
 ---
 
@@ -106,51 +108,63 @@ if (packet_num >= pt_first_trigger &&
 
 ---
 
-## 3. Vₜ Calculation: Skip D_{t-1}!
+## 3. Vₜ Calculation: Start from Rₜ+1, Not Position 2!
 
 ### ✅ What the Spec Says
 
 Per CCSDS Section 5.3.2.2, Cₜ is defined as the largest value where **D_{t-i} = ∅ for all 1 < i ≤ Cₜ + Rₜ**.
 
-**Critical detail:** The strict inequality **1 < i** means start from **i=2**, checking D_{t-2}, D_{t-3}, ..., **NOT D_{t-1}**!
-
 ### ❌ Common Mistake
 
-Starting from i=1, which includes D_{t-1} in the check:
+Starting from i=2 regardless of Rₜ value:
 
 ```c
-// WRONG: Includes D_{t-1}
-for (int i = 1; i <= Ct + Rt; i++) {
+// WRONG: Always starts from i=2
+for (int i = 2; i <= 15; i++) {
     if (Dt[t-i] != 0) break;
     Ct++;
 }
 ```
 
+**Why this seems reasonable:** The spec says "1 < i", which suggests starting from i=2.
+
+**Why it's wrong:** The reference implementation starts from position **Rₜ+1** in the history buffer, not from position 2. For Rₜ=1, this happens to be 2. For Rₜ=2, it's 3. The general formula is:
+
+```
+start_position = Rt + 1
+```
+
 ### 🔧 Correct Implementation
 
 ```c
-// CORRECT: Skip D_{t-1}, start from D_{t-2}
+// CORRECT: Start from Rt+1 positions back
 int Ct = 0;
-for (int i = 2; i <= 15; i++) {  // i starts from 2!
-    if (t - i < 0) break;
-    if (Dt[t-i] != 0) break;
+for (int i = Rt + 1; i <= 15 && i <= t; i++) {  // i starts from Rt+1!
+    size_t hist_idx = (history_index - i + HISTORY_SIZE) % HISTORY_SIZE;
+    if (change_history[hist_idx] != 0) break;  // Found a change
     Ct++;
     if (Ct >= 15 - Rt) break;  // Maximum Ct
 }
 Vt = Rt + Ct;
 ```
 
-**Example for t=2, Rₜ=1:**
-- Check D₀ only (skip D₁ per spec requirement)
-- If D₀ = ∅, then Cₜ=1
-- Result: Vₜ = 1 + 1 = 2
+**Example for Rₜ=1:**
+- Start from i=2 (Rₜ+1=2)
+- Check D_{t-2}, D_{t-3}, ...
+- Skip D_{t-1}
+
+**Example for Rₜ=2:**
+- Start from i=3 (Rₜ+1=3)
+- Check D_{t-3}, D_{t-4}, ...
+- Skip D_{t-1} AND D_{t-2}
 
 ### 📊 Impact
 
-- **Divergence:** Within first 5 packets!
-- **Symptom:** Wrong Vₜ values in component hₜ
-- **Size error:** Small (few bits per packet)
+- **Divergence:** Within first 5-10 packets for Rₜ>1
+- **Symptom:** Wrong Vₜ values in component hₜ, byte-level mismatches
+- **Size error:** Small (few bits per packet), but compounds over stream
 - **Detection:** Print Vₜ values for packets 0-5 and compare with reference
+- **Affected tests:** R=2 tests (housekeeping, venus-express) will have byte mismatches
 
 ---
 
@@ -466,11 +480,14 @@ Before declaring your implementation "working":
 - Mask transmission packets are correct
 - Uncompressed packets trigger at correct intervals
 - Vₜ values match reference for initialization and steady-state phases
+- Vₜ calculation starts from Rₜ+1, not always from i=2
+- cₜ calculation includes current packet's pₜ flag (Vₜ+1 total entries)
 - No divergence before byte 300 (indicates kₜ issues)
 - No systematic bit-shift errors (indicates ordering issues)
 - kₜ component uses forward extraction order
 - BE operation uses reverse extraction order
 - Mask inversion is applied before kₜ extraction
+- Both R=1 AND R=2 test vectors pass (different code paths!)
 
 ---
 
@@ -480,12 +497,15 @@ Before declaring your implementation "working":
 |---------|--------------|-----|
 | Divergence at byte 10-20 | Init phase wrong (#1) | Check Rₜ+1 condition |
 | Divergence at byte 30-50 | Flag timing wrong (#2) | Check countdown logic |
-| Divergence at byte 5-15 | Vₜ wrong (#3) | Skip D_{t-1} in calculation |
+| Divergence at byte 5-15 | Vₜ wrong (#3) | Start from Rₜ+1, not i=2 |
+| Byte mismatch in R=2 tests | Vₜ start position wrong (#3) | Use i=Rₜ+1 not i=2 |
 | Divergence at byte 200-300 | Packet indexing wrong (#4) | Convert i to packet_num |
 | 1-bit errors in kₜ | kₜ not inverted (#5) | Invert mask before extraction |
 | 2-bit shift at byte 300+ | kₜ extraction order wrong (#6) | Use forward order for kₜ |
 | Size off by 10%+ | Multiple flag issues | Check #2 and #4 |
 | Size matches but content wrong | Bit-level issues | Check #5 and #6 |
+| Size off by ~100 bytes (10KB test) | cₜ missing current flag (#8) | Include current pₜ in cₜ count |
+| edge-cases fails, simple passes | cₜ calculation wrong (#8) | Check Vₜ+1 entries for cₜ |
 
 ---
 
@@ -547,6 +567,83 @@ See [../test-vector-generator/c-reference/CHANGES.md](../test-vector-generator/c
 - Your output should be exactly the compressed data
 - Byte-boundary padding per packet (if used) is standard
 - Expect perfect byte-for-byte matches with current test vectors
+
+---
+
+## 8. cₜ Calculation: Include Current Packet's pₜ Flag!
+
+**⭐ Discovery - December 2025**
+
+### ✅ What the Spec Says
+
+Per CCSDS Section 5.3.2.2 (Equation 20), cₜ = 1 if the new_mask_flag (pₜ) was set **2 or more times** in the last Vₜ iterations.
+
+### ❌ Common Mistake
+
+Only checking historical pₜ flags without including the **current packet's** pₜ flag:
+
+```c
+// WRONG: Only checks history, misses current packet
+int count = 0;
+for (int i = 0; i < Vt; i++) {
+    size_t hist_idx = (flag_history_index - 1 - i) % HISTORY_SIZE;
+    if (new_mask_flag_history[hist_idx]) count++;
+}
+return (count >= 2) ? 1 : 0;
+```
+
+**Why this seems reasonable:** The current pₜ flag hasn't been stored in history yet when cₜ is computed.
+
+**Why it's wrong:** The reference implementation stores the current pₜ flag BEFORE computing cₜ, so it includes Vₜ+1 total entries (current + Vₜ historical). Your implementation must match this behavior.
+
+### 🔧 Correct Implementation
+
+Either store the current flag before computing cₜ, or include it explicitly:
+
+```c
+// CORRECT: Include current packet's flag in the count
+int pocket_compute_ct_flag(
+    const pocket_compressor_t *comp,
+    uint8_t Vt,
+    int current_new_mask_flag  // Pass current packet's pt flag
+) {
+    if (Vt == 0) return 0;
+
+    int count = 0;
+
+    // Include current packet's flag
+    if (current_new_mask_flag) count++;
+
+    // Check Vt historical entries
+    for (size_t i = 0; i < Vt && i < comp->t; i++) {
+        size_t hist_idx = (comp->flag_history_index - 1 - i + HISTORY_SIZE) % HISTORY_SIZE;
+        if (comp->new_mask_flag_history[hist_idx]) count++;
+    }
+
+    return (count >= 2) ? 1 : 0;  // ct=1 if 2+ flags set
+}
+```
+
+**Reference behavior:**
+- Stores `pt_history[pt_history_index] = pt` before computing cₜ
+- Loops from `pt_history_index` to `pt_history_index + Vt` (inclusive)
+- Total entries checked: Vₜ + 1 (current + Vₜ historical)
+
+### 📊 Impact
+
+- **Divergence:** Mid-stream (typically 500+ bytes into output)
+- **Symptom:** Output size mismatch, wrong extraction mask used
+- **Size error:** Significant (~100+ bytes on 10KB test)
+- **Detection:** Compare with edge-cases test vector (exercises this path)
+- **Affected tests:** edge-cases.bin shows ~109 byte size difference without this fix
+
+### 🔍 Why This Was Hard to Find
+
+1. **R=1 tests may pass** - simple.bin passed because of specific data patterns
+2. **R=2 tests have different issues** - Vₜ calculation bug masked this in housekeeping/venus-express
+3. **Late divergence** - Only triggers when pₜ is set multiple times within Vₜ window
+4. **Order of operations** - Reference stores flag then computes cₜ; easy to compute first then store
+5. **Size difference misleading** - Looks like encoding bug, not flag counting bug
 
 ---
 

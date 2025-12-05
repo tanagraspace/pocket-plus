@@ -28,8 +28,8 @@ pocket-plus/
 
 ### C Implementation
 
-**Version**: 0.1.0
-**Status**: In development
+**Version**: 1.0.0
+**Status**: Compression complete (byte-for-byte match with reference)
 **Location**: [`implementations/c/`](implementations/c/)
 
 Optimized for embedded systems and spacecraft processors. See [implementations/c/README.md](implementations/c/README.md) for details.
@@ -37,18 +37,18 @@ Optimized for embedded systems and spacecraft processors. See [implementations/c
 ### Python Implementation
 
 **Version**: 0.1.0
-**Status**: In development
+**Status**: Planned
 **Location**: [`implementations/python/`](implementations/python/)
 
-High-level implementation with type hints and comprehensive testing. See [implementations/python/README.md](implementations/python/README.md) for details.
+High-level implementation with type hints. See [implementations/python/README.md](implementations/python/README.md) for details.
 
 ### Go Implementation
 
 **Version**: 0.1.0
-**Status**: In development
+**Status**: Planned
 **Location**: [`implementations/go/`](implementations/go/)
 
-Idiomatic Go implementation with streaming and buffer-based APIs. See [implementations/go/README.md](implementations/go/README.md) for details.
+Idiomatic Go implementation. See [implementations/go/README.md](implementations/go/README.md) for details.
 
 ## Quick Start
 
@@ -105,9 +105,9 @@ git push origin python/v1.0.0
 
 ## Documentation
 
-- [Algorithm Overview](docs/algorithm-overview.md) - How POCKET+ works
-- [CCSDS Specification](docs/ccsds-specification.md) - Standards information
-- [Implementation Guide](docs/implementation-guide.md) - Guidelines for contributors
+- [Algorithm Specification](docs/ALGORITHM.md) - POCKET+ algorithm details
+- [Implementation Guidelines](docs/GUIDELINES.md) - Quick start for implementers
+- [Common Gotchas](docs/GOTCHAS.md) - Critical pitfalls to avoid
 - [Test Vectors](test-vectors/README.md) - Validation test data
 
 ## Features
@@ -147,4 +147,5 @@ See [LICENSE](LICENSE) for details.
 
 ## Status
 
-All implementations are currently in early development (v0.1.0). The core algorithm implementation is in progress.
+- **C**: Compression complete and validated against all test vectors
+- **Python/Go**: Planned

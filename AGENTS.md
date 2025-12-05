@@ -93,8 +93,9 @@ python: fix decompression bug
 
 ## Important Files to Check
 
-- `docs/implementation-guide.md` - Implementation guidelines
-- `docs/algorithm-overview.md` - Algorithm description
+- `docs/GOTCHAS.md` - Critical implementation pitfalls (read first!)
+- `docs/GUIDELINES.md` - Implementation quick start
+- `docs/ALGORITHM.md` - Algorithm specification
 - `test-vectors/README.md` - Test data format and usage
 - Each implementation's `README.md` and `CHANGELOG.md`
 
@@ -108,12 +109,11 @@ python: fix decompression bug
 
 ## Reference Implementation
 
-The `sandbox/pocket-plus-master/` directory contains a reference C implementation. Use it to understand the algorithm, but don't blindly copy it.
+The `test-vector-generator/c-reference/` directory contains the ESA reference C implementation. Use it to understand the algorithm, but don't blindly copy it.
 
 ## Questions?
 
 Refer to:
+- `docs/GOTCHAS.md` and `docs/ALGORITHM.md`
 - CCSDS 124.0-B-1 specification
-- `docs/` directory for algorithm details
-- Existing code in other language implementations
 - ESA POCKET+ documentation: https://opssat.esa.int/pocket-plus/

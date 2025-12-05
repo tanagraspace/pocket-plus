@@ -129,4 +129,65 @@ tail -c 2 simple.bin.pkt.orig | hexdump -C
 
 ---
 
+## ✅ Fix #2: Updated Decompressor Loop to Handle Fixed Padding
+
+### Date: 2025-12-03
+### Severity: High (breaks decompression after Fix #1)
+
+### Description
+
+After fixing the compressor padding bug (Fix #1), the decompressor was failing because it expected the old format with spurious padding bytes. The loop termination condition stopped 3 bytes early, which worked with the buggy compressor but failed with the fixed output.
+
+### Location
+
+**File:** `pocket_decompress.c`
+**Function:** `main()` decompress loop
+**Line:** ~306
+
+### Root Cause
+
+The decompressor loop used `currentByte<(compressed_file_length-3)` as its termination condition, expecting at least 3 bytes of extra data at the end of the compressed file. This was a workaround for the compressor's padding bug (Fix #1).
+
+After fixing the compressor to properly truncate output, the compressed files no longer had spurious padding, causing the decompressor to stop processing too early and miss the last packet(s).
+
+### Original Code
+
+```c
+} while (currentByte<(compressed_file_length-3));
+```
+
+### Fix Applied
+
+```c
+} while (currentByte<compressed_file_length);
+```
+
+### Impact
+
+**Before Fix:**
+- Decompression worked with buggy compressor output (with spurious padding)
+- After compressor Fix #1: decompression failed with MD5 mismatches
+- simple.bin: decompressed to 8910 bytes instead of 9000 (missing last packet)
+
+**After Fix:**
+- Decompression now works correctly with fixed compressor output
+- All test vectors decompress successfully with MD5 matches
+- Compression → decompression → comparison cycle validates correctly
+
+### Verification
+
+```bash
+make generate-simple
+# ✓ Compressed: 9000 → 641 bytes (14.04x)
+# Success✓ Decompressed
+# ✓ SUCCESS: MD5 match!
+
+make generate-housekeeping
+# ✓ Compressed: 900000 → 223078 bytes (4.03x)
+# Success✓ Decompressed
+# ✓ SUCCESS: MD5 match!
+```
+
+---
+
 **Found another bug to fix? Document it here!**
