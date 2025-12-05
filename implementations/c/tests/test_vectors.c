@@ -19,7 +19,7 @@
  * ============================================================================
  */
 
-#include "pocket_plus.h"
+#include "pocketplus.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,7 +74,82 @@ static size_t read_file(const char *path, uint8_t *buffer, size_t max_size) {
     return bytes_read;
 }
 
+/* Helper: Simple DJB2 hash for verification */
+static uint32_t djb2_hash(const uint8_t *data, size_t len) {
+    uint32_t hash = 5381U;
+    for (size_t i = 0U; i < len; i++) {
+        hash = ((hash << 5U) + hash) + data[i];  /* hash * 33 + c */
+    }
+    return hash;
+}
+
 /* Helper: Compare our output with expected output */
+static int compare_output(const uint8_t *actual, size_t actual_size,
+                         const uint8_t *expected, size_t expected_size,
+                         const char *test_name);
+
+/* Helper: Decompress and verify round-trip integrity */
+static int decompress_and_verify(
+    const uint8_t *original_data, size_t original_size,
+    const uint8_t *compressed_data, size_t compressed_size,
+    size_t packet_length_bits, uint8_t robustness,
+    const char *test_name
+) {
+    /* Allocate buffer for decompressed output */
+    static uint8_t decompressed_data[15 * 1024 * 1024];  /* 15 MB */
+
+    /* Initialize decompressor */
+    pocket_decompressor_t decomp;
+    int result = pocket_decompressor_init(&decomp, packet_length_bits, NULL, robustness);
+    if (result != POCKET_OK) {
+        fprintf(stderr, "\n  FAIL: Decompressor init failed for %s\n", test_name);
+        return 0;
+    }
+
+    /* Decompress */
+    size_t decompressed_size = 0U;
+    result = pocket_decompress(&decomp, compressed_data, compressed_size,
+                               decompressed_data, sizeof(decompressed_data),
+                               &decompressed_size);
+    if (result != POCKET_OK) {
+        fprintf(stderr, "\n  FAIL: Decompression failed with error %d for %s\n",
+                result, test_name);
+        return 0;
+    }
+
+    /* Verify size matches */
+    if (decompressed_size != original_size) {
+        fprintf(stderr, "\n  FAIL: Round-trip size mismatch in %s\n", test_name);
+        fprintf(stderr, "    Original:     %zu bytes\n", original_size);
+        fprintf(stderr, "    Decompressed: %zu bytes\n", decompressed_size);
+        return 0;
+    }
+
+    /* Verify hash matches */
+    uint32_t original_hash = djb2_hash(original_data, original_size);
+    uint32_t decompressed_hash = djb2_hash(decompressed_data, decompressed_size);
+
+    if (original_hash != decompressed_hash) {
+        fprintf(stderr, "\n  FAIL: Round-trip hash mismatch in %s\n", test_name);
+        fprintf(stderr, "    Original hash:     0x%08X\n", original_hash);
+        fprintf(stderr, "    Decompressed hash: 0x%08X\n", decompressed_hash);
+
+        /* Find first difference */
+        for (size_t i = 0U; i < original_size; i++) {
+            if (original_data[i] != decompressed_data[i]) {
+                fprintf(stderr, "    First difference at byte %zu: expected 0x%02X, got 0x%02X\n",
+                        i, original_data[i], decompressed_data[i]);
+                break;
+            }
+        }
+        return 0;
+    }
+
+    printf("    Round-trip: hash 0x%08X verified ✓\n", original_hash);
+    return 1;
+}
+
+/* Forward declaration */
 static int compare_output(const uint8_t *actual, size_t actual_size,
                          const uint8_t *expected, size_t expected_size,
                          const char *test_name) {
@@ -171,8 +246,15 @@ static int compress_and_verify(
            input_size, actual_size, (float)input_size / actual_size);
 
     /* Compare with expected output */
-    return compare_output(actual_output, actual_size,
-                         expected_output, expected_size, test_name);
+    if (compare_output(actual_output, actual_size,
+                       expected_output, expected_size, test_name) == 0) {
+        return 0;
+    }
+
+    /* Perform round-trip verification: decompress and verify hash match */
+    return decompress_and_verify(input_data, input_size,
+                                 actual_output, actual_size,
+                                 packet_length_bits, robustness, test_name);
 }
 
 /* ========================================================================

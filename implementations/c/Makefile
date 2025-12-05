@@ -26,10 +26,10 @@ COV_TEST_BINS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(COV_DIR)/%)
 
 # Library and CLI
 LIB = $(BUILD_DIR)/libpocketplus.a
-CLI = $(BUILD_DIR)/pocket_compress
+CLI = $(BUILD_DIR)/pocketplus
 COV_LIB = $(COV_DIR)/libpocketplus.a
 
-.PHONY: all clean test cli coverage coverage-html docs
+.PHONY: all clean test test-cli cli coverage coverage-html docs
 
 all: $(LIB) $(CLI)
 
@@ -61,6 +61,9 @@ test: $(TEST_BINS)
 		echo "Running $$test..."; \
 		$$test || exit 1; \
 	done
+
+test-cli: $(CLI)
+	@$(TEST_DIR)/test_cli.sh
 
 $(BUILD_DIR)/%: $(TEST_DIR)/%.c $(LIB) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -L$(BUILD_DIR) -lpocketplus $(LDFLAGS) -o $@

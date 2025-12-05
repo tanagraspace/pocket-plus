@@ -14,6 +14,8 @@ Each gotcha includes:
 
 ## Table of Contents
 
+### Compression Gotchas
+
 1. [Initialization Phase: First Rₜ+1 Packets (Not Rₜ+2!)](#1-initialization-phase-first-rₜ1-packets-not-rₜ2)
 2. [Flag Timing: Countdown Counters, Not Modulo Arithmetic](#2-flag-timing-countdown-counters-not-modulo-arithmetic)
 3. [Vₜ Calculation: Start from Rₜ+1, Not Position 2!](#3-vₜ-calculation-start-from-rₜ1-not-position-2)
@@ -22,6 +24,17 @@ Each gotcha includes:
 6. [Component kₜ: Forward Extraction Order (Not Reverse!)](#6--component-kₜ-forward-extraction-order-not-reverse)
 7. [Reference Implementation's Final Padding (FIXED)](#-gotcha-7-reference-implementations-final-padding-fixed)
 8. [cₜ Calculation: Include Current Packet's pₜ Flag!](#8-cₜ-calculation-include-current-packets-pₜ-flag)
+
+### Decompression Gotchas
+
+9. [COUNT Decoding: '10' is Terminator, Not a Value](#9-count-decoding-10-is-terminator-not-a-value)
+10. [kₜ Reading Order: Forward (Low to High Position)](#10-kₜ-reading-order-forward-low-to-high-position)
+11. [kₜ Bit Interpretation: Inverted Mask Values](#11-kₜ-bit-interpretation-inverted-mask-values)
+12. [Unpredictable Bits: Insert in Reverse Order (BE)](#12-unpredictable-bits-insert-in-reverse-order-be)
+13. [Horizontal XOR Mask Decoding](#13-horizontal-xor-mask-decoding)
+14. [ḋₜ Flag Optimization](#14-ḋₜ-flag-optimization)
+15. [Vₜ=0 Special Case: Toggle Mask Bits](#15-vₜ0-special-case-toggle-mask-bits)
+16. [Extraction Mask: cₜ Affects Which Bits to Read](#16-extraction-mask-cₜ-affects-which-bits-to-read)
 
 ---
 
@@ -644,6 +657,350 @@ int pocket_compute_ct_flag(
 3. **Late divergence** - Only triggers when pₜ is set multiple times within Vₜ window
 4. **Order of operations** - Reference stores flag then computes cₜ; easy to compute first then store
 5. **Size difference misleading** - Looks like encoding bug, not flag counting bug
+
+---
+
+---
+
+# Decompression Gotchas
+
+The following gotchas are specific to implementing the decompressor.
+
+---
+
+## 9. COUNT Decoding: '10' is Terminator, Not a Value
+
+### ✅ What the Spec Says
+
+COUNT encoding uses prefixes: '0' for 1, '110xxxxx' for 2-33, '111...' for larger values.
+
+### ❌ Common Mistake
+
+Treating '10' as a normal encoded value:
+
+```c
+// WRONG: Doesn't handle terminator
+if (bit0 == 1 && bit1 == 0) {
+    // This is NOT a value encoding!
+}
+```
+
+### 🔧 Correct Implementation
+
+```c
+if (bit0 == 0) {
+    *value = 1;  // '0' → 1
+} else if (bit1 == 0) {
+    *value = 0;  // '10' → TERMINATOR (return 0)
+} else if (bit2 == 0) {
+    // '110' + 5 bits → value + 2
+} else {
+    // '111' + variable bits
+}
+```
+
+**Key insight:** In RLE context, COUNT returning 0 signals end of run-length sequence.
+
+### 📊 Impact
+
+- **Symptom:** Infinite loop or reading past end of RLE data
+- **Detection:** First packet decompression fails or hangs
+
+---
+
+## 10. kₜ Reading Order: Forward (Low to High Position)
+
+### ✅ What Happens During Compression
+
+The encoder extracts kₜ bits in **forward order** (lowest position index to highest).
+
+### ❌ Common Mistake
+
+Reading kₜ bits in reverse order (matching BE extraction):
+
+```c
+// WRONG: Reverse order (like BE)
+for (int i = count - 1; i >= 0; i--) {
+    kt_bits[i] = read_bit();
+}
+```
+
+### 🔧 Correct Implementation
+
+```c
+// CORRECT: Forward order (matching encoder)
+size_t kt_idx = 0;
+for (size_t i = 0; i < F; i++) {
+    if (bitvector_get_bit(&Xt, i)) {
+        kt_bits[kt_idx++] = read_bit();
+    }
+}
+```
+
+### 📊 Impact
+
+- **Symptom:** Mask reconstructed with wrong values at each changed position
+- **Detection:** All packets after first mask change will be wrong
+
+---
+
+## 11. kₜ Bit Interpretation: Inverted Mask Values
+
+### ✅ What the Encoder Outputs
+
+The encoder outputs the **inverse** of mask values at changed positions:
+- kt=1 means mask bit is 0 (positive update, now predictable)
+- kt=0 means mask bit is 1 (negative update, now unpredictable)
+
+### ❌ Common Mistake
+
+Directly using kₜ bits as mask values:
+
+```c
+// WRONG: Direct assignment
+mask[pos] = kt_bits[i];
+```
+
+### 🔧 Correct Implementation
+
+```c
+// CORRECT: Invert kt to get mask value
+if (kt_bits[kt_idx] == 1) {
+    bitvector_set_bit(&mask, pos, 0);  // kt=1 → mask=0 (predictable)
+    bitvector_set_bit(&Xt_positive, pos, 1);  // Track for ct logic
+} else {
+    bitvector_set_bit(&mask, pos, 1);  // kt=0 → mask=1 (unpredictable)
+}
+```
+
+### 📊 Impact
+
+- **Symptom:** Mask completely inverted, wrong bits extracted
+- **Detection:** Output is garbage after first mask update packet
+
+---
+
+## 12. Unpredictable Bits: Insert in Reverse Order (BE)
+
+### ✅ What the Encoder Does
+
+BE extraction outputs bits from highest position to lowest (reverse order).
+
+### ❌ Common Mistake
+
+Inserting bits in forward order:
+
+```c
+// WRONG: Forward order
+for (int i = 0; i < count; i++) {
+    set_bit(data, positions[i], read_bit());
+}
+```
+
+### 🔧 Correct Implementation
+
+```c
+// CORRECT: Reverse order (matching BE)
+for (size_t i = count; i > 0; i--) {
+    int bit = read_bit();
+    bitvector_set_bit(data, positions[i - 1], bit);
+}
+```
+
+**Remember:**
+- **kₜ (mask values):** Read/write in forward order
+- **uₜ (unpredictable bits via BE):** Read/write in reverse order
+
+### 📊 Impact
+
+- **Symptom:** Bits placed at wrong positions
+- **Detection:** Output has correct number of 1s but in wrong positions
+
+---
+
+## 13. Horizontal XOR Mask Decoding
+
+### ✅ What the Encoder Sends
+
+When ft=1, the encoder sends RLE(M XOR (M<<1)), a horizontal XOR of the mask.
+
+### ❌ Common Mistake
+
+Using the decoded RLE directly as the mask:
+
+```c
+// WRONG: RLE output is NOT the mask
+rle_decode(reader, &mask);  // ❌ This is HXOR, not M
+```
+
+### 🔧 Correct Implementation
+
+```c
+// Decode horizontal XOR
+bitvector_t hxor;
+rle_decode(reader, &hxor, F);
+
+// Reverse the horizontal XOR to get actual mask
+// HXOR[i] = M[i] XOR M[i+1], with HXOR[F-1] = M[F-1]
+// Reversal: M[F-1] = HXOR[F-1], M[i] = HXOR[i] XOR M[i+1]
+
+int current = bitvector_get_bit(&hxor, F - 1);
+bitvector_set_bit(&mask, F - 1, current);
+
+for (size_t i = F - 1; i > 0; i--) {
+    int hxor_bit = bitvector_get_bit(&hxor, i - 1);
+    current = hxor_bit ^ current;
+    bitvector_set_bit(&mask, i - 1, current);
+}
+```
+
+### 📊 Impact
+
+- **Symptom:** Completely wrong mask after ft=1 packet
+- **Detection:** All subsequent packets decompress incorrectly
+
+---
+
+## 14. ḋₜ Flag Optimization
+
+### ✅ What the Spec Says (Equation 13)
+
+ḋₜ = 1 implies **both** ḟₜ = 0 and ṙₜ = 0 (compressed packet with no mask transmission).
+
+### ❌ Common Mistake
+
+Always reading ft and rt after dt:
+
+```c
+// WRONG: Reads ft/rt even when dt=1
+int dt = read_bit();
+int ft = read_bit();  // ❌ Not in stream when dt=1!
+int rt = read_bit();  // ❌ Not in stream when dt=1!
+```
+
+### 🔧 Correct Implementation
+
+```c
+int dt = read_bit();
+int ft = 0, rt = 0;
+
+if (dt == 0) {
+    ft = read_bit();
+    if (ft == 1) {
+        // Decode full mask...
+    }
+    rt = read_bit();
+}
+// When dt=1, ft=0 and rt=0 implicitly
+```
+
+### 📊 Impact
+
+- **Symptom:** Bit stream misalignment after first dt=1 packet
+- **Detection:** Every packet after first optimization is corrupted
+
+---
+
+## 15. Vₜ=0 Special Case: Toggle Mask Bits
+
+### ✅ What Happens
+
+When Vₜ=0 and there are changes (Xₜ ≠ ∅), there's no eₜ or kₜ in the stream. The mask bits at changed positions are simply **toggled**.
+
+### ❌ Common Mistake
+
+Trying to read eₜ and kₜ when Vt=0:
+
+```c
+// WRONG: Tries to read et/kt regardless of Vt
+if (change_count > 0) {
+    int et = read_bit();  // ❌ Not present when Vt=0!
+    // ...
+}
+```
+
+### 🔧 Correct Implementation
+
+```c
+if (Vt > 0 && change_count > 0) {
+    // Read et, kt, ct
+    int et = read_bit();
+    // ...
+} else if (Vt == 0 && change_count > 0) {
+    // Toggle mask bits at change positions
+    for (size_t i = 0; i < F; i++) {
+        if (bitvector_get_bit(&Xt, i)) {
+            int current = bitvector_get_bit(&mask, i);
+            bitvector_set_bit(&mask, i, current ? 0 : 1);
+        }
+    }
+}
+```
+
+### 📊 Impact
+
+- **Symptom:** Bit stream misalignment in low-robustness packets
+- **Detection:** Fails on packets where Vt=0 with mask changes
+
+---
+
+## 16. Extraction Mask: cₜ Affects Which Bits to Read
+
+### ✅ What the Spec Says
+
+The unpredictable bits component uses:
+- **BE(Iₜ, Mₜ)** when cₜ=0 or Vₜ=0
+- **BE(Iₜ, Xₜ OR Mₜ)** when cₜ=1 and Vₜ>0
+
+### ❌ Common Mistake
+
+Always using just the mask for extraction:
+
+```c
+// WRONG: Ignores ct flag
+bit_insert(reader, output, &mask);
+```
+
+### 🔧 Correct Implementation
+
+```c
+bitvector_t extraction_mask;
+
+if (ct == 1 && Vt > 0) {
+    // BE(Iₜ, Xₜ OR Mₜ)
+    bitvector_or(&extraction_mask, &mask, &Xt_positive);
+} else {
+    // BE(Iₜ, Mₜ)
+    bitvector_copy(&extraction_mask, &mask);
+}
+
+bit_insert(reader, output, &extraction_mask);
+```
+
+**Note:** Xₜ_positive tracks only the **positive** changes (mask 1→0), not all changes.
+
+### 📊 Impact
+
+- **Symptom:** Wrong number of bits read, stream misalignment
+- **Detection:** Fails on packets where ct=1 and there are positive mask changes
+
+---
+
+## Decompression Testing Checklist
+
+Before declaring your decompressor "working":
+
+- [ ] Round-trip test: compress → decompress → compare with original
+- [ ] All test vectors decompress correctly
+- [ ] First 3 packets (init phase) decompress correctly
+- [ ] Packets with ft=1 (full mask) decompress correctly
+- [ ] Packets with rt=1 (uncompressed) handled correctly
+- [ ] Packets with dt=1 (optimized) don't read extra ft/rt bits
+- [ ] Vt=0 packets toggle mask without reading et/kt
+- [ ] kₜ read in forward order, applied as inverted values
+- [ ] Unpredictable bits inserted in reverse order (BE)
+- [ ] Horizontal XOR mask properly reversed
+- [ ] ct=1 uses extended extraction mask (Xt OR Mt)
 
 ---
 

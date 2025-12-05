@@ -32,7 +32,7 @@
  * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
-#include "pocket_plus.h"
+#include "pocketplus.h"
 #include <string.h>
 
 /**
@@ -40,18 +40,7 @@
  * @{
  */
 
-/**
- * @brief Initialize a bit vector with specified length.
- *
- * Allocates internal storage for the specified number of bits and zeros
- * all words. Uses 32-bit word storage with big-endian byte packing.
- *
- * @param[out] bv       Pointer to bit vector structure to initialize.
- * @param[in]  num_bits Number of bits in the vector (1 to POCKET_MAX_PACKET_LENGTH).
- *
- * @return POCKET_OK on success.
- * @return POCKET_ERROR_INVALID_ARG if bv is NULL or num_bits is invalid.
- */
+
 int bitvector_init(bitvector_t *bv, size_t num_bits) {
     if (bv == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -72,30 +61,14 @@ int bitvector_init(bitvector_t *bv, size_t num_bits) {
     return POCKET_OK;
 }
 
-/**
- * @brief Zero all bits in a bit vector.
- *
- * Sets all words in the bit vector to zero without changing the length.
- *
- * @param[in,out] bv Pointer to bit vector to zero. No-op if NULL.
- */
+
 void bitvector_zero(bitvector_t *bv) {
     if (bv != NULL) {
         memset(bv->data, 0, bv->num_words * sizeof(uint32_t));
     }
 }
 
-/**
- * @brief Copy a bit vector to another.
- *
- * Performs a deep copy of all data, length, and word count from source
- * to destination bit vector.
- *
- * @param[out] dest Pointer to destination bit vector.
- * @param[in]  src  Pointer to source bit vector.
- *
- * @note No-op if either pointer is NULL.
- */
+
 void bitvector_copy(bitvector_t *dest, const bitvector_t *src) {
     if (dest != NULL && src != NULL) {
         dest->length = src->length;
@@ -118,17 +91,7 @@ void bitvector_copy(bitvector_t *dest, const bitvector_t *src) {
  * @{
  */
 
-/**
- * @brief Get the value of a single bit.
- *
- * Retrieves the bit at the specified position using MSB-first indexing
- * with big-endian word packing.
- *
- * @param[in] bv  Pointer to bit vector.
- * @param[in] pos Bit position (0 = MSB, length-1 = LSB).
- *
- * @return 1 if bit is set, 0 if bit is clear or on error.
- */
+
 int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     if (bv == NULL || pos >= bv->length) {
         return 0;
@@ -150,18 +113,7 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     return (bv->data[word_index] >> bit_in_word) & 1;
 }
 
-/**
- * @brief Set or clear a single bit.
- *
- * Sets or clears the bit at the specified position using MSB-first indexing
- * with big-endian word packing.
- *
- * @param[in,out] bv    Pointer to bit vector.
- * @param[in]     pos   Bit position (0 = MSB, length-1 = LSB).
- * @param[in]     value Non-zero to set bit, zero to clear.
- *
- * @note No-op if bv is NULL or pos is out of range.
- */
+
 void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
     if (bv == NULL || pos >= bv->length) {
         return;
@@ -199,17 +151,7 @@ void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
  * @{
  */
 
-/**
- * @brief Compute bitwise XOR of two bit vectors.
- *
- * Computes result = a XOR b element-wise.
- *
- * @param[out] result Pointer to result bit vector.
- * @param[in]  a      Pointer to first operand.
- * @param[in]  b      Pointer to second operand.
- *
- * @note Result inherits length from operand a. No-op if any pointer is NULL.
- */
+
 void bitvector_xor(bitvector_t *result, const bitvector_t *a, const bitvector_t *b) {
     if (result == NULL || a == NULL || b == NULL) {
         return;
@@ -228,17 +170,7 @@ void bitvector_xor(bitvector_t *result, const bitvector_t *a, const bitvector_t 
     result->num_words = a->num_words;
 }
 
-/**
- * @brief Compute bitwise OR of two bit vectors.
- *
- * Computes result = a OR b element-wise.
- *
- * @param[out] result Pointer to result bit vector.
- * @param[in]  a      Pointer to first operand.
- * @param[in]  b      Pointer to second operand.
- *
- * @note Result inherits length from operand a. No-op if any pointer is NULL.
- */
+
 void bitvector_or(bitvector_t *result, const bitvector_t *a, const bitvector_t *b) {
     if (result == NULL || a == NULL || b == NULL) {
         return;
@@ -257,17 +189,7 @@ void bitvector_or(bitvector_t *result, const bitvector_t *a, const bitvector_t *
     result->num_words = a->num_words;
 }
 
-/**
- * @brief Compute bitwise AND of two bit vectors.
- *
- * Computes result = a AND b element-wise.
- *
- * @param[out] result Pointer to result bit vector.
- * @param[in]  a      Pointer to first operand.
- * @param[in]  b      Pointer to second operand.
- *
- * @note Result inherits length from operand a. No-op if any pointer is NULL.
- */
+
 void bitvector_and(bitvector_t *result, const bitvector_t *a, const bitvector_t *b) {
     if (result == NULL || a == NULL || b == NULL) {
         return;
@@ -286,17 +208,7 @@ void bitvector_and(bitvector_t *result, const bitvector_t *a, const bitvector_t 
     result->num_words = a->num_words;
 }
 
-/**
- * @brief Compute bitwise NOT (complement) of a bit vector.
- *
- * Computes result = NOT a, inverting all bits. Unused bits in the
- * last word are masked off to maintain valid vector state.
- *
- * @param[out] result Pointer to result bit vector.
- * @param[in]  a      Pointer to operand.
- *
- * @note Result inherits length from operand a. No-op if any pointer is NULL.
- */
+
 void bitvector_not(bitvector_t *result, const bitvector_t *a) {
     if (result == NULL || a == NULL) {
         return;
@@ -326,24 +238,7 @@ void bitvector_not(bitvector_t *result, const bitvector_t *a) {
     result->num_words = a->num_words;
 }
 
-/**
- * @brief Left shift bit vector by 1 bit.
- *
- * Performs result = a << 1, inserting 0 at LSB.
- * With MSB-first indexing, this shifts bits towards lower indices (towards MSB).
- *
- * @par Example
- * @code
- * 10110011 << 1 = 01100110
- * @endcode
- *
- * Bit 0 (MSB) receives bit from bit 1, LSB (bit N-1) becomes 0.
- *
- * @param[out] result Pointer to result bit vector.
- * @param[in]  a      Pointer to operand.
- *
- * @note No-op if any pointer is NULL.
- */
+
 void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     if (result == NULL || a == NULL) {
         return;
@@ -363,16 +258,7 @@ void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     bitvector_set_bit(result, a->length - 1, 0);  /* Clear LSB */
 }
 
-/**
- * @brief Reverse the bit order in a bit vector.
- *
- * Reverses all bits so that bit 0 becomes bit N-1 and vice versa.
- *
- * @param[out] result Pointer to result bit vector.
- * @param[in]  a      Pointer to operand.
- *
- * @note No-op if any pointer is NULL.
- */
+
 void bitvector_reverse(bitvector_t *result, const bitvector_t *a) {
     if (result == NULL || a == NULL) {
         return;
@@ -396,16 +282,7 @@ void bitvector_reverse(bitvector_t *result, const bitvector_t *a) {
  * @{
  */
 
-/**
- * @brief Count the number of set bits (Hamming weight).
- *
- * Counts the number of '1' bits in the vector using Brian Kernighan's
- * algorithm for efficient bit counting.
- *
- * @param[in] bv Pointer to bit vector.
- *
- * @return Number of bits set to 1, or 0 if bv is NULL.
- */
+
 size_t bitvector_hamming_weight(const bitvector_t *bv) {
     if (bv == NULL) {
         return 0;
@@ -443,16 +320,7 @@ size_t bitvector_hamming_weight(const bitvector_t *bv) {
     return count;
 }
 
-/**
- * @brief Compare two bit vectors for equality.
- *
- * Compares length and data of two bit vectors.
- *
- * @param[in] a Pointer to first bit vector.
- * @param[in] b Pointer to second bit vector.
- *
- * @return 1 if vectors are equal, 0 if different or either is NULL.
- */
+
 int bitvector_equals(const bitvector_t *a, const bitvector_t *b) {
     if (a == NULL || b == NULL) {
         return 0;
@@ -472,22 +340,7 @@ int bitvector_equals(const bitvector_t *a, const bitvector_t *b) {
  * @{
  */
 
-/**
- * @brief Load bytes into bit vector with big-endian word packing.
- *
- * Packs input bytes into 32-bit words matching ESA/ESOC reference
- * implementation (pocket_compress.c lines 216-225).
- *
- * Each 32-bit word packs 4 bytes as: (B0<<24) | (B1<<16) | (B2<<8) | B3
- *
- * @param[out] bv        Pointer to initialized bit vector.
- * @param[in]  data      Pointer to source byte array.
- * @param[in]  num_bytes Number of bytes to load.
- *
- * @return POCKET_OK on success.
- * @return POCKET_ERROR_INVALID_ARG if bv or data is NULL.
- * @return POCKET_ERROR_OVERFLOW if num_bytes exceeds vector capacity.
- */
+
 int bitvector_from_bytes(bitvector_t *bv, const uint8_t *data, size_t num_bytes) {
     if (bv == NULL || data == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -527,19 +380,7 @@ int bitvector_from_bytes(bitvector_t *bv, const uint8_t *data, size_t num_bytes)
     return POCKET_OK;
 }
 
-/**
- * @brief Extract bytes from bit vector (reverse of big-endian word packing).
- *
- * Unpacks 32-bit words into individual bytes.
- *
- * @param[in]  bv        Pointer to source bit vector.
- * @param[out] data      Pointer to destination byte array.
- * @param[in]  num_bytes Size of destination buffer.
- *
- * @return POCKET_OK on success.
- * @return POCKET_ERROR_INVALID_ARG if bv or data is NULL.
- * @return POCKET_ERROR_UNDERFLOW if buffer is too small.
- */
+
 int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes) {
     if (bv == NULL || data == NULL) {
         return POCKET_ERROR_INVALID_ARG;

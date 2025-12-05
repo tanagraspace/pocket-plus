@@ -24,7 +24,7 @@
  * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
-#include "pocket_plus.h"
+#include "pocketplus.h"
 #include <math.h>
 
 /**
@@ -38,19 +38,7 @@
  * @{
  */
 
-/**
- * @brief Encode an integer using CCSDS Counter encoding.
- *
- * Implements CCSDS 124.0-B-1 Equation 9 for encoding positive integers.
- * Uses variable-length prefix coding for efficient representation.
- *
- * @param[in,out] output Pointer to output bit buffer.
- * @param[in]     A      Value to encode (1 to 65535).
- *
- * @return POCKET_OK on success.
- * @return POCKET_ERROR_INVALID_ARG if output is NULL or A is out of range.
- * @return POCKET_ERROR_OVERFLOW if output buffer is full.
- */
+
 int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
     if (output == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -134,21 +122,7 @@ int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
  * @{
  */
 
-/**
- * @brief Encode a bit vector using Run-Length Encoding.
- *
- * Implements CCSDS 124.0-B-1 Equation 10. Encodes the positions of '1' bits
- * as a sequence of COUNT-encoded run lengths, terminated by '10'.
- *
- * Uses DeBruijn sequence for fast LSB detection, matching the ESA reference.
- *
- * @param[in,out] output Pointer to output bit buffer.
- * @param[in]     input  Pointer to input bit vector.
- *
- * @return POCKET_OK on success.
- * @return POCKET_ERROR_INVALID_ARG if any pointer is NULL.
- * @return POCKET_ERROR_OVERFLOW if output buffer is full.
- */
+
 int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
     if (output == NULL || input == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -230,20 +204,7 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
  * @{
  */
 
-/**
- * @brief Extract bits using CCSDS Bit Extraction (reverse order).
- *
- * Implements CCSDS 124.0-B-1 Equation 11. Extracts bits from data at
- * positions marked by '1' in mask, output in reverse order (highest
- * position first).
- *
- * @param[in,out] output Pointer to output bit buffer.
- * @param[in]     data   Pointer to source data bit vector.
- * @param[in]     mask   Pointer to mask bit vector.
- *
- * @return POCKET_OK on success.
- * @return POCKET_ERROR_INVALID_ARG if any pointer is NULL or lengths differ.
- */
+
 int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitvector_t *mask) {
     if (output == NULL || data == NULL || mask == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -284,19 +245,7 @@ int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitve
     return POCKET_OK;
 }
 
-/**
- * @brief Extract bits in forward order (for kt component encoding).
- *
- * Similar to pocket_bit_extract() but outputs bits in forward order
- * (lowest position first). Used specifically for kt component encoding.
- *
- * @param[in,out] output Pointer to output bit buffer.
- * @param[in]     data   Pointer to source data bit vector.
- * @param[in]     mask   Pointer to mask bit vector.
- *
- * @return POCKET_OK on success.
- * @return POCKET_ERROR_INVALID_ARG if any pointer is NULL or lengths differ.
- */
+
 int pocket_bit_extract_forward(bitbuffer_t *output, const bitvector_t *data, const bitvector_t *mask) {
     if (output == NULL || data == NULL || mask == NULL) {
         return POCKET_ERROR_INVALID_ARG;

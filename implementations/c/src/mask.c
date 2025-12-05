@@ -24,7 +24,7 @@
  * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
-#include "pocket_plus.h"
+#include "pocketplus.h"
 
 /**
  * @name Build Vector Functions
@@ -39,18 +39,7 @@
  * @{
  */
 
-/**
- * @brief Update the build vector according to CCSDS Equation 6.
- *
- * Accumulates changed bits into the build vector. When new_mask_flag
- * is set or at t=0, the build vector is reset to zero.
- *
- * @param[in,out] build        Pointer to build vector to update.
- * @param[in]     input        Pointer to current input vector (Iₜ).
- * @param[in]     prev_input   Pointer to previous input vector (Iₜ₋₁).
- * @param[in]     new_mask_flag Non-zero if new mask period started.
- * @param[in]     t            Current time step.
- */
+
 void pocket_update_build(
     bitvector_t *build,
     const bitvector_t *input,
@@ -93,18 +82,7 @@ void pocket_update_build(
  * @{
  */
 
-/**
- * @brief Update the mask vector according to CCSDS Equation 7.
- *
- * Updates the mask to track unpredictable bits. When new_mask_flag is set,
- * the build vector is used as the base for the new mask.
- *
- * @param[in,out] mask         Pointer to mask vector to update.
- * @param[in]     input        Pointer to current input vector (Iₜ).
- * @param[in]     prev_input   Pointer to previous input vector (Iₜ₋₁).
- * @param[in]     build_prev   Pointer to previous build vector (Bₜ₋₁).
- * @param[in]     new_mask_flag Non-zero if new mask period started.
- */
+
 void pocket_update_mask(
     bitvector_t *mask,
     const bitvector_t *input,
@@ -142,18 +120,7 @@ void pocket_update_mask(
  * @{
  */
 
-/**
- * @brief Compute the change vector according to CCSDS Equation 8.
- *
- * Computes which mask bits changed since the previous time step.
- * At t=0, all bits in the initial mask are considered changes
- * (from implicit all-zero mask).
- *
- * @param[out] change    Pointer to change vector to compute.
- * @param[in]  mask      Pointer to current mask vector (Mₜ).
- * @param[in]  prev_mask Pointer to previous mask vector (Mₜ₋₁).
- * @param[in]  t         Current time step.
- */
+
 void pocket_compute_change(
     bitvector_t *change,
     const bitvector_t *mask,

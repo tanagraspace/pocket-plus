@@ -18,7 +18,7 @@
  * ============================================================================
  */
 
-#include "pocket_plus.h"
+#include "pocketplus.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>

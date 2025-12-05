@@ -1,5 +1,5 @@
 /**
- * @file pocket_plus.h
+ * @file pocketplus.h
  * @brief POCKET+ Compression Library - Public API
  *
  * @cond INTERNAL
@@ -659,6 +659,238 @@ int pocket_compute_ct_flag(
 );
 
 /** @} */ /* End of compression group */
+
+/**
+ * @defgroup bitreader Bit Reader API
+ * @brief Sequential bit reading from compressed data.
+ *
+ * The bit reader provides stateful bit-level access to compressed
+ * packet data, reading MSB-first within each byte.
+ * @{
+ */
+
+/**
+ * @brief Bit reader structure for sequential reading.
+ *
+ * Tracks position within a byte buffer for bit-level access.
+ * Used during decompression to parse compressed packets.
+ */
+typedef struct {
+    const uint8_t *data;  /**< Pointer to source data buffer */
+    size_t num_bits;      /**< Total number of bits available */
+    size_t bit_pos;       /**< Current bit position (0 = first bit) */
+} bitreader_t;
+
+/**
+ * @brief Initialize bit reader.
+ *
+ * @param[out] reader   Reader to initialize
+ * @param[in]  data     Source byte buffer
+ * @param[in]  num_bits Number of valid bits in buffer
+ */
+void bitreader_init(bitreader_t *reader, const uint8_t *data, size_t num_bits);
+
+/**
+ * @brief Read a single bit.
+ *
+ * @param[in,out] reader Bit reader (position advanced)
+ * @return Bit value (0 or 1), or -1 if no bits remaining
+ */
+int bitreader_read_bit(bitreader_t *reader);
+
+/**
+ * @brief Read multiple bits as unsigned value.
+ *
+ * Reads up to 32 bits MSB-first and returns as uint32_t.
+ *
+ * @param[in,out] reader   Bit reader (position advanced)
+ * @param[in]     num_bits Number of bits to read (1-32)
+ * @return Unsigned value from bits read
+ */
+uint32_t bitreader_read_bits(bitreader_t *reader, size_t num_bits);
+
+/**
+ * @brief Get current bit position.
+ *
+ * @param[in] reader Bit reader
+ * @return Number of bits already read
+ */
+size_t bitreader_position(const bitreader_t *reader);
+
+/**
+ * @brief Get remaining bits.
+ *
+ * @param[in] reader Bit reader
+ * @return Number of bits remaining to read
+ */
+size_t bitreader_remaining(const bitreader_t *reader);
+
+/**
+ * @brief Skip to next byte boundary.
+ *
+ * Advances position to start of next byte (for padding).
+ *
+ * @param[in,out] reader Bit reader (position advanced)
+ */
+void bitreader_align_byte(bitreader_t *reader);
+
+/** @} */ /* End of bitreader group */
+
+/**
+ * @defgroup decoding Decoding API
+ * @brief CCSDS Section 5.2: Decoding primitives (inverse of encoding).
+ *
+ * These functions decode the encoded formats back to original values.
+ * @{
+ */
+
+/**
+ * @brief Counter decoding (inverse of pocket_count_encode).
+ *
+ * Decodes a COUNT-encoded value from the bit stream.
+ * - '0' → 1
+ * - '10' → 0 (terminator)
+ * - '110' + 5 bits → value + 2
+ * - '111' + variable bits → larger values
+ *
+ * @param[in,out] reader Bit reader (position advanced)
+ * @param[out]    value  Decoded value (0 = terminator)
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_count_decode(bitreader_t *reader, uint32_t *value);
+
+/**
+ * @brief Run-length decoding (inverse of pocket_rle_encode).
+ *
+ * Decodes an RLE-encoded bit vector from the bit stream.
+ *
+ * @param[in,out] reader Bit reader (position advanced)
+ * @param[out]    result Decoded bit vector
+ * @param[in]     length Expected bit vector length
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_rle_decode(bitreader_t *reader, bitvector_t *result, size_t length);
+
+/**
+ * @brief Bit insertion (inverse of pocket_bit_extract).
+ *
+ * Inserts extracted bits back into a vector at mask positions.
+ *
+ * @param[in,out] reader Bit reader (position advanced)
+ * @param[out]    data   Destination data vector
+ * @param[in]     mask   Mask indicating insertion positions
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_bit_insert(bitreader_t *reader, bitvector_t *data, const bitvector_t *mask);
+
+/** @} */ /* End of decoding group */
+
+/**
+ * @defgroup decompression Decompression API
+ * @brief CCSDS Section 5.3: Packet decompression.
+ *
+ * High-level decompression interface for processing compressed packets.
+ * @{
+ */
+
+/**
+ * @brief Decompressor state structure.
+ *
+ * Maintains all state needed for sequential packet decompression.
+ * Must be initialized with pocket_decompressor_init() before use.
+ */
+struct pocket_decompressor {
+    /** @name Configuration (immutable after init) */
+    /** @{ */
+    size_t F;                   /**< Output vector length in bits */
+    bitvector_t initial_mask;   /**< M₀: Initial mask vector */
+    uint8_t robustness;         /**< Rₜ: Base robustness level (0-7) */
+    /** @} */
+
+    /** @name State (updated each cycle) */
+    /** @{ */
+    bitvector_t mask;           /**< Mₜ: Current mask vector */
+    bitvector_t prev_output;    /**< Iₜ₋₁: Previous output packet */
+    bitvector_t Xt;             /**< Xₜ: Robustness window (positive changes) */
+    /** @} */
+
+    /** @name Cycle counter */
+    /** @{ */
+    size_t t;                   /**< Current time index */
+    /** @} */
+};
+
+/**
+ * @brief Initialize decompressor state.
+ *
+ * Sets up the decompressor for a new decompression session.
+ *
+ * @param[out] decomp       Decompressor to initialize (caller-allocated)
+ * @param[in]  F            Output vector length in bits
+ * @param[in]  initial_mask M₀ initial mask (NULL = all zeros)
+ * @param[in]  robustness   Rₜ base robustness level (0-7)
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_decompressor_init(
+    pocket_decompressor_t *decomp,
+    size_t F,
+    const bitvector_t *initial_mask,
+    uint8_t robustness
+);
+
+/**
+ * @brief Reset decompressor to initial state.
+ *
+ * Resets time index to 0 and clears all state while
+ * preserving configuration (F, robustness).
+ *
+ * @param[out] decomp Decompressor to reset
+ */
+void pocket_decompressor_reset(pocket_decompressor_t *decomp);
+
+/**
+ * @brief Decompress a single compressed packet.
+ *
+ * Decompresses one packet according to CCSDS 124.0-B-1 Section 5.3.
+ * Updates decompressor state for next packet.
+ *
+ * @param[in,out] decomp Decompressor state (updated in place)
+ * @param[in,out] reader Bit reader positioned at packet start
+ * @param[out]    output Decompressed output packet (length F)
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_decompress_packet(
+    pocket_decompressor_t *decomp,
+    bitreader_t *reader,
+    bitvector_t *output
+);
+
+/**
+ * @brief Decompress entire compressed data stream.
+ *
+ * High-level API that handles:
+ * - Sequential packet decompression
+ * - Byte boundary alignment between packets
+ * - Output accumulation
+ *
+ * @param[in,out] decomp             Decompressor state (must be initialized)
+ * @param[in]     input_data         Compressed input byte array
+ * @param[in]     input_size         Input size in bytes
+ * @param[out]    output_buffer      Output buffer (caller-allocated)
+ * @param[in]     output_buffer_size Size of output buffer
+ * @param[out]    output_size        Actual bytes written
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_decompress(
+    pocket_decompressor_t *decomp,
+    const uint8_t *input_data,
+    size_t input_size,
+    uint8_t *output_buffer,
+    size_t output_buffer_size,
+    size_t *output_size
+);
+
+/** @} */ /* End of decompression group */
 
 /**
  * @defgroup utility Utility API
