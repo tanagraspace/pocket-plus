@@ -1,4 +1,8 @@
-/*
+/**
+ * @file bitvector.c
+ * @brief Fixed-length bit vector implementation using 32-bit words.
+ *
+ * @cond INTERNAL
  * ============================================================================
  *  _____                                   ____
  * |_   _|_ _ _ __   __ _  __ _ _ __ __ _  / ___| _ __   __ _  ___ ___
@@ -7,32 +11,47 @@
  *   |_|\__,_|_| |_|\__,_|\__, |_|  \__,_| |____/| .__/ \__,_|\___\___|
  *                        |___/                  |_|
  * ============================================================================
+ * @endcond
  *
- * POCKET+ C Implementation - Bit Vector (32-bit Word-Based)
+ * This module provides fixed-length bit vector operations optimized for
+ * POCKET+ compression. Uses 32-bit words with big-endian byte packing to
+ * match ESA/ESOC reference implementation.
  *
- * Authors:
- *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
- *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
+ * @par Bit Numbering Convention (CCSDS 124.0-B-1 Section 1.6.1)
+ * - Bit 0 = LSB (Least Significant Bit)
+ * - Bit N-1 = MSB (Most Significant Bit, transmitted first)
  *
- * Uses 32-bit words with big-endian byte packing to match ESA/ESOC reference.
+ * @par Word Packing (Big-Endian)
+ * Within each 32-bit word:
+ * - Word[i] = (Byte[4i] << 24) | (Byte[4i+1] << 16) | (Byte[4i+2] << 8) | Byte[4i+3]
+ * - Bit 0 = LSB of word, Bit 31 = MSB of word
  *
- * Bit numbering convention (CCSDS 124.0-B-1 Section 1.6.1):
- *   - Bit 0 = LSB (Least Significant Bit)
- *   - Bit N-1 = MSB (Most Significant Bit, transmitted first)
+ * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
+ * @authors Claude Code (Anthropic) <noreply@anthropic.com>
  *
- * Within each 32-bit word (big-endian byte packing):
- *   - Word[i] = (Byte[4i] << 24) | (Byte[4i+1] << 16) | (Byte[4i+2] << 8) | Byte[4i+3]
- *   - Bit 0 = LSB of word, Bit 31 = MSB of word
- * ============================================================================
+ * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocket_plus.h"
 #include <string.h>
 
-/* ========================================================================
- * Initialization
- * ======================================================================== */
+/**
+ * @name Initialization Functions
+ * @{
+ */
 
+/**
+ * @brief Initialize a bit vector with specified length.
+ *
+ * Allocates internal storage for the specified number of bits and zeros
+ * all words. Uses 32-bit word storage with big-endian byte packing.
+ *
+ * @param[out] bv       Pointer to bit vector structure to initialize.
+ * @param[in]  num_bits Number of bits in the vector (1 to POCKET_MAX_PACKET_LENGTH).
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if bv is NULL or num_bits is invalid.
+ */
 int bitvector_init(bitvector_t *bv, size_t num_bits) {
     if (bv == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -53,12 +72,30 @@ int bitvector_init(bitvector_t *bv, size_t num_bits) {
     return POCKET_OK;
 }
 
+/**
+ * @brief Zero all bits in a bit vector.
+ *
+ * Sets all words in the bit vector to zero without changing the length.
+ *
+ * @param[in,out] bv Pointer to bit vector to zero. No-op if NULL.
+ */
 void bitvector_zero(bitvector_t *bv) {
     if (bv != NULL) {
         memset(bv->data, 0, bv->num_words * sizeof(uint32_t));
     }
 }
 
+/**
+ * @brief Copy a bit vector to another.
+ *
+ * Performs a deep copy of all data, length, and word count from source
+ * to destination bit vector.
+ *
+ * @param[out] dest Pointer to destination bit vector.
+ * @param[in]  src  Pointer to source bit vector.
+ *
+ * @note No-op if either pointer is NULL.
+ */
 void bitvector_copy(bitvector_t *dest, const bitvector_t *src) {
     if (dest != NULL && src != NULL) {
         dest->length = src->length;
@@ -67,17 +104,31 @@ void bitvector_copy(bitvector_t *dest, const bitvector_t *src) {
     }
 }
 
-/* ========================================================================
- * Bit Access
+/** @} */ /* End of Initialization Functions */
+
+/**
+ * @name Bit Access Functions
  *
  * Big-endian word packing maps bytes to word bits as follows:
- *   Word[i] contains Bytes [4i, 4i+1, 4i+2, 4i+3]
- *   - Byte 4i   at bits 24-31 (most significant)
- *   - Byte 4i+1 at bits 16-23
- *   - Byte 4i+2 at bits 8-15
- *   - Byte 4i+3 at bits 0-7   (least significant)
- * ======================================================================== */
+ * - Word[i] contains Bytes [4i, 4i+1, 4i+2, 4i+3]
+ * - Byte 4i at bits 24-31 (most significant)
+ * - Byte 4i+1 at bits 16-23
+ * - Byte 4i+2 at bits 8-15
+ * - Byte 4i+3 at bits 0-7 (least significant)
+ * @{
+ */
 
+/**
+ * @brief Get the value of a single bit.
+ *
+ * Retrieves the bit at the specified position using MSB-first indexing
+ * with big-endian word packing.
+ *
+ * @param[in] bv  Pointer to bit vector.
+ * @param[in] pos Bit position (0 = MSB, length-1 = LSB).
+ *
+ * @return 1 if bit is set, 0 if bit is clear or on error.
+ */
 int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     if (bv == NULL || pos >= bv->length) {
         return 0;
@@ -99,6 +150,18 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     return (bv->data[word_index] >> bit_in_word) & 1;
 }
 
+/**
+ * @brief Set or clear a single bit.
+ *
+ * Sets or clears the bit at the specified position using MSB-first indexing
+ * with big-endian word packing.
+ *
+ * @param[in,out] bv    Pointer to bit vector.
+ * @param[in]     pos   Bit position (0 = MSB, length-1 = LSB).
+ * @param[in]     value Non-zero to set bit, zero to clear.
+ *
+ * @note No-op if bv is NULL or pos is out of range.
+ */
 void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
     if (bv == NULL || pos >= bv->length) {
         return;
@@ -126,10 +189,27 @@ void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
     }
 }
 
-/* ========================================================================
- * Bitwise Operations (CCSDS Section 1.6.1)
- * ======================================================================== */
+/** @} */ /* End of Bit Access Functions */
 
+/**
+ * @name Bitwise Operations
+ *
+ * Implements bitwise operations as defined in CCSDS 124.0-B-1 Section 1.6.1.
+ * All operations work word-by-word for efficiency.
+ * @{
+ */
+
+/**
+ * @brief Compute bitwise XOR of two bit vectors.
+ *
+ * Computes result = a XOR b element-wise.
+ *
+ * @param[out] result Pointer to result bit vector.
+ * @param[in]  a      Pointer to first operand.
+ * @param[in]  b      Pointer to second operand.
+ *
+ * @note Result inherits length from operand a. No-op if any pointer is NULL.
+ */
 void bitvector_xor(bitvector_t *result, const bitvector_t *a, const bitvector_t *b) {
     if (result == NULL || a == NULL || b == NULL) {
         return;
@@ -148,6 +228,17 @@ void bitvector_xor(bitvector_t *result, const bitvector_t *a, const bitvector_t 
     result->num_words = a->num_words;
 }
 
+/**
+ * @brief Compute bitwise OR of two bit vectors.
+ *
+ * Computes result = a OR b element-wise.
+ *
+ * @param[out] result Pointer to result bit vector.
+ * @param[in]  a      Pointer to first operand.
+ * @param[in]  b      Pointer to second operand.
+ *
+ * @note Result inherits length from operand a. No-op if any pointer is NULL.
+ */
 void bitvector_or(bitvector_t *result, const bitvector_t *a, const bitvector_t *b) {
     if (result == NULL || a == NULL || b == NULL) {
         return;
@@ -166,6 +257,17 @@ void bitvector_or(bitvector_t *result, const bitvector_t *a, const bitvector_t *
     result->num_words = a->num_words;
 }
 
+/**
+ * @brief Compute bitwise AND of two bit vectors.
+ *
+ * Computes result = a AND b element-wise.
+ *
+ * @param[out] result Pointer to result bit vector.
+ * @param[in]  a      Pointer to first operand.
+ * @param[in]  b      Pointer to second operand.
+ *
+ * @note Result inherits length from operand a. No-op if any pointer is NULL.
+ */
 void bitvector_and(bitvector_t *result, const bitvector_t *a, const bitvector_t *b) {
     if (result == NULL || a == NULL || b == NULL) {
         return;
@@ -184,6 +286,17 @@ void bitvector_and(bitvector_t *result, const bitvector_t *a, const bitvector_t 
     result->num_words = a->num_words;
 }
 
+/**
+ * @brief Compute bitwise NOT (complement) of a bit vector.
+ *
+ * Computes result = NOT a, inverting all bits. Unused bits in the
+ * last word are masked off to maintain valid vector state.
+ *
+ * @param[out] result Pointer to result bit vector.
+ * @param[in]  a      Pointer to operand.
+ *
+ * @note Result inherits length from operand a. No-op if any pointer is NULL.
+ */
 void bitvector_not(bitvector_t *result, const bitvector_t *a) {
     if (result == NULL || a == NULL) {
         return;
@@ -214,10 +327,22 @@ void bitvector_not(bitvector_t *result, const bitvector_t *a) {
 }
 
 /**
- * Left shift by 1 bit (inserts 0 at LSB): result = a << 1
- * With MSB-first indexing: shifts towards lower bit indices (towards MSB)
- * Example: 10110011 << 1 = 01100110
- * Bit 0 (MSB) receives bit from bit 1, LSB (bit N-1) becomes 0
+ * @brief Left shift bit vector by 1 bit.
+ *
+ * Performs result = a << 1, inserting 0 at LSB.
+ * With MSB-first indexing, this shifts bits towards lower indices (towards MSB).
+ *
+ * @par Example
+ * @code
+ * 10110011 << 1 = 01100110
+ * @endcode
+ *
+ * Bit 0 (MSB) receives bit from bit 1, LSB (bit N-1) becomes 0.
+ *
+ * @param[out] result Pointer to result bit vector.
+ * @param[in]  a      Pointer to operand.
+ *
+ * @note No-op if any pointer is NULL.
  */
 void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     if (result == NULL || a == NULL) {
@@ -238,6 +363,16 @@ void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     bitvector_set_bit(result, a->length - 1, 0);  /* Clear LSB */
 }
 
+/**
+ * @brief Reverse the bit order in a bit vector.
+ *
+ * Reverses all bits so that bit 0 becomes bit N-1 and vice versa.
+ *
+ * @param[out] result Pointer to result bit vector.
+ * @param[in]  a      Pointer to operand.
+ *
+ * @note No-op if any pointer is NULL.
+ */
 void bitvector_reverse(bitvector_t *result, const bitvector_t *a) {
     if (result == NULL || a == NULL) {
         return;
@@ -254,10 +389,23 @@ void bitvector_reverse(bitvector_t *result, const bitvector_t *a) {
     }
 }
 
-/* ========================================================================
- * Utility Functions
- * ======================================================================== */
+/** @} */ /* End of Bitwise Operations */
 
+/**
+ * @name Utility Functions
+ * @{
+ */
+
+/**
+ * @brief Count the number of set bits (Hamming weight).
+ *
+ * Counts the number of '1' bits in the vector using Brian Kernighan's
+ * algorithm for efficient bit counting.
+ *
+ * @param[in] bv Pointer to bit vector.
+ *
+ * @return Number of bits set to 1, or 0 if bv is NULL.
+ */
 size_t bitvector_hamming_weight(const bitvector_t *bv) {
     if (bv == NULL) {
         return 0;
@@ -295,6 +443,16 @@ size_t bitvector_hamming_weight(const bitvector_t *bv) {
     return count;
 }
 
+/**
+ * @brief Compare two bit vectors for equality.
+ *
+ * Compares length and data of two bit vectors.
+ *
+ * @param[in] a Pointer to first bit vector.
+ * @param[in] b Pointer to second bit vector.
+ *
+ * @return 1 if vectors are equal, 0 if different or either is NULL.
+ */
 int bitvector_equals(const bitvector_t *a, const bitvector_t *b) {
     if (a == NULL || b == NULL) {
         return 0;
@@ -307,15 +465,28 @@ int bitvector_equals(const bitvector_t *a, const bitvector_t *b) {
     return memcmp(a->data, b->data, a->num_words * sizeof(uint32_t)) == 0;
 }
 
-/* ========================================================================
- * Byte Conversion
- * ======================================================================== */
+/** @} */ /* End of Utility Functions */
 
 /**
- * Load bytes into bitvector with big-endian word packing.
- * Matches ESA/ESOC reference implementation (pocket_compress.c lines 216-225).
+ * @name Byte Conversion Functions
+ * @{
+ */
+
+/**
+ * @brief Load bytes into bit vector with big-endian word packing.
+ *
+ * Packs input bytes into 32-bit words matching ESA/ESOC reference
+ * implementation (pocket_compress.c lines 216-225).
  *
  * Each 32-bit word packs 4 bytes as: (B0<<24) | (B1<<16) | (B2<<8) | B3
+ *
+ * @param[out] bv        Pointer to initialized bit vector.
+ * @param[in]  data      Pointer to source byte array.
+ * @param[in]  num_bytes Number of bytes to load.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if bv or data is NULL.
+ * @return POCKET_ERROR_OVERFLOW if num_bytes exceeds vector capacity.
  */
 int bitvector_from_bytes(bitvector_t *bv, const uint8_t *data, size_t num_bytes) {
     if (bv == NULL || data == NULL) {
@@ -357,7 +528,17 @@ int bitvector_from_bytes(bitvector_t *bv, const uint8_t *data, size_t num_bytes)
 }
 
 /**
- * Extract bytes from bitvector (reverse of big-endian word packing).
+ * @brief Extract bytes from bit vector (reverse of big-endian word packing).
+ *
+ * Unpacks 32-bit words into individual bytes.
+ *
+ * @param[in]  bv        Pointer to source bit vector.
+ * @param[out] data      Pointer to destination byte array.
+ * @param[in]  num_bytes Size of destination buffer.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if bv or data is NULL.
+ * @return POCKET_ERROR_UNDERFLOW if buffer is too small.
  */
 int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes) {
     if (bv == NULL || data == NULL) {
@@ -383,3 +564,4 @@ int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes) {
     return POCKET_OK;
 }
 
+/** @} */ /* End of Byte Conversion Functions */

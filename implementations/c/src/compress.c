@@ -1,4 +1,8 @@
-/*
+/**
+ * @file compress.c
+ * @brief POCKET+ compression algorithm implementation.
+ *
+ * @cond INTERNAL
  * ============================================================================
  *  _____                                   ____
  * |_   _|_ _ _ __   __ _  __ _ _ __ __ _  / ___| _ __   __ _  ___ ___
@@ -7,27 +11,44 @@
  *   |_|\__,_|_| |_|\__,_|\__, |_|  \__,_| |____/| .__/ \__,_|\___\___|
  *                        |___/                  |_|
  * ============================================================================
- *
- * POCKET+ C Implementation - Compression
- *
- * Authors:
- *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
- *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
+ * @endcond
  *
  * Implements CCSDS 124.0-B-1 Section 5.3 (Encoding Step):
  * - Compressor initialization and state management
  * - Main compression algorithm
  * - Output packet encoding: oₜ = hₜ ∥ qₜ ∥ uₜ
- * ============================================================================
+ *
+ * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
+ * @authors Claude Code (Anthropic) <noreply@anthropic.com>
+ *
+ * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocket_plus.h"
 #include <string.h>
 
-/* ========================================================================
- * Compressor Initialization
- * ======================================================================== */
+/**
+ * @name Compressor Initialization
+ * @{
+ */
 
+/**
+ * @brief Initialize a POCKET+ compressor with specified parameters.
+ *
+ * Sets up the compressor state including bit vectors, history buffers,
+ * and configuration parameters. Must be called before compression.
+ *
+ * @param[out] comp         Pointer to compressor structure to initialize.
+ * @param[in]  F            Packet length in bits (1 to POCKET_MAX_PACKET_LENGTH).
+ * @param[in]  initial_mask Optional initial mask (NULL for all-zero).
+ * @param[in]  robustness   Robustness level Rₜ (0 to POCKET_MAX_ROBUSTNESS).
+ * @param[in]  pt_limit     New mask period Pₜ (0 to disable).
+ * @param[in]  ft_limit     Send mask period Fₜ (0 to disable).
+ * @param[in]  rt_limit     Uncompressed period Rₜ (0 to disable).
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if parameters are invalid.
+ */
 int pocket_compressor_init(
     pocket_compressor_t *comp,
     size_t F,
@@ -90,10 +111,14 @@ int pocket_compressor_init(
     return POCKET_OK;
 }
 
-/* ========================================================================
- * Reset Compressor
- * ======================================================================== */
-
+/**
+ * @brief Reset compressor to initial state.
+ *
+ * Resets time index, history buffers, and restores initial mask.
+ * Called automatically by pocket_compress() before processing.
+ *
+ * @param[in,out] comp Pointer to compressor to reset.
+ */
 void pocket_compressor_reset(pocket_compressor_t *comp) {
     /* Reset time index */
     comp->t = 0;
@@ -118,10 +143,24 @@ void pocket_compressor_reset(pocket_compressor_t *comp) {
     comp->rt_counter = comp->rt_limit;
 }
 
-/* ========================================================================
- * Helper: Get default parameters based on robustness requirements
- * ======================================================================== */
+/** @} */ /* End of Compressor Initialization */
 
+/**
+ * @name Internal Helper Functions
+ * @{
+ */
+
+/**
+ * @brief Get default compression parameters.
+ *
+ * Initializes parameters with robustness from compressor and all flags cleared.
+ *
+ * @param[out] params Pointer to parameters structure.
+ * @param[in]  comp   Pointer to compressor for robustness level.
+ *
+ * @note Caller should handle CCSDS initialization requirements
+ *       (ft=1, rt=1 for first Rt+1 packets).
+ */
 static void get_default_params(
     pocket_params_t *params,
     const pocket_compressor_t *comp
@@ -136,10 +175,23 @@ static void get_default_params(
      * (ft=1, rt=1 for first Rt+1 packets) */
 }
 
-/* ========================================================================
- * CCSDS Helper Functions
- * ======================================================================== */
+/** @} */ /* End of Internal Helper Functions */
 
+/**
+ * @name CCSDS Helper Functions
+ * @{
+ */
+
+/**
+ * @brief Compute the robustness window Xₜ.
+ *
+ * Calculates Xₜ = <(Dₜ₋ᴿₜ OR Dₜ₋ᴿₜ₊₁ OR ... OR Dₜ)>
+ * where <a> means reverse bit order. Used for RLE encoding of mask changes.
+ *
+ * @param[out] Xt             Pointer to result bit vector.
+ * @param[in]  comp           Pointer to compressor state.
+ * @param[in]  current_change Pointer to current change vector Dₜ.
+ */
 void pocket_compute_robustness_window(
     bitvector_t *Xt,
     const pocket_compressor_t *comp,
@@ -179,6 +231,17 @@ void pocket_compute_robustness_window(
     bitvector_copy(Xt, &combined);
 }
 
+/**
+ * @brief Compute effective robustness Vₜ.
+ *
+ * Calculates Vₜ = Rₜ + Cₜ per CCSDS Section 5.3.2.2, where Cₜ is the
+ * count of consecutive iterations with no mask changes.
+ *
+ * @param[in] comp           Pointer to compressor state.
+ * @param[in] current_change Pointer to current change vector (unused).
+ *
+ * @return Effective robustness level (0-15).
+ */
 uint8_t pocket_compute_effective_robustness(
     const pocket_compressor_t *comp,
     const bitvector_t *current_change
@@ -221,10 +284,17 @@ uint8_t pocket_compute_effective_robustness(
     return (Vt > 15) ? 15 : Vt;  /* Cap at 15 (4 bits) */
 }
 
-/* ========================================================================
- * eₜ, kₜ, cₜ Helper Functions
- * ======================================================================== */
-
+/**
+ * @brief Check for positive mask updates (eₜ flag).
+ *
+ * Returns 1 if any changed bits (in Xₜ) correspond to predictable
+ * positions in the mask (mask bit = 0).
+ *
+ * @param[in] Xt   Pointer to robustness window.
+ * @param[in] mask Pointer to current mask.
+ *
+ * @return 1 if positive updates exist, 0 otherwise.
+ */
 int pocket_has_positive_updates(
     const bitvector_t *Xt,
     const bitvector_t *mask
@@ -245,6 +315,18 @@ int pocket_has_positive_updates(
     return 0;  /* No positive updates */
 }
 
+/**
+ * @brief Compute the cₜ flag for mask transmission.
+ *
+ * Returns 1 if new_mask_flag was set 2+ times in the last Vₜ+1 iterations
+ * (including current packet).
+ *
+ * @param[in] comp                  Pointer to compressor state.
+ * @param[in] Vt                    Effective robustness level.
+ * @param[in] current_new_mask_flag Current packet's new_mask_flag.
+ *
+ * @return 1 if cₜ condition met, 0 otherwise.
+ */
 int pocket_compute_ct_flag(
     const pocket_compressor_t *comp,
     uint8_t Vt,
@@ -281,13 +363,28 @@ int pocket_compute_ct_flag(
     return (count >= 2) ? 1 : 0;
 }
 
-/* ========================================================================
- * Main Compression Function
- *
- * Implements CCSDS 124.0-B-1 Section 5.3
- * Output: oₜ = hₜ ∥ qₜ ∥ uₜ
- * ======================================================================== */
+/** @} */ /* End of CCSDS Helper Functions */
 
+/**
+ * @name Main Compression Functions
+ * @{
+ */
+
+/**
+ * @brief Compress a single packet.
+ *
+ * Implements CCSDS 124.0-B-1 Section 5.3 encoding step.
+ * Output format: oₜ = hₜ ∥ qₜ ∥ uₜ
+ *
+ * @param[in,out] comp   Pointer to compressor state.
+ * @param[in]     input  Pointer to input bit vector (must match compressor F).
+ * @param[out]    output Pointer to output bit buffer.
+ * @param[in]     params Compression parameters (NULL for defaults).
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if parameters are invalid.
+ * @return POCKET_ERROR_OVERFLOW if output buffer is full.
+ */
 int pocket_compress_packet(
     pocket_compressor_t *comp,
     const bitvector_t *input,
@@ -487,10 +584,25 @@ int pocket_compress_packet(
     return POCKET_OK;
 }
 
-/* ========================================================================
- * High-Level Compression (Automatic)
- * ======================================================================== */
-
+/**
+ * @brief Compress an entire input buffer.
+ *
+ * High-level API that automatically manages parameters and processes
+ * all packets. Resets compressor state before processing.
+ *
+ * @param[in,out] comp               Pointer to initialized compressor.
+ * @param[in]     input_data         Input byte array.
+ * @param[in]     input_size         Size of input in bytes.
+ * @param[out]    output_buffer      Output byte array.
+ * @param[in]     output_buffer_size Size of output buffer.
+ * @param[out]    output_size        Actual output size in bytes.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if parameters are invalid.
+ * @return POCKET_ERROR_OVERFLOW if output buffer is too small.
+ *
+ * @note Input size must be a multiple of packet size (F/8 bytes).
+ */
 int pocket_compress(
     pocket_compressor_t *comp,
     const uint8_t *input_data,
@@ -614,3 +726,5 @@ int pocket_compress(
     *output_size = total_output_bytes;
     return POCKET_OK;
 }
+
+/** @} */ /* End of Main Compression Functions */

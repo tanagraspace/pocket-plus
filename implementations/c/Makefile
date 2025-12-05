@@ -29,7 +29,7 @@ LIB = $(BUILD_DIR)/libpocketplus.a
 CLI = $(BUILD_DIR)/pocket_compress
 COV_LIB = $(COV_DIR)/libpocketplus.a
 
-.PHONY: all clean test cli coverage coverage-html
+.PHONY: all clean test cli coverage coverage-html docs
 
 all: $(LIB) $(CLI)
 
@@ -129,6 +129,19 @@ coverage-html:
 	fi
 	genhtml $(COV_DIR)/coverage.info --output-directory $(COV_DIR)/html
 	@echo "HTML report: $(COV_DIR)/html/index.html"
+
+docs:
+	@command -v doxygen >/dev/null 2>&1 || { echo "Error: doxygen not installed. Install with: brew install doxygen"; exit 1; }
+	@mkdir -p $(BUILD_DIR)/docs
+	@# Download Doxygen Awesome CSS if not present
+	@if [ ! -f doxygen-awesome-css/doxygen-awesome.css ]; then \
+		echo "Downloading Doxygen Awesome CSS theme..."; \
+		mkdir -p doxygen-awesome-css; \
+		curl -sL https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.3.4/doxygen-awesome.css -o doxygen-awesome-css/doxygen-awesome.css; \
+		curl -sL https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.3.4/doxygen-awesome-sidebar-only.css -o doxygen-awesome-css/doxygen-awesome-sidebar-only.css; \
+	fi
+	doxygen Doxyfile
+	@echo "Documentation: $(BUILD_DIR)/docs/html/index.html"
 
 clean:
 	rm -rf $(BUILD_DIR)/* $(BUILD_DIR)/.[!.]* 2>/dev/null || true

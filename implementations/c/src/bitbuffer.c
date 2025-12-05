@@ -1,4 +1,8 @@
-/*
+/**
+ * @file bitbuffer.c
+ * @brief Variable-length bit buffer for building compressed output.
+ *
+ * @cond INTERNAL
  * ============================================================================
  *  _____                                   ____
  * |_   _|_ _ _ __   __ _  __ _ _ __ __ _  / ___| _ __   __ _  ___ ___
@@ -7,25 +11,38 @@
  *   |_|\__,_|_| |_|\__,_|\__, |_|  \__,_| |____/| .__/ \__,_|\___\___|
  *                        |___/                  |_|
  * ============================================================================
+ * @endcond
  *
- * POCKET+ C Implementation - Bit Buffer
+ * This module provides a dynamically-growing bit buffer for constructing
+ * compressed output streams. Bits are appended sequentially using MSB-first
+ * ordering as required by CCSDS 124.0-B-1.
  *
- * Authors:
- *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
- *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
+ * @par Bit Ordering
+ * Bits are appended MSB-first within each byte:
+ * - First bit appended goes to bit position 7
+ * - Second bit goes to position 6, etc.
  *
- * Variable-length bit buffer for building compressed output.
- * Bits are appended sequentially from LSB to MSB within each byte.
- * ============================================================================
+ * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
+ * @authors Claude Code (Anthropic) <noreply@anthropic.com>
+ *
+ * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocket_plus.h"
 #include <string.h>
 
-/* ========================================================================
- * Initialization
- * ======================================================================== */
+/**
+ * @name Initialization Functions
+ * @{
+ */
 
+/**
+ * @brief Initialize a bit buffer to empty state.
+ *
+ * Zeros all data and resets bit count to 0.
+ *
+ * @param[out] bb Pointer to bit buffer to initialize. No-op if NULL.
+ */
 void bitbuffer_init(bitbuffer_t *bb) {
     if (bb != NULL) {
         bb->num_bits = 0;
@@ -33,14 +50,34 @@ void bitbuffer_init(bitbuffer_t *bb) {
     }
 }
 
+/**
+ * @brief Clear a bit buffer (alias for bitbuffer_init).
+ *
+ * @param[in,out] bb Pointer to bit buffer to clear. No-op if NULL.
+ */
 void bitbuffer_clear(bitbuffer_t *bb) {
     bitbuffer_init(bb);
 }
 
-/* ========================================================================
- * Appending Bits
- * ======================================================================== */
+/** @} */ /* End of Initialization Functions */
 
+/**
+ * @name Bit Appending Functions
+ * @{
+ */
+
+/**
+ * @brief Append a single bit to the buffer.
+ *
+ * Appends one bit using MSB-first ordering within each byte.
+ *
+ * @param[in,out] bb  Pointer to bit buffer.
+ * @param[in]     bit Value to append (non-zero = 1, zero = 0).
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if bb is NULL.
+ * @return POCKET_ERROR_OVERFLOW if buffer is full.
+ */
 int bitbuffer_append_bit(bitbuffer_t *bb, int bit) {
     if (bb == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -65,6 +102,20 @@ int bitbuffer_append_bit(bitbuffer_t *bb, int bit) {
     return POCKET_OK;
 }
 
+/**
+ * @brief Append multiple bits from a byte array.
+ *
+ * Appends bits from the data array using MSB-first ordering.
+ * Bits are extracted MSB-first from each byte.
+ *
+ * @param[in,out] bb       Pointer to bit buffer.
+ * @param[in]     data     Source byte array.
+ * @param[in]     num_bits Number of bits to append.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if bb or data is NULL.
+ * @return POCKET_ERROR_OVERFLOW if appending would exceed capacity.
+ */
 int bitbuffer_append_bits(bitbuffer_t *bb, const uint8_t *data, size_t num_bits) {
     if (bb == NULL || data == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -92,6 +143,19 @@ int bitbuffer_append_bits(bitbuffer_t *bb, const uint8_t *data, size_t num_bits)
     return POCKET_OK;
 }
 
+/**
+ * @brief Append all bits from a bit vector.
+ *
+ * Appends the entire contents of a bit vector to the buffer.
+ * Bits are appended in order from bit 0 (MSB) to bit N-1 (LSB).
+ *
+ * @param[in,out] bb Pointer to bit buffer.
+ * @param[in]     bv Pointer to source bit vector.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if bb or bv is NULL.
+ * @return POCKET_ERROR_OVERFLOW if appending would exceed capacity.
+ */
 int bitbuffer_append_bitvector(bitbuffer_t *bb, const bitvector_t *bv) {
     if (bb == NULL || bv == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -130,10 +194,20 @@ int bitbuffer_append_bitvector(bitbuffer_t *bb, const bitvector_t *bv) {
     return POCKET_OK;
 }
 
-/* ========================================================================
- * Query
- * ======================================================================== */
+/** @} */ /* End of Bit Appending Functions */
 
+/**
+ * @name Query Functions
+ * @{
+ */
+
+/**
+ * @brief Get the number of bits in the buffer.
+ *
+ * @param[in] bb Pointer to bit buffer.
+ *
+ * @return Number of bits currently stored, or 0 if bb is NULL.
+ */
 size_t bitbuffer_size(const bitbuffer_t *bb) {
     if (bb == NULL) {
         return 0;
@@ -142,10 +216,25 @@ size_t bitbuffer_size(const bitbuffer_t *bb) {
     return bb->num_bits;
 }
 
-/* ========================================================================
- * Byte Conversion
- * ======================================================================== */
+/** @} */ /* End of Query Functions */
 
+/**
+ * @name Byte Conversion Functions
+ * @{
+ */
+
+/**
+ * @brief Copy buffer contents to a byte array.
+ *
+ * Copies the buffer data to the provided byte array. If the destination
+ * is smaller than required, output is truncated.
+ *
+ * @param[in]  bb        Pointer to source bit buffer.
+ * @param[out] data      Destination byte array.
+ * @param[in]  max_bytes Size of destination buffer.
+ *
+ * @return Number of bytes written, or 0 if bb or data is NULL.
+ */
 size_t bitbuffer_to_bytes(const bitbuffer_t *bb, uint8_t *data, size_t max_bytes) {
     if (bb == NULL || data == NULL) {
         return 0;
@@ -162,3 +251,5 @@ size_t bitbuffer_to_bytes(const bitbuffer_t *bb, uint8_t *data, size_t max_bytes
 
     return num_bytes;
 }
+
+/** @} */ /* End of Byte Conversion Functions */

@@ -1,4 +1,8 @@
-/*
+/**
+ * @file cli.c
+ * @brief POCKET+ command line interface.
+ *
+ * @cond INTERNAL
  * ============================================================================
  *  _____                                   ____
  * |_   _|_ _ _ __   __ _  __ _ _ __ __ _  / ___| _ __   __ _  ___ ___
@@ -7,15 +11,19 @@
  *   |_|\__,_|_| |_|\__,_|\__, |_|  \__,_| |____/| .__/ \__,_|\___\___|
  *                        |___/                  |_|
  * ============================================================================
+ * @endcond
  *
- * POCKET+ C Implementation - Command Line Interface
+ * Provides a command-line interface for CCSDS 124.0-B-1 compression.
  *
- * Authors:
- *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
- *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
+ * @par Usage
+ * @code
+ * pocket_compress <input> <packet_size> <pt> <ft> <rt> <robustness>
+ * @endcode
  *
- * CLI for CCSDS 124.0-B-1 compression.
- * ============================================================================
+ * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
+ * @authors Claude Code (Anthropic) <noreply@anthropic.com>
+ *
+ * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocket_plus.h"
@@ -23,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+/** @brief ASCII art banner for help output. */
 static const char *BANNER =
 "                                              \n"
 "  ____   ___   ____ _  _______ _____     _    \n"
@@ -33,6 +42,11 @@ static const char *BANNER =
 "                                              \n"
 "         by  T A N A G R A  S P A C E         \n";
 
+/**
+ * @brief Print help message with usage information.
+ *
+ * @param[in] prog_name Program name for usage example.
+ */
 static void print_help(const char *prog_name) {
     printf("\n%s\n", BANNER);
     printf("CCSDS 124.0-B-1 Lossless Compression\n");
@@ -61,6 +75,16 @@ static void print_help(const char *prog_name) {
     printf("  %s data.bin 90 10 20 50 1\n\n", prog_name);
 }
 
+/**
+ * @brief CLI entry point.
+ *
+ * Parses command-line arguments and performs compression.
+ *
+ * @param[in] argc Argument count.
+ * @param[in] argv Argument vector.
+ *
+ * @return 0 on success, 1 on error.
+ */
 int main(int argc, char **argv) {
     if (argc < 2 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
         print_help(argv[0]);

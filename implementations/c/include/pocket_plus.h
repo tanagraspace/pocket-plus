@@ -1,4 +1,8 @@
-/*
+/**
+ * @file pocket_plus.h
+ * @brief POCKET+ Compression Library - Public API
+ *
+ * @cond INTERNAL
  * ============================================================================
  *  _____                                   ____
  * |_   _|_ _ _ __   __ _  __ _ _ __ __ _  / ___| _ __   __ _  ___ ___
@@ -7,16 +11,18 @@
  *   |_|\__,_|_| |_|\__,_|\__, |_|  \__,_| |____/| .__/ \__,_|\___\___|
  *                        |___/                  |_|
  * ============================================================================
+ * @endcond
  *
- * POCKET+ C Implementation
  * CCSDS 124.0-B-1: Robust Compression of Fixed-Length Housekeeping Data
  *
- * Authors:
- *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
- *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
+ * This library implements the POCKET+ lossless compression algorithm
+ * standardized by CCSDS for spacecraft housekeeping telemetry.
  *
- * Public API Header
- * ============================================================================
+ * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
+ * @authors Claude Code (Anthropic) <noreply@anthropic.com>
+ *
+ * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
+ * @see https://opssat.esa.int/pocket-plus/ ESA Reference Implementation
  */
 
 #ifndef POCKET_PLUS_H
@@ -26,190 +32,318 @@
 #include <stddef.h>
 #include <stdio.h>
 
-/* Version information */
-#define POCKET_VERSION_MAJOR 1
-#define POCKET_VERSION_MINOR 0
-#define POCKET_VERSION_PATCH 0
-
-/* Error codes */
-#define POCKET_OK                0
-#define POCKET_ERROR_INVALID_ARG -1
-#define POCKET_ERROR_OVERFLOW    -2
-#define POCKET_ERROR_UNDERFLOW   -3
-
-/* Configuration constants */
-#ifndef POCKET_MAX_PACKET_LENGTH
-#define POCKET_MAX_PACKET_LENGTH 65535  /* CCSDS maximum */
-#endif
-
-#define POCKET_MAX_PACKET_BYTES ((POCKET_MAX_PACKET_LENGTH + 7) / 8)
-#define POCKET_MAX_ROBUSTNESS 7
-#define POCKET_MAX_HISTORY 16
-#define POCKET_MAX_VT_HISTORY 16  /* History size for Vₜ calculation (per CCSDS) */
-#define POCKET_MAX_OUTPUT_BYTES (POCKET_MAX_PACKET_BYTES * 6)
-
-/* Forward declarations */
-typedef struct bitvector bitvector_t;
-typedef struct bitbuffer bitbuffer_t;
-typedef struct pocket_compressor pocket_compressor_t;
-typedef struct pocket_decompressor pocket_decompressor_t;
-
-/* Compression parameters (per packet) */
-typedef struct {
-    uint8_t min_robustness;      /* Rₜ (0-7) */
-    uint8_t new_mask_flag;       /* ṗₜ (0 or 1) */
-    uint8_t send_mask_flag;      /* ḟₜ (0 or 1) */
-    uint8_t uncompressed_flag;   /* ṙₜ (0 or 1) */
-} pocket_params_t;
-
-/* ========================================================================
- * Bit Vector API
- * ======================================================================== */
+/**
+ * @defgroup version Version Information
+ * @{
+ */
+#define POCKET_VERSION_MAJOR 1  /**< Major version number */
+#define POCKET_VERSION_MINOR 0  /**< Minor version number */
+#define POCKET_VERSION_PATCH 0  /**< Patch version number */
+/** @} */
 
 /**
- * Bit vector structure (fixed-length binary vector).
- * Uses 32-bit words with big-endian byte packing to match ESA/ESOC reference.
+ * @defgroup errors Error Codes
+ * @{
+ */
+#define POCKET_OK                0   /**< Success */
+#define POCKET_ERROR_INVALID_ARG -1  /**< Invalid argument */
+#define POCKET_ERROR_OVERFLOW    -2  /**< Buffer overflow */
+#define POCKET_ERROR_UNDERFLOW   -3  /**< Buffer underflow */
+/** @} */
+
+/**
+ * @defgroup config Configuration Constants
+ * @{
+ */
+#ifndef POCKET_MAX_PACKET_LENGTH
+#define POCKET_MAX_PACKET_LENGTH 65535  /**< Maximum packet length in bits (CCSDS max) */
+#endif
+
+#define POCKET_MAX_PACKET_BYTES ((POCKET_MAX_PACKET_LENGTH + 7) / 8)  /**< Max packet bytes */
+#define POCKET_MAX_ROBUSTNESS 7      /**< Maximum robustness level (Rₜ) */
+#define POCKET_MAX_HISTORY 16        /**< History depth for change vectors */
+#define POCKET_MAX_VT_HISTORY 16     /**< History size for Vₜ calculation */
+#define POCKET_MAX_OUTPUT_BYTES (POCKET_MAX_PACKET_BYTES * 6)  /**< Max output buffer size */
+/** @} */
+
+/**
+ * @defgroup types Type Definitions
+ * @{
+ */
+typedef struct bitvector bitvector_t;           /**< Fixed-length bit vector */
+typedef struct bitbuffer bitbuffer_t;           /**< Variable-length output buffer */
+typedef struct pocket_compressor pocket_compressor_t;     /**< Compressor state */
+typedef struct pocket_decompressor pocket_decompressor_t; /**< Decompressor state (planned) */
+
+/**
+ * @brief Compression parameters for a single packet.
+ *
+ * These flags control the compression behavior per-packet.
+ * When using automatic mode (pt_limit > 0, etc.), these are
+ * managed internally by the compressor.
+ */
+typedef struct {
+    uint8_t min_robustness;    /**< Rₜ: Minimum robustness level (0-7) */
+    uint8_t new_mask_flag;     /**< ṗₜ: Update mask from build vector (0 or 1) */
+    uint8_t send_mask_flag;    /**< ḟₜ: Include mask in output (0 or 1) */
+    uint8_t uncompressed_flag; /**< ṙₜ: Send uncompressed (0 or 1) */
+} pocket_params_t;
+/** @} */
+
+/**
+ * @defgroup bitvector Bit Vector API
+ * @brief Fixed-length binary vector operations.
+ *
+ * Bit vectors are the fundamental data structure for POCKET+ compression.
+ * They represent fixed-length binary sequences with operations for
+ * bitwise logic, shifting, and counting.
+ *
+ * @note Uses 32-bit words with big-endian byte packing to match ESA reference.
+ * @{
+ */
+
+/**
+ * @brief Fixed-length bit vector structure.
+ *
+ * Stores a binary vector of length F bits using 32-bit words.
+ * Bit 0 is the LSB, bit F-1 is the MSB.
  */
 struct bitvector {
-    uint32_t data[(POCKET_MAX_PACKET_BYTES + 3) / 4];  /* 32-bit word array */
-    size_t length;                                      /* Number of bits (F) */
-    size_t num_words;                                   /* Number of words used */
+    uint32_t data[(POCKET_MAX_PACKET_BYTES + 3) / 4];  /**< 32-bit word storage */
+    size_t length;    /**< Number of bits (F) */
+    size_t num_words; /**< Number of 32-bit words used */
 };
 
 /**
- * Initialize a bit vector with specified length.
+ * @brief Initialize a bit vector with specified length.
  *
- * @param bv Bit vector structure (allocated by caller)
- * @param num_bits Number of bits (1 to POCKET_MAX_PACKET_LENGTH)
- * @return POCKET_OK on success, error code otherwise
+ * Allocates internal storage and sets all bits to zero.
+ *
+ * @param[out] bv      Bit vector to initialize (caller-allocated)
+ * @param[in]  num_bits Number of bits (1 to POCKET_MAX_PACKET_LENGTH)
+ * @return POCKET_OK on success, POCKET_ERROR_INVALID_ARG if out of range
  */
 int bitvector_init(bitvector_t *bv, size_t num_bits);
 
 /**
- * Zero all bits in the vector.
+ * @brief Set all bits to zero.
+ * @param[out] bv Bit vector to clear
  */
 void bitvector_zero(bitvector_t *bv);
 
 /**
- * Copy one bit vector to another.
+ * @brief Copy bit vector contents.
+ * @param[out] dest Destination bit vector
+ * @param[in]  src  Source bit vector
  */
 void bitvector_copy(bitvector_t *dest, const bitvector_t *src);
 
 /**
- * Get bit value at position (0 = LSB, length-1 = MSB).
+ * @brief Get bit value at position.
+ * @param[in] bv  Bit vector
+ * @param[in] pos Bit position (0 = LSB, length-1 = MSB)
+ * @return Bit value (0 or 1)
  */
 int bitvector_get_bit(const bitvector_t *bv, size_t pos);
 
 /**
- * Set bit value at position.
+ * @brief Set bit value at position.
+ * @param[out] bv    Bit vector to modify
+ * @param[in]  pos   Bit position (0 = LSB, length-1 = MSB)
+ * @param[in]  value Bit value (0 or 1)
  */
 void bitvector_set_bit(bitvector_t *bv, size_t pos, int value);
 
 /**
- * Bitwise XOR: result = a XOR b
+ * @brief Bitwise XOR operation.
+ * @param[out] result Result vector (result = a XOR b)
+ * @param[in]  a      First operand
+ * @param[in]  b      Second operand
  */
 void bitvector_xor(bitvector_t *result, const bitvector_t *a, const bitvector_t *b);
 
 /**
- * Bitwise OR: result = a OR b
+ * @brief Bitwise OR operation.
+ * @param[out] result Result vector (result = a OR b)
+ * @param[in]  a      First operand
+ * @param[in]  b      Second operand
  */
 void bitvector_or(bitvector_t *result, const bitvector_t *a, const bitvector_t *b);
 
 /**
- * Bitwise AND: result = a AND b
+ * @brief Bitwise AND operation.
+ * @param[out] result Result vector (result = a AND b)
+ * @param[in]  a      First operand
+ * @param[in]  b      Second operand
  */
 void bitvector_and(bitvector_t *result, const bitvector_t *a, const bitvector_t *b);
 
 /**
- * Bitwise NOT: result = ~a
+ * @brief Bitwise NOT operation.
+ * @param[out] result Result vector (result = NOT a)
+ * @param[in]  a      Operand
  */
 void bitvector_not(bitvector_t *result, const bitvector_t *a);
 
 /**
- * Left shift by 1 bit (inserts 0 at LSB): result = a << 1
+ * @brief Left shift by one bit.
+ *
+ * Shifts all bits left, inserting 0 at LSB position.
+ *
+ * @param[out] result Result vector (result = a << 1)
+ * @param[in]  a      Operand
  */
 void bitvector_left_shift(bitvector_t *result, const bitvector_t *a);
 
 /**
- * Reverse bit order: result = <a>
+ * @brief Reverse bit order.
+ *
+ * Reverses the bit order: MSB becomes LSB and vice versa.
+ * CCSDS notation: result = <a>
+ *
+ * @param[out] result Result vector with reversed bits
+ * @param[in]  a      Operand
  */
 void bitvector_reverse(bitvector_t *result, const bitvector_t *a);
 
 /**
- * Count number of '1' bits (Hamming weight).
+ * @brief Count number of set bits (Hamming weight).
+ * @param[in] bv Bit vector
+ * @return Number of bits set to 1
  */
 size_t bitvector_hamming_weight(const bitvector_t *bv);
 
 /**
- * Compare two bit vectors for equality.
+ * @brief Compare two bit vectors for equality.
+ * @param[in] a First bit vector
+ * @param[in] b Second bit vector
+ * @return 1 if equal, 0 if different
  */
 int bitvector_equals(const bitvector_t *a, const bitvector_t *b);
 
 /**
- * Load bit vector from byte array.
+ * @brief Load bit vector from byte array.
+ *
+ * Loads bytes in big-endian order (first byte contains MSB bits).
+ *
+ * @param[out] bv       Bit vector to load into
+ * @param[in]  data     Source byte array
+ * @param[in]  num_bytes Number of bytes to load
+ * @return POCKET_OK on success
  */
 int bitvector_from_bytes(bitvector_t *bv, const uint8_t *data, size_t num_bytes);
 
 /**
- * Store bit vector to byte array.
+ * @brief Store bit vector to byte array.
+ *
+ * Stores bytes in big-endian order (first byte contains MSB bits).
+ *
+ * @param[in]  bv        Bit vector to store
+ * @param[out] data      Destination byte array
+ * @param[in]  num_bytes Number of bytes to store
+ * @return POCKET_OK on success
  */
 int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes);
 
-/* ========================================================================
- * Bit Buffer API (Variable-length output buffer)
- * ======================================================================== */
+/** @} */ /* End of bitvector group */
 
+/**
+ * @defgroup bitbuffer Bit Buffer API
+ * @brief Variable-length output buffer for compressed data.
+ *
+ * Bit buffers accumulate compressed output bit-by-bit and convert
+ * to byte arrays for transmission or storage.
+ * @{
+ */
+
+/**
+ * @brief Variable-length bit buffer structure.
+ *
+ * Accumulates bits during compression, then converts to bytes.
+ */
 struct bitbuffer {
-    uint8_t data[POCKET_MAX_OUTPUT_BYTES];  /* Static byte array */
-    size_t num_bits;                        /* Number of bits written */
+    uint8_t data[POCKET_MAX_OUTPUT_BYTES]; /**< Byte storage */
+    size_t num_bits;                       /**< Number of bits written */
 };
 
 /**
- * Initialize a bit buffer (empty).
+ * @brief Initialize bit buffer to empty state.
+ * @param[out] bb Bit buffer to initialize
  */
 void bitbuffer_init(bitbuffer_t *bb);
 
 /**
- * Clear bit buffer (reset to empty).
+ * @brief Clear bit buffer contents.
+ * @param[out] bb Bit buffer to clear
  */
 void bitbuffer_clear(bitbuffer_t *bb);
 
 /**
- * Append a single bit.
+ * @brief Append a single bit to buffer.
+ * @param[out] bb  Bit buffer
+ * @param[in]  bit Bit value (0 or 1)
+ * @return POCKET_OK on success, POCKET_ERROR_OVERFLOW if full
  */
 int bitbuffer_append_bit(bitbuffer_t *bb, int bit);
 
 /**
- * Append multiple bits from byte array.
+ * @brief Append multiple bits from byte array.
+ * @param[out] bb       Bit buffer
+ * @param[in]  data     Source bytes (MSB first within each byte)
+ * @param[in]  num_bits Number of bits to append
+ * @return POCKET_OK on success, POCKET_ERROR_OVERFLOW if full
  */
 int bitbuffer_append_bits(bitbuffer_t *bb, const uint8_t *data, size_t num_bits);
 
 /**
- * Append a bit vector.
+ * @brief Append all bits from a bit vector.
+ * @param[out] bb Bit buffer
+ * @param[in]  bv Bit vector to append
+ * @return POCKET_OK on success, POCKET_ERROR_OVERFLOW if full
  */
 int bitbuffer_append_bitvector(bitbuffer_t *bb, const bitvector_t *bv);
 
 /**
- * Get number of bits in buffer.
+ * @brief Get number of bits in buffer.
+ * @param[in] bb Bit buffer
+ * @return Number of bits currently stored
  */
 size_t bitbuffer_size(const bitbuffer_t *bb);
 
 /**
- * Convert bit buffer to byte array.
+ * @brief Convert bit buffer to byte array.
  *
- * @param bb Bit buffer
- * @param data Output byte array (allocated by caller)
- * @param max_bytes Maximum bytes to write
+ * Pads final byte with zeros if not byte-aligned.
+ *
+ * @param[in]  bb        Bit buffer
+ * @param[out] data      Destination byte array
+ * @param[in]  max_bytes Maximum bytes to write
  * @return Number of bytes written
  */
 size_t bitbuffer_to_bytes(const bitbuffer_t *bb, uint8_t *data, size_t max_bytes);
 
-/* ========================================================================
- * Mask Update API (CCSDS Section 4)
- * ======================================================================== */
+/** @} */ /* End of bitbuffer group */
 
 /**
- * Update build vector (CCSDS Equation 6).
+ * @defgroup mask Mask Update API
+ * @brief CCSDS Section 4: Mask vector update equations.
+ *
+ * These functions implement the core mask prediction logic that
+ * identifies which bits are predictable vs. unpredictable.
+ * @{
+ */
+
+/**
+ * @brief Update build vector (CCSDS Equation 6).
+ *
+ * The build vector accumulates XOR differences between consecutive
+ * packets to track which bits have changed.
+ *
+ * @param[out] build       Updated build vector Bₜ
+ * @param[in]  input       Current input Iₜ
+ * @param[in]  prev_input  Previous input Iₜ₋₁
+ * @param[in]  new_mask_flag ṗₜ flag (1 = reset build)
+ * @param[in]  t           Time index (0 = first packet)
  */
 void pocket_update_build(
     bitvector_t *build,
@@ -220,7 +354,15 @@ void pocket_update_build(
 );
 
 /**
- * Update mask vector (CCSDS Equation 7).
+ * @brief Update mask vector (CCSDS Equation 7).
+ *
+ * The mask vector identifies unpredictable bits (1 = unpredictable).
+ *
+ * @param[out] mask        Updated mask vector Mₜ
+ * @param[in]  input       Current input Iₜ
+ * @param[in]  prev_input  Previous input Iₜ₋₁
+ * @param[in]  build_prev  Previous build vector Bₜ₋₁
+ * @param[in]  new_mask_flag ṗₜ flag (1 = update from build)
  */
 void pocket_update_mask(
     bitvector_t *mask,
@@ -231,7 +373,14 @@ void pocket_update_mask(
 );
 
 /**
- * Compute change vector (CCSDS Equation 8).
+ * @brief Compute change vector (CCSDS Equation 8).
+ *
+ * The change vector tracks mask changes between iterations.
+ *
+ * @param[out] change     Change vector Dₜ
+ * @param[in]  mask       Current mask Mₜ
+ * @param[in]  prev_mask  Previous mask Mₜ₋₁
+ * @param[in]  t          Time index (0 = first packet)
  */
 void pocket_compute_change(
     bitvector_t *change,
@@ -240,22 +389,51 @@ void pocket_compute_change(
     size_t t
 );
 
-/* ========================================================================
- * Encoding API (CCSDS Section 5.2)
- * ======================================================================== */
+/** @} */ /* End of mask group */
 
 /**
- * Counter encoding (CCSDS Section 5.2.2, Equation 9).
+ * @defgroup encoding Encoding API
+ * @brief CCSDS Section 5.2: Encoding primitives.
+ *
+ * These functions implement the three encoding methods used
+ * in POCKET+ compressed packets.
+ * @{
+ */
+
+/**
+ * @brief Counter encoding (CCSDS Section 5.2.2, Equation 9).
+ *
+ * Encodes an integer A as a unary prefix followed by binary suffix.
+ * Used for run lengths and counts in compressed output.
+ *
+ * @param[out] output Bit buffer to append encoded value
+ * @param[in]  A      Value to encode (0 to MAX)
+ * @return POCKET_OK on success
  */
 int pocket_count_encode(bitbuffer_t *output, uint32_t A);
 
 /**
- * Run-length encoding (CCSDS Section 5.2.3, Equation 10).
+ * @brief Run-length encoding (CCSDS Section 5.2.3, Equation 10).
+ *
+ * Encodes a bit vector as alternating run lengths of 0s and 1s.
+ * Starts with run of 0s from MSB.
+ *
+ * @param[out] output Bit buffer to append encoded runs
+ * @param[in]  input  Bit vector to encode (typically reversed)
+ * @return POCKET_OK on success
  */
 int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input);
 
 /**
- * Bit extraction (CCSDS Section 5.2.4, Equation 11).
+ * @brief Bit extraction (CCSDS Section 5.2.4, Equation 11).
+ *
+ * Extracts bits from data where mask bit is 1, in reverse order
+ * (MSB to LSB). Used for unpredictable bit encoding.
+ *
+ * @param[out] output Bit buffer to append extracted bits
+ * @param[in]  data   Source data vector
+ * @param[in]  mask   Mask indicating which bits to extract
+ * @return POCKET_OK on success
  */
 int pocket_bit_extract(
     bitbuffer_t *output,
@@ -264,8 +442,15 @@ int pocket_bit_extract(
 );
 
 /**
- * Extract bits in forward order (lowest position to highest).
- * Used for kt component encoding.
+ * @brief Bit extraction in forward order (LSB to MSB).
+ *
+ * Used specifically for kₜ component encoding where forward
+ * order is required.
+ *
+ * @param[out] output Bit buffer to append extracted bits
+ * @param[in]  data   Source data vector
+ * @param[in]  mask   Mask indicating which bits to extract
+ * @return POCKET_OK on success
  */
 int pocket_bit_extract_forward(
     bitbuffer_t *output,
@@ -273,53 +458,76 @@ int pocket_bit_extract_forward(
     const bitvector_t *mask
 );
 
-/* ========================================================================
- * Compression API (CCSDS Section 5.3)
- * ======================================================================== */
+/** @} */ /* End of encoding group */
 
 /**
- * Compressor state structure.
+ * @defgroup compression Compression API
+ * @brief CCSDS Section 5.3: Packet compression.
+ *
+ * High-level compression interface for processing packets.
+ * @{
+ */
+
+/**
+ * @brief Compressor state structure.
+ *
+ * Maintains all state needed for sequential packet compression.
+ * Must be initialized with pocket_compressor_init() before use.
  */
 struct pocket_compressor {
-    /* Configuration (immutable after init) */
-    size_t F;                                           /* Input vector length */
-    bitvector_t initial_mask;                           /* M₀ - initial mask */
-    uint8_t robustness;                                 /* Rₜ - robustness level */
+    /** @name Configuration (immutable after init) */
+    /** @{ */
+    size_t F;                   /**< Input vector length in bits */
+    bitvector_t initial_mask;   /**< M₀: Initial mask vector */
+    uint8_t robustness;         /**< Rₜ: Base robustness level (0-7) */
+    /** @} */
 
-    /* State (updated each cycle) */
-    bitvector_t mask;                                   /* Mₜ - current mask */
-    bitvector_t prev_mask;                              /* Mₜ₋₁ - previous mask */
-    bitvector_t build;                                  /* Bₜ - build vector */
-    bitvector_t prev_input;                             /* Iₜ₋₁ - previous input */
-    bitvector_t change_history[POCKET_MAX_HISTORY];     /* Dₜ₋ᵢ - recent change vectors */
-    size_t history_index;                               /* Current position in circular buffer */
+    /** @name State (updated each cycle) */
+    /** @{ */
+    bitvector_t mask;           /**< Mₜ: Current mask vector */
+    bitvector_t prev_mask;      /**< Mₜ₋₁: Previous mask vector */
+    bitvector_t build;          /**< Bₜ: Build vector */
+    bitvector_t prev_input;     /**< Iₜ₋₁: Previous input packet */
+    bitvector_t change_history[POCKET_MAX_HISTORY]; /**< Dₜ₋ᵢ: Change vector history */
+    size_t history_index;       /**< Current position in circular buffer */
+    /** @} */
 
-    /* History for cₜ calculation (tracking new_mask_flag) */
-    uint8_t new_mask_flag_history[POCKET_MAX_VT_HISTORY];  /* Last Vₜ new_mask_flag values */
-    size_t flag_history_index;                              /* Index in flag history */
+    /** @name History for cₜ calculation */
+    /** @{ */
+    uint8_t new_mask_flag_history[POCKET_MAX_VT_HISTORY]; /**< ṗₜ history */
+    size_t flag_history_index;  /**< Index in flag history buffer */
+    /** @} */
 
-    /* Cycle counter */
-    size_t t;                                           /* Current time index */
+    /** @name Cycle counter */
+    /** @{ */
+    size_t t;                   /**< Current time index */
+    /** @} */
 
-    /* Parameter management (for automatic mode) */
-    int pt_limit;                                       /* New mask period (0 = manual control) */
-    int ft_limit;                                       /* Send mask period (0 = manual control) */
-    int rt_limit;                                       /* Uncompressed period (0 = manual control) */
-    int pt_counter;                                     /* Countdown to next pt=1 */
-    int ft_counter;                                     /* Countdown to next ft=1 */
-    int rt_counter;                                     /* Countdown to next rt=1 */
+    /** @name Parameter management (automatic mode) */
+    /** @{ */
+    int pt_limit;   /**< New mask period (0 = manual) */
+    int ft_limit;   /**< Send mask period (0 = manual) */
+    int rt_limit;   /**< Uncompressed period (0 = manual) */
+    int pt_counter; /**< Countdown to next ṗₜ=1 */
+    int ft_counter; /**< Countdown to next ḟₜ=1 */
+    int rt_counter; /**< Countdown to next ṙₜ=1 */
+    /** @} */
 };
 
 /**
- * Initialize a compressor.
+ * @brief Initialize compressor state.
  *
- * @param comp Compressor structure (allocated by caller)
- * @param F Input vector length (1 to POCKET_MAX_PACKET_LENGTH)
- * @param initial_mask M₀ - initial mask (NULL = all zeros)
- * @param robustness Rₜ - robustness level (0-7)
- * @param pt_limit New mask period (0 = manual control via pocket_params_t)
- * @param ft_limit Send mask period (0 = manual control via pocket_params_t)
- * @param rt_limit Uncompressed period (0 = manual control via pocket_params_t)
+ * Sets up the compressor for a new compression session.
+ * Use pt_limit/ft_limit/rt_limit > 0 for automatic parameter
+ * management, or 0 to control parameters manually via pocket_params_t.
+ *
+ * @param[out] comp         Compressor to initialize (caller-allocated)
+ * @param[in]  F            Input vector length in bits
+ * @param[in]  initial_mask M₀ initial mask (NULL = all zeros)
+ * @param[in]  robustness   Rₜ base robustness level (0-7)
+ * @param[in]  pt_limit     New mask period (0 = manual control)
+ * @param[in]  ft_limit     Send mask period (0 = manual control)
+ * @param[in]  rt_limit     Uncompressed period (0 = manual control)
  * @return POCKET_OK on success, error code otherwise
  */
 int pocket_compressor_init(
@@ -333,17 +541,25 @@ int pocket_compressor_init(
 );
 
 /**
- * Reset compressor to initial state (t=0).
+ * @brief Reset compressor to initial state.
+ *
+ * Resets time index to 0 and clears all history while
+ * preserving configuration (F, robustness, limits).
+ *
+ * @param[out] comp Compressor to reset
  */
 void pocket_compressor_reset(pocket_compressor_t *comp);
 
 /**
- * Compress one input packet (CCSDS Section 5.3).
+ * @brief Compress a single input packet.
  *
- * @param comp Compressor state (updated in place)
- * @param input Iₜ - input packet (must be length F)
- * @param output Compressed output buffer
- * @param params Compression parameters (NULL = defaults)
+ * Compresses one F-bit packet according to CCSDS 124.0-B-1 Section 5.3.
+ * Updates compressor state for next packet.
+ *
+ * @param[in,out] comp   Compressor state (updated in place)
+ * @param[in]     input  Input packet Iₜ (must be length F)
+ * @param[out]    output Compressed output buffer
+ * @param[in]     params Compression parameters (NULL = use automatic)
  * @return POCKET_OK on success, error code otherwise
  */
 int pocket_compress_packet(
@@ -354,20 +570,20 @@ int pocket_compress_packet(
 );
 
 /**
- * High-level compression: compress entire input data into packets.
+ * @brief Compress entire input data stream.
  *
- * Automatically handles:
- * - Packet splitting
- * - pt/ft/rt parameter management (if limits were set during init)
- * - CCSDS init phase (first Rt+1 packets with ft=1, rt=1, pt=0)
- * - Output accumulation with byte-boundary padding
+ * High-level API that handles:
+ * - Splitting input into F-bit packets
+ * - Automatic ṗₜ/ḟₜ/ṙₜ parameter management
+ * - CCSDS init phase (first Rₜ+1 packets)
+ * - Output accumulation with byte padding
  *
- * @param comp Compressor state (must be initialized with limits)
- * @param input_data Raw input byte array
- * @param input_size Size of input in bytes (must be multiple of packet_size)
- * @param output_buffer User-provided output buffer
- * @param output_buffer_size Size of output buffer
- * @param output_size Returns actual bytes written
+ * @param[in,out] comp              Compressor state (must be initialized)
+ * @param[in]     input_data        Raw input byte array
+ * @param[in]     input_size        Input size in bytes (multiple of F/8)
+ * @param[out]    output_buffer     Output buffer (caller-allocated)
+ * @param[in]     output_buffer_size Size of output buffer
+ * @param[out]    output_size       Actual bytes written
  * @return POCKET_OK on success, error code otherwise
  */
 int pocket_compress(
@@ -380,12 +596,14 @@ int pocket_compress(
 );
 
 /**
- * Compute robustness window Xₜ (ALGORITHM.md).
- * Xₜ = <(Dₜ₋ᴿₜ OR ... OR Dₜ)> where <a> means reverse
+ * @brief Compute robustness window Xₜ.
  *
- * @param Xt Output robustness window (reversed, ready for RLE)
- * @param comp Compressor state with change history
- * @param current_change Dₜ - current change vector
+ * Computes the OR of recent change vectors for robustness encoding:
+ * Xₜ = <(Dₜ₋ᴿₜ OR ... OR Dₜ)> where <a> denotes bit reversal.
+ *
+ * @param[out] Xt            Robustness window (reversed for RLE)
+ * @param[in]  comp          Compressor with change history
+ * @param[in]  current_change Current change vector Dₜ
  */
 void pocket_compute_robustness_window(
     bitvector_t *Xt,
@@ -394,12 +612,14 @@ void pocket_compute_robustness_window(
 );
 
 /**
- * Compute effective robustness Vₜ (ALGORITHM.md).
- * Vₜ = Rₜ + Cₜ where Cₜ = consecutive iterations with no mask changes
+ * @brief Compute effective robustness Vₜ.
  *
- * @param comp Compressor state with change history
- * @param current_change Dₜ - current change vector
- * @return Vₜ (0-15)
+ * Calculates Vₜ = Rₜ + Cₜ where Cₜ counts consecutive iterations
+ * without mask changes.
+ *
+ * @param[in] comp          Compressor with change history
+ * @param[in] current_change Current change vector Dₜ
+ * @return Effective robustness Vₜ (0-15)
  */
 uint8_t pocket_compute_effective_robustness(
     const pocket_compressor_t *comp,
@@ -407,11 +627,13 @@ uint8_t pocket_compute_effective_robustness(
 );
 
 /**
- * Check if Xₜ contains positive mask updates (eₜ flag).
- * eₜ = 1 if any changed bits are predictable (mask bit = 0), else 0
+ * @brief Check for positive mask updates (eₜ flag).
  *
- * @param Xt Robustness window (reversed)
- * @param mask Current mask Mₜ
+ * Determines if any changed bits in Xₜ are predictable
+ * (have mask bit = 0), indicating positive updates.
+ *
+ * @param[in] Xt   Robustness window (reversed)
+ * @param[in] mask Current mask Mₜ
  * @return 1 if positive updates exist, 0 otherwise
  */
 int pocket_has_positive_updates(
@@ -420,12 +642,14 @@ int pocket_has_positive_updates(
 );
 
 /**
- * Compute cₜ flag (multiple new_mask_flag sets).
- * cₜ = 1 if new_mask_flag was set 2+ times in last Vₜ iterations
+ * @brief Compute cₜ flag for multiple mask updates.
  *
- * @param comp Compressor state with flag history
- * @param Vt Effective robustness level
- * @param current_new_mask_flag Current packet's new_mask_flag value
+ * Returns 1 if ṗₜ was set 2+ times in the last Vₜ iterations,
+ * indicating the kₜ component is needed in output.
+ *
+ * @param[in] comp                 Compressor with flag history
+ * @param[in] Vt                   Effective robustness level
+ * @param[in] current_new_mask_flag Current packet's ṗₜ value
  * @return 1 if multiple updates, 0 otherwise
  */
 int pocket_compute_ct_flag(
@@ -434,11 +658,27 @@ int pocket_compute_ct_flag(
     int current_new_mask_flag
 );
 
-/* ========================================================================
- * Utility API
- * ======================================================================== */
+/** @} */ /* End of compression group */
 
+/**
+ * @defgroup utility Utility API
+ * @brief Helper functions.
+ * @{
+ */
+
+/**
+ * @brief Get version string.
+ * @return Version string in format "X.Y.Z"
+ */
 const char* pocket_version_string(void);
+
+/**
+ * @brief Get error message for error code.
+ * @param[in] error_code Error code from API function
+ * @return Human-readable error message
+ */
 const char* pocket_error_string(int error_code);
+
+/** @} */ /* End of utility group */
 
 #endif /* POCKET_PLUS_H */

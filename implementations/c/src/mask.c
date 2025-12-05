@@ -1,4 +1,8 @@
-/*
+/**
+ * @file mask.c
+ * @brief POCKET+ mask update logic.
+ *
+ * @cond INTERNAL
  * ============================================================================
  *  _____                                   ____
  * |_   _|_ _ _ __   __ _  __ _ _ __ __ _  / ___| _ __   __ _  ___ ___
@@ -7,33 +11,46 @@
  *   |_|\__,_|_| |_|\__,_|\__, |_|  \__,_| |____/| .__/ \__,_|\___\___|
  *                        |___/                  |_|
  * ============================================================================
- *
- * POCKET+ C Implementation - Mask Update Logic
- *
- * Authors:
- *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
- *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
+ * @endcond
  *
  * Implements CCSDS 124.0-B-1 Section 4 (Mask Update):
  * - Build Vector Update (Equation 6)
  * - Mask Vector Update (Equation 7)
  * - Change Vector Computation (Equation 8)
- * ============================================================================
+ *
+ * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
+ * @authors Claude Code (Anthropic) <noreply@anthropic.com>
+ *
+ * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocket_plus.h"
 
-/* ========================================================================
- * Update Build Vector (CCSDS Equation 6)
+/**
+ * @name Build Vector Functions
  *
- * Bₜ = (Iₜ XOR Iₜ₋₁) OR Bₜ₋₁  (if t > 0 and ṗₜ = 0)
- * Bₜ = 0                       (otherwise: t=0 or ṗₜ=1)
+ * CCSDS Equation 6:
+ * - Bₜ = (Iₜ XOR Iₜ₋₁) OR Bₜ₋₁ (if t > 0 and ṗₜ = 0)
+ * - Bₜ = 0 (otherwise: t=0 or ṗₜ=1)
  *
  * The build vector accumulates bits that have changed over time.
  * When new_mask_flag is set, the build is used to replace the mask
  * and is then reset to zero.
- * ======================================================================== */
+ * @{
+ */
 
+/**
+ * @brief Update the build vector according to CCSDS Equation 6.
+ *
+ * Accumulates changed bits into the build vector. When new_mask_flag
+ * is set or at t=0, the build vector is reset to zero.
+ *
+ * @param[in,out] build        Pointer to build vector to update.
+ * @param[in]     input        Pointer to current input vector (Iₜ).
+ * @param[in]     prev_input   Pointer to previous input vector (Iₜ₋₁).
+ * @param[in]     new_mask_flag Non-zero if new mask period started.
+ * @param[in]     t            Current time step.
+ */
 void pocket_update_build(
     bitvector_t *build,
     const bitvector_t *input,
@@ -62,16 +79,32 @@ void pocket_update_build(
     bitvector_or(build, &changes, build);
 }
 
-/* ========================================================================
- * Update Mask Vector (CCSDS Equation 7)
+/** @} */ /* End of Build Vector Functions */
+
+/**
+ * @name Mask Vector Functions
  *
- * Mₜ = (Iₜ XOR Iₜ₋₁) OR Mₜ₋₁    (if ṗₜ = 0)
- * Mₜ = (Iₜ XOR Iₜ₋₁) OR Bₜ₋₁    (if ṗₜ = 1)
+ * CCSDS Equation 7:
+ * - Mₜ = (Iₜ XOR Iₜ₋₁) OR Mₜ₋₁ (if ṗₜ = 0)
+ * - Mₜ = (Iₜ XOR Iₜ₋₁) OR Bₜ₋₁ (if ṗₜ = 1)
  *
  * The mask tracks which bits are unpredictable.
  * When new_mask_flag is set, the mask is replaced with the build vector.
- * ======================================================================== */
+ * @{
+ */
 
+/**
+ * @brief Update the mask vector according to CCSDS Equation 7.
+ *
+ * Updates the mask to track unpredictable bits. When new_mask_flag is set,
+ * the build vector is used as the base for the new mask.
+ *
+ * @param[in,out] mask         Pointer to mask vector to update.
+ * @param[in]     input        Pointer to current input vector (Iₜ).
+ * @param[in]     prev_input   Pointer to previous input vector (Iₜ₋₁).
+ * @param[in]     build_prev   Pointer to previous build vector (Bₜ₋₁).
+ * @param[in]     new_mask_flag Non-zero if new mask period started.
+ */
 void pocket_update_mask(
     bitvector_t *mask,
     const bitvector_t *input,
@@ -95,18 +128,32 @@ void pocket_update_mask(
     }
 }
 
-/* ========================================================================
- * Compute Change Vector (CCSDS Equation 8)
+/** @} */ /* End of Mask Vector Functions */
+
+/**
+ * @name Change Vector Functions
  *
- * Dₜ = Mₜ XOR Mₜ₋₁  (if t > 0)
- * Dₜ = Mₜ           (if t = 0, assuming M₋₁ = 0)
+ * CCSDS Equation 8:
+ * - Dₜ = Mₜ XOR Mₜ₋₁ (if t > 0)
+ * - Dₜ = Mₜ (if t = 0, assuming M₋₁ = 0)
  *
  * The change vector tracks which mask bits changed between time steps.
- * This is used in the encoding stage to communicate mask updates.
- * At t=0, all bits in the initial mask are considered "changes" from
- * the implicit all-zero mask before initialization.
- * ======================================================================== */
+ * This is used in encoding to communicate mask updates.
+ * @{
+ */
 
+/**
+ * @brief Compute the change vector according to CCSDS Equation 8.
+ *
+ * Computes which mask bits changed since the previous time step.
+ * At t=0, all bits in the initial mask are considered changes
+ * (from implicit all-zero mask).
+ *
+ * @param[out] change    Pointer to change vector to compute.
+ * @param[in]  mask      Pointer to current mask vector (Mₜ).
+ * @param[in]  prev_mask Pointer to previous mask vector (Mₜ₋₁).
+ * @param[in]  t         Current time step.
+ */
 void pocket_compute_change(
     bitvector_t *change,
     const bitvector_t *mask,
@@ -121,3 +168,5 @@ void pocket_compute_change(
         bitvector_xor(change, mask, prev_mask);
     }
 }
+
+/** @} */ /* End of Change Vector Functions */

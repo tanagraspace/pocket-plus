@@ -1,10 +1,10 @@
 # POCKET+
 
-Multi-language implementation of the POCKET+ lossless compression algorithm (CCSDS 124.0-B-1).
+The definitive implementation of the POCKET+ lossless compression algorithm (CCSDS 124.0-B-1). Available in C. Coming soon: Python, Go, Java, and even POSIX shell.
 
 ## About
 
-POCKET+ is an ESA-patented lossless compression algorithm implemented using very low-level instructions such as OR, XOR, AND, etc. It has been designed to run on spacecraft command and control processors with low CPU power available and tight real-time constraints.
+POCKET+ is an ESA-patented lossless compression algorithm implemented using very low-level instructions such as OR, XOR, AND, etc. It has been designed to run on spacecraft command and control processors with low CPU power available and tight real-time constraints. An earlier version of POCKET+ was flight-proven onboard both the Nanomind 3200 flight computer and SEPP payload computer of ESA's OPS-SAT-1 spacecraft.
 
 The algorithm has been standardized by CCSDS as **CCSDS 124.0-B-1** for compressing fixed-length spacecraft housekeeping packets.
 
@@ -53,7 +53,7 @@ Idiomatic Go implementation. See [implementations/go/README.md](implementations/
 ## Quick Start
 
 ### Docker (recommended)
-
+I n
 Build, test, and generate coverage for any implementation:
 
 ```bash

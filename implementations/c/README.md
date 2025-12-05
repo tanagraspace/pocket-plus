@@ -33,6 +33,7 @@ make cli           # Build CLI only
 make test          # Build and run all tests
 make coverage      # Run tests with coverage report
 make coverage-html # Generate HTML coverage report (requires lcov)
+make docs          # Generate API documentation (requires doxygen)
 make clean         # Clean build artifacts
 ```
 
@@ -51,7 +52,9 @@ docker-compose run --rm --build c
 ```
 
 Artifacts are written directly to local filesystem:
-- `build/` - library, CLI, coverage data, HTML report
+- `build/` - library, CLI, coverage data, HTML reports
+- `build/coverage/html/` - coverage report
+- `build/docs/html/` - API documentation
 - `assets/` - coverage badges
 
 ## CLI

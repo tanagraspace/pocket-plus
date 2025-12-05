@@ -1,4 +1,8 @@
-/*
+/**
+ * @file encode.c
+ * @brief POCKET+ encoding functions (COUNT, RLE, BE).
+ *
+ * @cond INTERNAL
  * ============================================================================
  *  _____                                   ____
  * |_   _|_ _ _ __   __ _  __ _ _ __ __ _  / ___| _ __   __ _  ___ ___
@@ -7,32 +11,46 @@
  *   |_|\__,_|_| |_|\__,_|\__, |_|  \__,_| |____/| .__/ \__,_|\___\___|
  *                        |___/                  |_|
  * ============================================================================
+ * @endcond
  *
- * POCKET+ C Implementation - Encoding Functions
- *
- * Authors:
- *   Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
- *   Claude Code (claude-sonnet-4-5-20250929) <noreply@anthropic.com>
- *
- * Implements CCSDS 124.0-B-1 Section 5.2:
+ * Implements CCSDS 124.0-B-1 Section 5.2 encoding schemes:
  * - Counter Encoding (COUNT) - Section 5.2.2, Table 5-1, Equation 9
  * - Run-Length Encoding (RLE) - Section 5.2.3, Equation 10
  * - Bit Extraction (BE) - Section 5.2.4, Equation 11
- * ============================================================================
+ *
+ * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
+ * @authors Claude Code (Anthropic) <noreply@anthropic.com>
+ *
+ * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocket_plus.h"
 #include <math.h>
 
-/* ========================================================================
- * Counter Encoding (CCSDS Section 5.2.2, Table 5-1, Equation 9)
+/**
+ * @name Counter Encoding (COUNT)
  *
+ * CCSDS Section 5.2.2, Table 5-1, Equation 9.
  * Encodes positive integers 1 ≤ A ≤ 2^16 - 1:
- *   A = 1        → '0'
- *   2 ≤ A ≤ 33   → '110' ∥ BIT₅(A-2)
- *   A ≥ 34       → '111' ∥ BIT_E(A-2)  where E = 2⌊log₂(A-2)+1⌋ - 6
- * ======================================================================== */
+ * - A = 1 → '0'
+ * - 2 ≤ A ≤ 33 → '110' ∥ BIT₅(A-2)
+ * - A ≥ 34 → '111' ∥ BIT_E(A-2) where E = 2⌊log₂(A-2)+1⌋ - 6
+ * @{
+ */
 
+/**
+ * @brief Encode an integer using CCSDS Counter encoding.
+ *
+ * Implements CCSDS 124.0-B-1 Equation 9 for encoding positive integers.
+ * Uses variable-length prefix coding for efficient representation.
+ *
+ * @param[in,out] output Pointer to output bit buffer.
+ * @param[in]     A      Value to encode (1 to 65535).
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if output is NULL or A is out of range.
+ * @return POCKET_ERROR_OVERFLOW if output buffer is full.
+ */
 int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
     if (output == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -101,17 +119,36 @@ int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
     return POCKET_OK;
 }
 
-/* ========================================================================
- * Run-Length Encoding (CCSDS Section 5.2.3, Equation 10)
+/** @} */ /* End of Counter Encoding */
+
+/**
+ * @name Run-Length Encoding (RLE)
  *
+ * CCSDS Section 5.2.3, Equation 10.
  * RLE(a) = COUNT(C₀) ∥ COUNT(C₁) ∥ ... ∥ COUNT(C_{H(a)-1}) ∥ '10'
  *
  * where Cᵢ = 1 + (count of consecutive '0' bits before i-th '1' bit)
- *       H(a) = Hamming weight (number of '1' bits in a)
+ * and H(a) = Hamming weight (number of '1' bits in a)
  *
- * Note: Trailing zeros are not encoded (deducible from vector length)
- * ======================================================================== */
+ * @note Trailing zeros are not encoded (deducible from vector length)
+ * @{
+ */
 
+/**
+ * @brief Encode a bit vector using Run-Length Encoding.
+ *
+ * Implements CCSDS 124.0-B-1 Equation 10. Encodes the positions of '1' bits
+ * as a sequence of COUNT-encoded run lengths, terminated by '10'.
+ *
+ * Uses DeBruijn sequence for fast LSB detection, matching the ESA reference.
+ *
+ * @param[in,out] output Pointer to output bit buffer.
+ * @param[in]     input  Pointer to input bit vector.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if any pointer is NULL.
+ * @return POCKET_ERROR_OVERFLOW if output buffer is full.
+ */
 int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
     if (output == NULL || input == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -170,9 +207,12 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
     return result;
 }
 
-/* ========================================================================
- * Bit Extraction (CCSDS Section 5.2.4, Equation 11)
+/** @} */ /* End of Run-Length Encoding */
+
+/**
+ * @name Bit Extraction (BE)
  *
+ * CCSDS Section 5.2.4, Equation 11.
  * BE(a, b) = a_{g_{H(b)-1}} ∥ ... ∥ a_{g₁} ∥ a_{g₀}
  *
  * where gᵢ is the position of the i-th '1' bit in b (MSB to LSB order)
@@ -180,12 +220,30 @@ int pocket_rle_encode(bitbuffer_t *output, const bitvector_t *input) {
  * Extracts bits from 'a' at positions where 'b' has '1' bits.
  * Output order: MSB to LSB (reverse order of finding '1' bits)
  *
- * Example: BE('10110011', '01001010') = '001'
- *          Positions with '1' in mask: 1, 3, 6
- *          Extract from data: bit[1]=1, bit[3]=0, bit[6]=0
- *          Output (MSB→LSB): 0, 0, 1
- * ======================================================================== */
+ * @par Example
+ * @code
+ * BE('10110011', '01001010') = '001'
+ * Positions with '1' in mask: 1, 3, 6
+ * Extract from data: bit[1]=1, bit[3]=0, bit[6]=0
+ * Output (MSB→LSB): 0, 0, 1
+ * @endcode
+ * @{
+ */
 
+/**
+ * @brief Extract bits using CCSDS Bit Extraction (reverse order).
+ *
+ * Implements CCSDS 124.0-B-1 Equation 11. Extracts bits from data at
+ * positions marked by '1' in mask, output in reverse order (highest
+ * position first).
+ *
+ * @param[in,out] output Pointer to output bit buffer.
+ * @param[in]     data   Pointer to source data bit vector.
+ * @param[in]     mask   Pointer to mask bit vector.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if any pointer is NULL or lengths differ.
+ */
 int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitvector_t *mask) {
     if (output == NULL || data == NULL || mask == NULL) {
         return POCKET_ERROR_INVALID_ARG;
@@ -227,9 +285,17 @@ int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitve
 }
 
 /**
- * Extract bits from 'data' at positions marked by '1' in 'mask', in FORWARD order.
- * Used for kt component encoding.
- * Forward order: processes positions from lowest to highest index.
+ * @brief Extract bits in forward order (for kt component encoding).
+ *
+ * Similar to pocket_bit_extract() but outputs bits in forward order
+ * (lowest position first). Used specifically for kt component encoding.
+ *
+ * @param[in,out] output Pointer to output bit buffer.
+ * @param[in]     data   Pointer to source data bit vector.
+ * @param[in]     mask   Pointer to mask bit vector.
+ *
+ * @return POCKET_OK on success.
+ * @return POCKET_ERROR_INVALID_ARG if any pointer is NULL or lengths differ.
  */
 int pocket_bit_extract_forward(bitbuffer_t *output, const bitvector_t *data, const bitvector_t *mask) {
     if (output == NULL || data == NULL || mask == NULL) {
@@ -270,3 +336,5 @@ int pocket_bit_extract_forward(bitbuffer_t *output, const bitvector_t *data, con
 
     return POCKET_OK;
 }
+
+/** @} */ /* End of Bit Extraction */

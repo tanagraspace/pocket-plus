@@ -134,3 +134,45 @@ jobs:
           name: coverage-report
           path: implementations/c/build/coverage/html
           retention-days: 7
+
+  docs:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen
+
+      - name: Download Doxygen Awesome CSS
+        working-directory: implementations/c
+        run: |
+          mkdir -p doxygen-awesome-css
+          curl -sL https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.3.4/doxygen-awesome.css -o doxygen-awesome-css/doxygen-awesome.css
+          curl -sL https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.3.4/doxygen-awesome-sidebar-only.css -o doxygen-awesome-css/doxygen-awesome-sidebar-only.css
+
+      - name: Build library
+        working-directory: implementations/c
+        run: make
+
+      - name: Generate documentation
+        working-directory: implementations/c
+        run: make docs
+
+      - name: Add docs summary
+        working-directory: implementations/c
+        run: |
+          echo "## API Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Doxygen documentation generated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **docs-api** artifact to view the HTML documentation." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-api
+          path: implementations/c/build/docs/html
+          retention-days: 7
