@@ -1,6 +1,10 @@
 # POCKET+
 
-The definitive implementation of the POCKET+ lossless compression algorithm (CCSDS 124.0-B-1). Available in C. Coming soon: Python, Go, Java, and even POSIX shell.
+The definitive implementation of the POCKET+ lossless compression algorithm ([CCSDS 124.0-B-1](https://public.ccsds.org/Pubs/124x0b1.pdf)).
+
+Status:
+- Available in C.
+- Coming soon in Python, MicroPython, Go, Java, Rust, and even Ada. Maybe also Fortran, who knows?
 
 ## About
 
@@ -145,7 +149,7 @@ All implementations are designed to be interoperable:
 
 Contributions are welcome! Please:
 
-1. Read the [Implementation Guide](docs/implementation-guide.md)
+1. Read the [Implementation Guide](docs/GUIDELINES.md)
 2. Ensure your changes pass all test vectors
 3. Update relevant CHANGELOG.md
 4. Follow language-specific conventions
@@ -158,10 +162,5 @@ See [LICENSE](LICENSE) for details.
 ## References
 
 - [ESA POCKET+ Information](https://opssat.esa.int/pocket-plus/)
+- [CCSDS 124.0-B-1 - Lossless Data Compression](https://public.ccsds.org/Pubs/124x0b1.pdf)
 - [CCSDS Standards](https://public.ccsds.org/)
-- CCSDS 124.0-B-1 - Lossless Data Compression
-
-## Status
-
-- **C**: Compression complete and validated against all test vectors
-- **Python/Go**: Planned
