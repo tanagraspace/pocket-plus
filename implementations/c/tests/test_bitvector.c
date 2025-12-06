@@ -277,6 +277,221 @@ TEST(test_bitvector_to_bytes) {
 }
 
 /* ========================================================================
+ * Edge Case and Error Handling Tests
+ * ======================================================================== */
+
+TEST(test_bitvector_copy_different_sizes) {
+    bitvector_t src, dest;
+    bitvector_init(&src, 8);   /* 1 word */
+    bitvector_init(&dest, 64); /* 2 words */
+
+    src.data[0] = 0xAB000000;
+    dest.data[0] = 0xFFFFFFFF;
+    dest.data[1] = 0xFFFFFFFF;
+
+    bitvector_copy(&dest, &src);
+
+    /* dest should have src's data, and length should match src */
+    assert(dest.data[0] == 0xAB000000);
+    assert(dest.length == 8);
+}
+
+TEST(test_bitvector_xor_different_sizes) {
+    bitvector_t a, b, result;
+    bitvector_init(&a, 8);     /* 1 word */
+    bitvector_init(&b, 64);    /* 2 words */
+    bitvector_init(&result, 64);
+
+    a.data[0] = 0xFF000000;
+    b.data[0] = 0xAA000000;
+    b.data[1] = 0x55555555;
+
+    bitvector_xor(&result, &a, &b);
+
+    /* XOR should use smaller num_words */
+    assert(result.data[0] == 0x55000000);
+}
+
+TEST(test_bitvector_or_different_sizes) {
+    bitvector_t a, b, result;
+    bitvector_init(&a, 8);
+    bitvector_init(&b, 64);
+    bitvector_init(&result, 64);
+
+    a.data[0] = 0x0F000000;
+    b.data[0] = 0xF0000000;
+
+    bitvector_or(&result, &a, &b);
+
+    assert(result.data[0] == 0xFF000000);
+}
+
+TEST(test_bitvector_hamming_weight_non_aligned) {
+    bitvector_t bv;
+    /* 40 bits = 1 word + 8 bits - tests extra bits handling */
+    bitvector_init(&bv, 40);
+
+    /* Set all bits to 1 */
+    bv.data[0] = 0xFFFFFFFF;  /* 32 ones */
+    bv.data[1] = 0xFF000000;  /* 8 ones in top byte */
+
+    size_t weight = bitvector_hamming_weight(&bv);
+    assert(weight == 40);
+}
+
+TEST(test_bitvector_hamming_weight_36_bits) {
+    bitvector_t bv;
+    /* 36 bits - tests partial extra bits */
+    bitvector_init(&bv, 36);
+
+    bv.data[0] = 0xFFFFFFFF;  /* 32 ones */
+    bv.data[1] = 0xF0000000;  /* 4 ones in top nibble */
+
+    size_t weight = bitvector_hamming_weight(&bv);
+    assert(weight == 36);
+}
+
+TEST(test_bitvector_from_bytes_overflow) {
+    bitvector_t bv;
+    bitvector_init(&bv, 8);  /* Only 1 byte capacity */
+
+    uint8_t bytes[] = {0xAB, 0xCD, 0xEF};  /* 3 bytes */
+    int result = bitvector_from_bytes(&bv, bytes, 3);
+
+    assert(result == POCKET_ERROR_OVERFLOW);
+}
+
+TEST(test_bitvector_to_bytes_underflow) {
+    bitvector_t bv;
+    bitvector_init(&bv, 24);  /* 3 bytes */
+
+    bv.data[0] = 0xABCDEF00;
+
+    uint8_t bytes[2];  /* Only 2 bytes buffer */
+    int result = bitvector_to_bytes(&bv, bytes, 2);
+
+    assert(result == POCKET_ERROR_UNDERFLOW);
+}
+
+TEST(test_bitvector_to_bytes_full_word) {
+    bitvector_t bv;
+    bitvector_init(&bv, 32);  /* Full word */
+
+    bv.data[0] = 0xAABBCCDD;
+
+    uint8_t bytes[4];
+    int result = bitvector_to_bytes(&bv, bytes, 4);
+
+    assert(result == POCKET_OK);
+    assert(bytes[0] == 0xAA);
+    assert(bytes[1] == 0xBB);
+    assert(bytes[2] == 0xCC);
+    assert(bytes[3] == 0xDD);
+}
+
+TEST(test_bitvector_copy_b_smaller) {
+    bitvector_t src, dest;
+    bitvector_init(&src, 64);  /* 2 words */
+    bitvector_init(&dest, 8);  /* 1 word - smaller */
+
+    src.data[0] = 0xAB000000;
+    src.data[1] = 0xCD000000;
+
+    bitvector_copy(&dest, &src);
+
+    assert(dest.data[0] == 0xAB000000);
+}
+
+TEST(test_bitvector_xor_b_smaller) {
+    bitvector_t a, b, result;
+    bitvector_init(&a, 64);    /* 2 words */
+    bitvector_init(&b, 8);     /* 1 word - b is smaller */
+    bitvector_init(&result, 64);
+
+    a.data[0] = 0xFF000000;
+    a.data[1] = 0x12345678;
+    b.data[0] = 0xAA000000;
+
+    bitvector_xor(&result, &a, &b);
+
+    assert(result.data[0] == 0x55000000);
+}
+
+TEST(test_bitvector_or_b_smaller) {
+    bitvector_t a, b, result;
+    bitvector_init(&a, 64);    /* 2 words */
+    bitvector_init(&b, 8);     /* 1 word - b is smaller */
+    bitvector_init(&result, 64);
+
+    a.data[0] = 0x0F000000;
+    b.data[0] = 0xF0000000;
+
+    bitvector_or(&result, &a, &b);
+
+    assert(result.data[0] == 0xFF000000);
+}
+
+TEST(test_bitvector_not_16bits) {
+    bitvector_t a, result;
+    bitvector_init(&a, 16);      /* 2 bytes - triggers full byte mask path */
+    bitvector_init(&result, 16);
+
+    a.data[0] = 0xABCD0000;
+
+    bitvector_not(&result, &a);
+
+    /* NOT of 0xABCD = 0x5432 (for 16 bits) */
+    assert(result.data[0] == 0x54320000);
+}
+
+TEST(test_bitvector_reverse_16bits) {
+    bitvector_t a, result;
+    bitvector_init(&a, 16);      /* 2 bytes in 1 word */
+    bitvector_init(&result, 16);
+
+    /* Set pattern 0xABCD */
+    a.data[0] = 0xABCD0000;
+
+    bitvector_reverse(&result, &a);
+
+    /* Reversed bits of 0xABCD (16 bits) */
+    /* 0xABCD = 1010101111001101 reversed = 1011001111010101 = 0xB3D5 */
+    assert(result.data[0] == 0xB3D50000);
+}
+
+TEST(test_bitvector_and_b_smaller) {
+    bitvector_t a, b, result;
+    bitvector_init(&a, 64);    /* 2 words */
+    bitvector_init(&b, 8);     /* 1 word - b is smaller */
+    bitvector_init(&result, 64);
+
+    a.data[0] = 0xFF000000;
+    b.data[0] = 0xAA000000;
+
+    bitvector_and(&result, &a, &b);
+
+    assert(result.data[0] == 0xAA000000);
+}
+
+TEST(test_bitvector_hamming_weight_excess_bits) {
+    bitvector_t bv;
+    /* 36 bits - last word has excess capacity with some garbage bits */
+    bitvector_init(&bv, 36);
+
+    bv.data[0] = 0xFFFFFFFF;  /* 32 ones */
+    /* Top 4 bits meaningful (36-32=4), set garbage in bottom 4 bits */
+    bv.data[1] = 0xF000000F;  /* 4 meaningful ones at top + 4 garbage ones at bottom */
+
+    size_t weight = bitvector_hamming_weight(&bv);
+    /* popcount(word0) + popcount(word1) = 32 + 8 = 40
+     * extra_bits = 36 % 32 = 4
+     * mask = 0xF (bottom 4 bits)
+     * extra_word = 0xF000000F & 0xF = 0xF (4 ones)
+     * Final = 40 - 4 = 36 (correct: ignores garbage bits) */
+    assert(weight == 36);
+}
+
+/* ========================================================================
  * Main Test Runner
  * ======================================================================== */
 
@@ -311,6 +526,23 @@ int main(void) {
     /* Byte conversion */
     RUN_TEST(test_bitvector_from_bytes);
     RUN_TEST(test_bitvector_to_bytes);
+
+    /* Edge cases and error handling */
+    RUN_TEST(test_bitvector_copy_different_sizes);
+    RUN_TEST(test_bitvector_xor_different_sizes);
+    RUN_TEST(test_bitvector_or_different_sizes);
+    RUN_TEST(test_bitvector_hamming_weight_non_aligned);
+    RUN_TEST(test_bitvector_hamming_weight_36_bits);
+    RUN_TEST(test_bitvector_from_bytes_overflow);
+    RUN_TEST(test_bitvector_to_bytes_underflow);
+    RUN_TEST(test_bitvector_to_bytes_full_word);
+    RUN_TEST(test_bitvector_copy_b_smaller);
+    RUN_TEST(test_bitvector_xor_b_smaller);
+    RUN_TEST(test_bitvector_or_b_smaller);
+    RUN_TEST(test_bitvector_and_b_smaller);
+    RUN_TEST(test_bitvector_not_16bits);
+    RUN_TEST(test_bitvector_reverse_16bits);
+    RUN_TEST(test_bitvector_hamming_weight_excess_bits);
 
     printf("\n%d/%d tests passed\n\n", tests_passed, tests_run);
 

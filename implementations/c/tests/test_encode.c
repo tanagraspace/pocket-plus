@@ -290,6 +290,49 @@ TEST(test_bit_extract_all_mask) {
     assert(bb.data[0] == 0xD5);
 }
 
+TEST(test_bit_extract_length_mismatch) {
+    bitbuffer_t bb;
+    bitvector_t data, mask;
+
+    bitbuffer_init(&bb);
+    bitvector_init(&data, 8);
+    bitvector_init(&mask, 16);  /* Different length */
+
+    int result = pocket_bit_extract(&bb, &data, &mask);
+
+    assert(result == POCKET_ERROR_INVALID_ARG);
+}
+
+TEST(test_bit_extract_forward_length_mismatch) {
+    bitbuffer_t bb;
+    bitvector_t data, mask;
+
+    bitbuffer_init(&bb);
+    bitvector_init(&data, 8);
+    bitvector_init(&mask, 16);  /* Different length */
+
+    int result = pocket_bit_extract_forward(&bb, &data, &mask);
+
+    assert(result == POCKET_ERROR_INVALID_ARG);
+}
+
+TEST(test_bit_extract_forward_no_mask) {
+    bitbuffer_t bb;
+    bitvector_t data, mask;
+
+    bitbuffer_init(&bb);
+    bitvector_init(&data, 8);
+    bitvector_init(&mask, 8);
+
+    data.data[0] = 0xFF000000;
+    bitvector_zero(&mask);  /* No bits set in mask */
+
+    int result = pocket_bit_extract_forward(&bb, &data, &mask);
+
+    assert(result == POCKET_OK);
+    assert(bb.num_bits == 0);  /* No bits extracted */
+}
+
 /* ========================================================================
  * Main Test Runner
  * ======================================================================== */
@@ -316,6 +359,9 @@ int main(void) {
     RUN_TEST(test_bit_extract_simple);
     RUN_TEST(test_bit_extract_no_mask);
     RUN_TEST(test_bit_extract_all_mask);
+    RUN_TEST(test_bit_extract_length_mismatch);
+    RUN_TEST(test_bit_extract_forward_length_mismatch);
+    RUN_TEST(test_bit_extract_forward_no_mask);
 
     printf("\n%d/%d tests passed\n\n", tests_passed, tests_run);
 

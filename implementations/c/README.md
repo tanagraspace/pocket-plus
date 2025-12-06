@@ -18,6 +18,7 @@ A MISRA-C compliant C implementation of the POCKET+ lossless compression algorit
 make               # Build library and CLI
 make test          # Run all tests
 make coverage      # Run tests with coverage report
+make coverage-html # Run tests with coverage report in html (requires lcov)
 make docs          # Generate API documentation (requires doxygen)
 make clean         # Clean build artifacts
 ```

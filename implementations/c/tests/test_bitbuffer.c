@@ -217,6 +217,57 @@ TEST(test_bitbuffer_overflow_protection) {
     }
 }
 
+TEST(test_bitbuffer_append_bits_overflow) {
+    bitbuffer_t bb;
+    bitbuffer_init(&bb);
+
+    /* Fill buffer near capacity */
+    bb.num_bits = POCKET_MAX_OUTPUT_BYTES * 8 - 4;
+
+    /* Try to append more bits than remaining space */
+    uint8_t data = 0xFF;
+    int result = bitbuffer_append_bits(&bb, &data, 8);
+
+    assert(result == POCKET_ERROR_OVERFLOW);
+}
+
+TEST(test_bitbuffer_append_bitvector_partial) {
+    bitbuffer_t bb;
+    bitvector_t bv;
+
+    bitbuffer_init(&bb);
+    bitvector_init(&bv, 12);  /* Non-byte-aligned: 12 bits */
+
+    /* Set some bits */
+    bitvector_set_bit(&bv, 0, 1);
+    bitvector_set_bit(&bv, 4, 1);
+    bitvector_set_bit(&bv, 8, 1);
+    bitvector_set_bit(&bv, 11, 1);
+
+    int result = bitbuffer_append_bitvector(&bb, &bv);
+
+    assert(result == POCKET_OK);
+    assert(bb.num_bits == 12);
+}
+
+TEST(test_bitbuffer_to_bytes_truncate) {
+    bitbuffer_t bb;
+    bitbuffer_init(&bb);
+
+    bb.data[0] = 0xAB;
+    bb.data[1] = 0xCD;
+    bb.data[2] = 0xEF;
+    bb.num_bits = 24;
+
+    /* Request only 2 bytes when 3 are available */
+    uint8_t bytes[2];
+    size_t num_bytes = bitbuffer_to_bytes(&bb, bytes, 2);
+
+    assert(num_bytes == 2);
+    assert(bytes[0] == 0xAB);
+    assert(bytes[1] == 0xCD);
+}
+
 /* ========================================================================
  * Main Test Runner
  * ======================================================================== */
@@ -240,7 +291,12 @@ int main(void) {
     /* Byte conversion */
     RUN_TEST(test_bitbuffer_to_bytes_full_byte);
     RUN_TEST(test_bitbuffer_to_bytes_partial_byte);
+    RUN_TEST(test_bitbuffer_to_bytes_truncate);
+
+    /* Overflow protection */
     RUN_TEST(test_bitbuffer_overflow_protection);
+    RUN_TEST(test_bitbuffer_append_bits_overflow);
+    RUN_TEST(test_bitbuffer_append_bitvector_partial);
 
     printf("\n%d/%d tests passed\n\n", tests_passed, tests_run);
 

@@ -376,6 +376,203 @@ static void test_bitreader_read_bits(void) {
 }
 
 /* ============================================================================
+ * NULL Argument and Error Path Tests
+ * ============================================================================ */
+
+static void test_count_decode_null_args(void) {
+    uint8_t data[1] = {0xFF};
+    bitreader_t reader;
+    uint32_t value;
+
+    bitreader_init(&reader, data, 8U);
+
+    /* NULL reader */
+    int result = pocket_count_decode(NULL, &value);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_count_decode_null_args: NULL reader fails");
+
+    /* NULL value */
+    result = pocket_count_decode(&reader, NULL);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_count_decode_null_args: NULL value fails");
+}
+
+static void test_count_decode_empty_reader(void) {
+    uint8_t data[1] = {0xFF};
+    bitreader_t reader;
+    uint32_t value;
+
+    /* Initialize with 0 bits */
+    bitreader_init(&reader, data, 0U);
+
+    int result = pocket_count_decode(&reader, &value);
+    TEST_ASSERT(result == POCKET_ERROR_UNDERFLOW, "test_count_decode_empty_reader: empty reader fails");
+}
+
+static void test_decompressor_init_null(void) {
+    int result = pocket_decompressor_init(NULL, 8, NULL, 0);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompressor_init_null: NULL decomp fails");
+}
+
+static void test_decompress_packet_null_args(void) {
+    pocket_decompressor_t decomp;
+    bitreader_t reader;
+    bitvector_t output;
+    uint8_t data[1] = {0xFF};
+
+    pocket_decompressor_init(&decomp, 8, NULL, 0);
+    bitreader_init(&reader, data, 8U);
+    bitvector_init(&output, 8);
+
+    /* NULL decomp */
+    int result = pocket_decompress_packet(NULL, &reader, &output);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompress_packet_null_args: NULL decomp fails");
+
+    /* NULL reader */
+    result = pocket_decompress_packet(&decomp, NULL, &output);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompress_packet_null_args: NULL reader fails");
+
+    /* NULL output */
+    result = pocket_decompress_packet(&decomp, &reader, NULL);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompress_packet_null_args: NULL output fails");
+}
+
+static void test_decompress_null_args(void) {
+    pocket_decompressor_t decomp;
+    uint8_t input[4] = {0};
+    uint8_t output[4];
+    size_t output_size;
+
+    pocket_decompressor_init(&decomp, 8, NULL, 0);
+
+    /* NULL decomp */
+    int result = pocket_decompress(NULL, input, 4, output, 4, &output_size);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompress_null_args: NULL decomp fails");
+
+    /* NULL input */
+    result = pocket_decompress(&decomp, NULL, 4, output, 4, &output_size);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompress_null_args: NULL input fails");
+
+    /* NULL output buffer */
+    result = pocket_decompress(&decomp, input, 4, NULL, 4, &output_size);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompress_null_args: NULL output fails");
+
+    /* NULL output_size */
+    result = pocket_decompress(&decomp, input, 4, output, 4, NULL);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompress_null_args: NULL output_size fails");
+}
+
+static void test_rle_decode_null_args(void) {
+    uint8_t data[1] = {0x80};
+    bitreader_t reader;
+    bitvector_t result;
+
+    bitreader_init(&reader, data, 8U);
+    bitvector_init(&result, 8);
+
+    /* NULL reader */
+    int status = pocket_rle_decode(NULL, &result, 8U);
+    TEST_ASSERT(status == POCKET_ERROR_INVALID_ARG, "test_rle_decode_null_args: NULL reader fails");
+
+    /* NULL result */
+    status = pocket_rle_decode(&reader, NULL, 8U);
+    TEST_ASSERT(status == POCKET_ERROR_INVALID_ARG, "test_rle_decode_null_args: NULL result fails");
+}
+
+static void test_bit_insert_null_args(void) {
+    uint8_t data[1] = {0xFF};
+    bitreader_t reader;
+    bitvector_t bv_data, mask;
+
+    bitreader_init(&reader, data, 8U);
+    bitvector_init(&bv_data, 8);
+    bitvector_init(&mask, 8);
+
+    /* NULL reader */
+    int status = pocket_bit_insert(NULL, &bv_data, &mask);
+    TEST_ASSERT(status == POCKET_ERROR_INVALID_ARG, "test_bit_insert_null_args: NULL reader fails");
+
+    /* NULL data */
+    status = pocket_bit_insert(&reader, NULL, &mask);
+    TEST_ASSERT(status == POCKET_ERROR_INVALID_ARG, "test_bit_insert_null_args: NULL data fails");
+
+    /* NULL mask */
+    status = pocket_bit_insert(&reader, &bv_data, NULL);
+    TEST_ASSERT(status == POCKET_ERROR_INVALID_ARG, "test_bit_insert_null_args: NULL mask fails");
+}
+
+static void test_bit_insert_length_mismatch(void) {
+    uint8_t data[2] = {0xFF, 0xFF};
+    bitreader_t reader;
+    bitvector_t bv_data, mask;
+
+    bitreader_init(&reader, data, 16U);
+    bitvector_init(&bv_data, 8);   /* 8 bits */
+    bitvector_init(&mask, 16);     /* 16 bits - mismatch */
+
+    int status = pocket_bit_insert(&reader, &bv_data, &mask);
+    TEST_ASSERT(status == POCKET_ERROR_INVALID_ARG, "test_bit_insert_length_mismatch: mismatched lengths fails");
+}
+
+static void test_decompress_output_overflow(void) {
+    /* Compress some data first */
+    uint8_t input_data[8] = {0xAA, 0xBB, 0xCC, 0xDD, 0x11, 0x22, 0x33, 0x44};
+    size_t packet_bits = 32U;
+
+    pocket_compressor_t comp;
+    pocket_compressor_init(&comp, packet_bits, NULL, 1U, 10, 20, 50);
+
+    uint8_t compressed[256];
+    size_t compressed_size = 0U;
+    (void)pocket_compress(&comp, input_data, 8U, compressed, sizeof(compressed), &compressed_size);
+
+    /* Try to decompress into a buffer that's too small */
+    pocket_decompressor_t decomp;
+    pocket_decompressor_init(&decomp, packet_bits, NULL, 1U);
+
+    uint8_t output[2];  /* Only 2 bytes, need 8 */
+    size_t output_size = 0U;
+
+    int result = pocket_decompress(&decomp, compressed, compressed_size, output, sizeof(output), &output_size);
+    TEST_ASSERT(result == POCKET_ERROR_OVERFLOW, "test_decompress_output_overflow: small buffer fails");
+}
+
+/* ============================================================================
+ * Decompressor Init Error Tests
+ * ============================================================================ */
+
+static void test_decompressor_init_invalid_length(void) {
+    pocket_decompressor_t decomp;
+
+    /* F = 0 should fail */
+    int result = pocket_decompressor_init(&decomp, 0, NULL, 0);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompressor_init_invalid_length: F=0 fails");
+
+    /* F > max should fail */
+    result = pocket_decompressor_init(&decomp, POCKET_MAX_PACKET_LENGTH + 1, NULL, 0);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompressor_init_invalid_length: F>max fails");
+}
+
+static void test_decompressor_init_invalid_robustness(void) {
+    pocket_decompressor_t decomp;
+
+    /* Robustness > 7 should fail */
+    int result = pocket_decompressor_init(&decomp, 8, NULL, 8);
+    TEST_ASSERT(result == POCKET_ERROR_INVALID_ARG, "test_decompressor_init_invalid_robustness: R=8 fails");
+}
+
+static void test_decompressor_init_with_mask(void) {
+    pocket_decompressor_t decomp;
+    bitvector_t initial_mask;
+
+    bitvector_init(&initial_mask, 8);
+    initial_mask.data[0] = 0xAB000000;
+
+    int result = pocket_decompressor_init(&decomp, 8, &initial_mask, 1);
+
+    TEST_ASSERT(result == POCKET_OK, "test_decompressor_init_with_mask: returns OK");
+    TEST_ASSERT(decomp.mask.data[0] == 0xAB000000, "test_decompressor_init_with_mask: mask copied");
+}
+
+/* ============================================================================
  * Main Test Runner
  * ============================================================================ */
 
@@ -403,6 +600,22 @@ int main(void) {
     printf("\nPacket Decompression Tests:\n");
     test_decompress_uncompressed_packet();
     test_decompress_roundtrip_multiple();
+
+    printf("\nNULL Argument and Error Path Tests:\n");
+    test_count_decode_null_args();
+    test_count_decode_empty_reader();
+    test_rle_decode_null_args();
+    test_bit_insert_null_args();
+    test_bit_insert_length_mismatch();
+    test_decompressor_init_null();
+    test_decompress_packet_null_args();
+    test_decompress_null_args();
+    test_decompress_output_overflow();
+
+    printf("\nDecompressor Init Error Tests:\n");
+    test_decompressor_init_invalid_length();
+    test_decompressor_init_invalid_robustness();
+    test_decompressor_init_with_mask();
 
     printf("\n%d/%d tests passed\n\n", tests_passed, tests_total);
 
