@@ -29,7 +29,11 @@ LIB = $(BUILD_DIR)/libpocketplus.a
 CLI = $(BUILD_DIR)/pocketplus
 COV_LIB = $(COV_DIR)/libpocketplus.a
 
-.PHONY: all clean test test-cli cli coverage coverage-html docs
+# MISRA-C source files (excludes cli.c - ground tool, not flight software)
+MISRA_SRCS = $(SRC_DIR)/bitvector.c $(SRC_DIR)/bitbuffer.c $(SRC_DIR)/compress.c \
+             $(SRC_DIR)/decompress.c $(SRC_DIR)/encode.c $(SRC_DIR)/mask.c
+
+.PHONY: all clean test test-cli cli coverage coverage-html docs misra
 
 all: $(LIB) $(CLI)
 
@@ -145,6 +149,14 @@ docs:
 	fi
 	doxygen Doxyfile
 	@echo "Documentation: $(BUILD_DIR)/docs/html/index.html"
+
+misra:
+	@command -v cppcheck >/dev/null 2>&1 || { echo "Error: cppcheck not installed. Install with: brew install cppcheck"; exit 1; }
+	@echo "Running MISRA-C:2012 compliance check..."
+	@cppcheck --addon=misra --suppressions-list=misra.supp \
+		--enable=all -I$(INCLUDE_DIR) $(MISRA_SRCS) 2>&1 | tee $(BUILD_DIR)/misra-report.txt
+	@echo ""
+	@echo "Report saved to $(BUILD_DIR)/misra-report.txt"
 
 clean:
 	rm -rf $(BUILD_DIR)/* $(BUILD_DIR)/.[!.]* 2>/dev/null || true

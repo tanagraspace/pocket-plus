@@ -1,0 +1,63 @@
+name: MISRA-C Compliance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'implementations/c/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'implementations/c/**'
+
+jobs:
+  misra-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Create build directory
+        working-directory: implementations/c
+        run: mkdir -p build
+
+      - name: Run MISRA-C:2012 checks
+        working-directory: implementations/c
+        run: |
+          echo "## MISRA-C:2012 Compliance Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run cppcheck with MISRA addon
+          cppcheck --addon=misra --suppressions-list=misra.supp \
+              --enable=all -Iinclude \
+              src/bitvector.c src/bitbuffer.c src/compress.c \
+              src/decompress.c src/encode.c src/mask.c 2>&1 | tee build/misra-report.txt
+
+          # Count violations by category
+          TOTAL=$(grep -c "misra-c2012" build/misra-report.txt 2>/dev/null || echo "0")
+
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Unsuppressed Violations | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "### Violations" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep "misra-c2012" build/misra-report.txt >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":white_check_mark: **No unsuppressed MISRA-C:2012 violations**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload MISRA report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: misra-report
+          path: implementations/c/build/misra-report.txt
+          retention-days: 7
