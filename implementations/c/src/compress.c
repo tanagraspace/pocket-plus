@@ -257,7 +257,10 @@ int pocket_has_positive_updates(
     /* Check each changed bit */
     for (size_t i = 0U; (i < Xt->length) && (result == 0); i++) {
         int bit_changed = bitvector_get_bit(Xt, i);
-        int bit_predictable = (bitvector_get_bit(mask, i) == 0) ? 1 : 0;  /* mask=0 means predictable */
+        int bit_predictable = 0;
+        if (bitvector_get_bit(mask, i) == 0) {
+            bit_predictable = 1;  /* mask=0 means predictable */
+        }
 
         if ((bit_changed != 0) && (bit_predictable != 0)) {
             result = 1;  /* Found a positive update (unpredictable → predictable) */
@@ -300,7 +303,9 @@ int pocket_compute_ct_flag(
             }
         }
 
-        result = (count >= 2) ? 1 : 0;
+        if (count >= 2) {
+            result = 1;
+        }
     }
 
     return result;
