@@ -3,3 +3,5 @@ build/
 
 # Downloaded dependencies
 doxygen-awesome-css/
+
+*.gcov
