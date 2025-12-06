@@ -19,6 +19,7 @@ make               # Build library and CLI
 make test          # Run all tests
 make coverage      # Run tests with coverage report
 make coverage-html # Run tests with coverage report in html (requires lcov)
+make misra         # Run MISRA-C:2012 compliance check (requires cppcheck)
 make docs          # Generate API documentation (requires doxygen)
 make clean         # Clean build artifacts
 ```
@@ -26,8 +27,9 @@ make clean         # Clean build artifacts
 ### Docker
 
 ```bash
-docker-compose run --rm c          # Build, test, coverage
-docker-compose run --rm --build c  # Rebuild after changes
+docker-compose run --rm c                    # Build, test, coverage
+docker-compose run --rm c make misra         # Run MISRA check
+docker-compose run --rm --build c            # Rebuild after changes
 ```
 
 ## CLI
@@ -72,18 +74,21 @@ pocket_decompress(&decomp, compressed, comp_size, output, output_max, &output_si
 
 ## MISRA-C:2012 Compliance
 
-The core library has **zero Required/Mandatory violations**. Remaining violations are all **Advisory**:
+The core library has **zero Required/Mandatory violations**. Remaining violations are all **Advisory** and suppressed with documented rationale in `misra.supp`:
 
-| Rule | Count | Description | Rationale |
-|------|-------|-------------|-----------|
-| 8.7 | 11 | External linkage could be internal | Public API functions require external linkage |
-| 15.5 | 17 | Multiple return statements | Early returns for error handling in decompression |
-| 2.5 | 3 | Unused macros | Version macros used in CLI, not library |
+| Rule | Description | Rationale |
+|------|-------------|-----------|
+| 8.7 | External linkage could be internal | Public API functions require external linkage |
+| 15.5 | Multiple return statements | Early returns for error handling in decompression |
+| 2.5 | Unused macros | Version macros used in CLI, not library |
 
-Run MISRA checks with:
+Run MISRA checks locally (requires [cppcheck](https://cppcheck.sourceforge.io/)):
 ```bash
-cppcheck --addon=misra --enable=all -Iinclude src/*.c
+make misra                           # Local
+docker-compose run --rm c make misra # Docker
 ```
+
+CI automatically runs MISRA checks on every push/PR to C code.
 
 ## File Structure
 
