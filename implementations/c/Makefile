@@ -152,11 +152,18 @@ docs:
 
 misra:
 	@command -v cppcheck >/dev/null 2>&1 || { echo "Error: cppcheck not installed. Install with: brew install cppcheck"; exit 1; }
+	@mkdir -p $(BUILD_DIR)
 	@echo "Running MISRA-C:2012 compliance check..."
 	@cppcheck --addon=misra --suppressions-list=misra.supp \
 		--enable=all -I$(INCLUDE_DIR) $(MISRA_SRCS) 2>&1 | tee $(BUILD_DIR)/misra-report.txt
 	@echo ""
 	@echo "Report saved to $(BUILD_DIR)/misra-report.txt"
+	@if grep -q "misra-c2012" $(BUILD_DIR)/misra-report.txt; then \
+		echo ""; \
+		echo "ERROR: MISRA-C:2012 violations found:"; \
+		grep "misra-c2012" $(BUILD_DIR)/misra-report.txt; \
+		exit 1; \
+	fi
 
 clean:
 	rm -rf $(BUILD_DIR)/* $(BUILD_DIR)/.[!.]* 2>/dev/null || true

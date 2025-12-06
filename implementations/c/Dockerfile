@@ -20,4 +20,4 @@ RUN mkdir -p doxygen-awesome-css && \
         -o doxygen-awesome-css/doxygen-awesome-sidebar-only.css) || \
     echo "Warning: Could not download Doxygen theme, using default"
 
-CMD ["sh", "-c", "make clean && make && make test-cli && make coverage && make coverage-html && make docs"]
+CMD ["sh", "-c", "make clean && make && make test-cli && make misra && make coverage && make coverage-html && make docs"]
