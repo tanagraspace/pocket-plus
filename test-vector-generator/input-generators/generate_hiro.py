@@ -8,7 +8,7 @@ import yaml
 from pathlib import Path
 from common import (
     PacketGenerator, create_empty_packet, write_value,
-    write_repeating_sequence, write_random_bytes, increment_counter
+    write_repeating_sequence, increment_counter
 )
 
 
@@ -88,6 +88,7 @@ def main():
     md5_hash = generator.save_to_file(str(output_file))
 
     print(f"Output: {output_file}")
+    print(f"MD5: {md5_hash}")
     print("\nDone!")
 
     return 0
