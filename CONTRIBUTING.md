@@ -1,0 +1,71 @@
+# Contributing to POCKET+
+
+## Versioning Strategy
+
+This monorepo uses **independent versioning** for each language implementation with prefixed Git tags:
+
+- **C**: `c/v0.1.0`, `c/v0.2.0`, ...
+- **Python**: `python/v0.1.0`, `python/v0.2.0`, ...
+- **Go**: `go/v0.1.0`, `go/v0.2.0`, ...
+
+Each implementation:
+- Follows [Semantic Versioning](https://semver.org/)
+- Maintains its own CHANGELOG.md
+- Can be released independently
+- Shares test vectors for validation
+
+### Releasing
+
+To release a new version of an implementation:
+
+```bash
+# Example: releasing Python v1.0.0
+cd implementations/python
+# Update version in pyproject.toml
+git add pyproject.toml
+git commit -m "python: release v1.0.0"
+git tag python/v1.0.0
+git push origin python/v1.0.0
+```
+
+## Documentation
+
+- [Algorithm Specification](docs/ALGORITHM.md) - POCKET+ algorithm details
+- [Implementation Guidelines](docs/GUIDELINES.md) - Quick start for implementers
+- [Common Gotchas](docs/GOTCHAS.md) - Critical pitfalls to avoid
+- [Test Vectors](test-vectors/README.md) - Validation test data
+
+## Features
+
+- **Lossless Compression** - Perfect reconstruction of original data
+- **Delta Compression** - Efficient encoding of slowly-varying data
+- **Packet Loss Resilience** - Decompressor continues even with lost packets
+- **Low Complexity** - Uses only basic bitwise operations
+- **Real-time Capable** - Suitable for time-critical spacecraft systems
+
+## Interoperability
+
+All implementations are designed to be interoperable:
+- Data compressed by one implementation can be decompressed by others
+- Shared test vectors ensure consistency
+- Common documentation and specifications
+
+## How to Contribute
+
+Contributions are welcome! Please:
+
+1. Read the [Implementation Guide](docs/GUIDELINES.md)
+2. Ensure your changes pass all test vectors
+3. Update relevant CHANGELOG.md
+4. Follow language-specific conventions
+5. Add tests for new functionality
+
+## License
+
+See [LICENSE](LICENSE) for details.
+
+## References
+
+- [ESA POCKET+ Information](https://opssat.esa.int/pocket-plus/)
+- [CCSDS 124.0-B-1 - Lossless Data Compression](https://ccsds.org/Pubs/124x0b1.pdf)
+- [CCSDS Standards](https://ccsds.org/)

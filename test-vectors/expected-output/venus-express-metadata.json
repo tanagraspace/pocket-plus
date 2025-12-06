@@ -1,6 +1,6 @@
 {
   "name": "venus-express",
-  "generated_at": "2025-12-03T01:53:46Z",
+  "generated_at": "2025-12-05T01:02:58Z",
   "input": {
     "file": "1028packets.ccsds",
     "size": 13608000,
@@ -19,8 +19,8 @@
   "output": {
     "compressed": {
       "file": "venus-express.ccsds.pkt",
-      "size": 5891501,
-      "md5": "022394022e22b300684f61f5f3b5f374"
+      "size": 5891500,
+      "md5": "4ddd7549e38f7a48a5511bbae94a4f51"
     },
     "decompressed": {
       "file": "venus-express.ccsds.pkt.depkt",

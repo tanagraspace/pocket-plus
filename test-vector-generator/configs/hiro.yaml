@@ -1,0 +1,37 @@
+# High Robustness Test Vector (R=7)
+# Tests maximum robustness parameter value
+
+name: hiro
+description: |
+  Test vector with maximum robustness (R=7) to exercise packet loss resilience
+  code paths. Uses same data patterns as simple for comparison. Higher R values
+  reduce compression ratio but increase robustness to packet loss.
+
+# Input configuration - same as simple
+input:
+  type: synthetic
+  packet_length: 90  # bytes
+  num_packets: 100
+  seed: 12345  # Same seed as simple for identical data
+
+# Compression parameters - R=2 for higher robustness
+compression:
+  packet_length: 90
+  pt: 10
+  ft: 20
+  rt: 50
+  robustness: 7
+
+# Expected outcomes (R=7 reduces ratio significantly)
+expected:
+  compression_ratio_min: 4.0
+  compression_ratio_max: 8.0
+  compression_ratio_typical: 5.9
+
+# Output configuration
+output:
+  dir: /workspace/output/vectors/hiro
+  input_file: hiro.bin
+  compressed_file: hiro.bin.pkt
+  decompressed_file: hiro.bin.pkt.depkt
+  metadata_file: metadata.json

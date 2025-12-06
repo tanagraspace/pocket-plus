@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+**/build/
+*.o
+*.a
+*.gcov
+*.gcda
+*.gcno
+*.dSYM
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Go
+*.exe

@@ -10,7 +10,7 @@ help:
 	@echo "Available targets:"
 	@echo "  build          - Build the Docker image"
 	@echo "  generate       - Generate all test vectors (builds if needed)"
-	@echo "  generate-TYPE  - Generate specific test vector (simple, housekeeping, edge-cases, venus-express)"
+	@echo "  generate-TYPE  - Generate specific test vector (simple, housekeeping, edge-cases, hiro, venus-express)"
 	@echo "  verify         - Verify all generated test vectors"
 	@echo "  copy-to-repo   - Copy generated vectors to ../test-vectors/"
 	@echo "  clean          - Remove generated output files"
@@ -47,8 +47,12 @@ generate-edge-cases: build
 	@echo "Generating edge-cases test vector..."
 	docker-compose run --rm -e VECTOR_TYPE=edge-cases test-vector-generator
 
+generate-hiro: build
+	@echo "Generating hiro (high robustness R=7) test vector..."
+	docker-compose run --rm -e VECTOR_TYPE=hiro test-vector-generator
+
 generate-venus-express: build
-	@echo "Generating venus-express test vector..."
+	@echo "Generating venus-express test vector (largest - runs last)..."
 	docker-compose run --rm -e VECTOR_TYPE=venus-express test-vector-generator
 
 # Verify generated test vectors

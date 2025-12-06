@@ -18,3 +18,12 @@ Thumbs.db
 # Temporary files
 *.tmp
 .temp/
+
+# Build artifacts
+test-vector-generator/c-reference/*.dSYM/
+
+# Generated output files and build
+test-vectors/input/*.bin.pkt
+test-vectors/input/*.dat.pkt
+test-vectors/*.bin.pkt
+test-vectors/*.dat.pkt

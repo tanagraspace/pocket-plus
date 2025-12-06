@@ -1,6 +1,6 @@
 {
   "name": "simple",
-  "generated_at": "2025-12-03T01:53:42Z",
+  "generated_at": "2025-12-05T01:02:51Z",
   "input": {
     "file": "simple.bin",
     "size": 9000,
@@ -19,8 +19,8 @@
   "output": {
     "compressed": {
       "file": "simple.bin.pkt",
-      "size": 643,
-      "md5": "0500628becb19ff0091be030006b59d4"
+      "size": 641,
+      "md5": "ffcfdd063eec899119f1958422223b19"
     },
     "decompressed": {
       "file": "simple.bin.pkt.depkt",
@@ -29,7 +29,7 @@
     }
   },
   "results": {
-    "compression_ratio": 13.99,
+    "compression_ratio": 14.04,
     "roundtrip_verified": true
   }
 }

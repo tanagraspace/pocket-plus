@@ -303,7 +303,7 @@ int main(int argc, char** argv)  {
 		fwrite(&I, 1, packetSize, outputFile );				// writes the uncompressed packet to the output file
 		bitStuffing(); 	// ensure that any trailing zeros are ignored
 
-	} while (currentByte<(compressed_file_length-3));
+	} while (currentByte<compressed_file_length);
     /////////////////////////////////////
     // END OF FILE PROCESSING LOOP
     /////////////////////////////////////

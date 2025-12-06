@@ -13,6 +13,11 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#ifdef _WIN32
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
 
 //////////////////////////////////////////////////////////////
 /* --- PRINTF_BYTE_TO_BINARY macro's for debugging only --- */
@@ -294,6 +299,8 @@ int main(int argc, char** argv)  {
 	///////////////////////
 	// END OF PACKET LOOP//
 	///////////////////////
+
+	fclose(outputFile);
 
 	printf("%s \n", "SUCCESS! " );
 	return EXIT_SUCCESS;
@@ -921,5 +928,14 @@ void write_to_file(unsigned int o[], FILE * outputFile) {
 		rest = 3-(o_bit-1)/8;
 		fseek(outputFile, -1*rest, SEEK_CUR);				// wind write pointer back x bytes
 	}
+
+	// Truncate file at current position to remove excess bytes
+	fflush(outputFile);
+	long pos = ftell(outputFile);
+	#ifdef _WIN32
+		_chsize(_fileno(outputFile), pos);
+	#else
+		ftruncate(fileno(outputFile), pos);
+	#endif
 
 }
