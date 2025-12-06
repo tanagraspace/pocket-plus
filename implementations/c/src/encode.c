@@ -48,7 +48,7 @@ int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
         } else if (A == 1U) {
             /* Case 1: A = 1 → '0' */
             result = bitbuffer_append_bit(output, 0);
-        } else if ((A >= 2U) && (A <= 33U)) {
+        } else if (A <= 33U) {  /* A >= 2U implied by previous conditions */
             /* Case 2: 2 ≤ A ≤ 33 → '110' ∥ BIT₅(A-2) */
 
             /* Append '110' MSB-first: 1, 1, 0 */
