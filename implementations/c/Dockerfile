@@ -1,6 +1,6 @@
 FROM alpine:edge
 
-RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
+RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck python3 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
 
 WORKDIR /app/implementations/c
 

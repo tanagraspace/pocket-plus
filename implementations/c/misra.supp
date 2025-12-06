@@ -28,4 +28,5 @@ misra-c2012-15.5
 // Rationale: Version macros (POCKET_VERSION_*) are defined in the public
 // header for library version identification. They are used by CLI but may
 // appear unused when analyzing library source files in isolation.
-misra-c2012-2.5
+// TEMP: commented out to test failure detection
+// misra-c2012-2.5

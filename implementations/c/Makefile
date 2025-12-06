@@ -158,10 +158,10 @@ misra:
 		--enable=all -I$(INCLUDE_DIR) $(MISRA_SRCS) 2>&1 | tee $(BUILD_DIR)/misra-report.txt
 	@echo ""
 	@echo "Report saved to $(BUILD_DIR)/misra-report.txt"
-	@if grep -q "misra-c2012" $(BUILD_DIR)/misra-report.txt; then \
+	@if grep -v "Unmatched suppression" $(BUILD_DIR)/misra-report.txt | grep -q "misra-c2012"; then \
 		echo ""; \
 		echo "ERROR: MISRA-C:2012 violations found:"; \
-		grep "misra-c2012" $(BUILD_DIR)/misra-report.txt; \
+		grep -v "Unmatched suppression" $(BUILD_DIR)/misra-report.txt | grep "misra-c2012"; \
 		exit 1; \
 	fi
 
