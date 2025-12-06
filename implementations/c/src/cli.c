@@ -24,7 +24,7 @@
  * @authors Georges Labreche <georges@tanagraspace.com> - https://georges.fyi
  * @authors Claude Code (Anthropic) <noreply@anthropic.com>
  *
- * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
+ * @see https://ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocketplus.h"
@@ -61,7 +61,7 @@ static void print_help(const char *prog_name) {
            POCKET_VERSION_MAJOR, POCKET_VERSION_MINOR, POCKET_VERSION_PATCH);
     printf("=================================================\n\n");
     printf("References:\n");
-    printf("  CCSDS 124.0-B-1: https://public.ccsds.org/Pubs/124x0b1.pdf\n");
+    printf("  CCSDS 124.0-B-1: https://ccsds.org/Pubs/124x0b1.pdf\n");
     printf("  ESA POCKET+: https://opssat.esa.int/pocket-plus/\n\n");
     printf("Citation:\n");
     printf("  D. Evans, G. Labreche, D. Marszk, S. Bammens, M. Hernandez-Cabronero,\n");

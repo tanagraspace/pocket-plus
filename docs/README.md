@@ -23,4 +23,4 @@ POCKET+ (CCSDS 124.0-B-1) is an ESA-patented lossless compression algorithm usin
 ## References
 
 - [ESA POCKET+](https://opssat.esa.int/pocket-plus/)
-- [CCSDS 124.0-B-1](https://public.ccsds.org/Pubs/124x0b1.pdf)
+- [CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)

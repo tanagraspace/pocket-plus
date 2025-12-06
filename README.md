@@ -1,6 +1,6 @@
 # POCKET+
 
-The definitive implementation of the POCKET+ lossless compression algorithm of fixed-length housekeeping data ([CCSDS 124.0-B-1](https://public.ccsds.org/Pubs/124x0b1.pdf)).
+The definitive implementation of the POCKET+ lossless compression algorithm of fixed-length housekeeping data ([CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)).
 
 ## About
 

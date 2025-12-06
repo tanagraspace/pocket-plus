@@ -21,7 +21,7 @@
  * @authors Georges Labrèche <georges@tanagraspace.com> — https://georges.fyi
  * @authors Claude Code (Anthropic) <noreply@anthropic.com>
  *
- * @see https://public.ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
+ * @see https://ccsds.org/Pubs/124x0b1.pdf CCSDS 124.0-B-1 Standard
  */
 
 #include "pocketplus.h"
