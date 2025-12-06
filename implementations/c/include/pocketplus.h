@@ -30,7 +30,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdio.h>
 
 /**
  * @defgroup version Version Information

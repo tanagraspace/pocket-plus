@@ -319,7 +319,9 @@ int bitvector_equals(const bitvector_t *a, const bitvector_t *b) {
 
     if ((a != NULL) && (b != NULL)) {
         if (a->length == b->length) {
-            result = (memcmp(a->data, b->data, a->num_words * sizeof(uint32_t)) == 0) ? 1 : 0;
+            if (memcmp(a->data, b->data, a->num_words * sizeof(uint32_t)) == 0) {
+                result = 1;
+            }
         }
     }
 

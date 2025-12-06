@@ -413,7 +413,10 @@ int pocket_decompress_packet(
         for (size_t i = 0U; i < decomp->F; i++) {
             if (bitvector_get_bit(&Xt, i) != 0) {
                 int current_val = bitvector_get_bit(&decomp->mask, i);
-                int toggled = (current_val != 0) ? 0 : 1;
+                int toggled = 0;
+                if (current_val == 0) {
+                    toggled = 1;
+                }
                 bitvector_set_bit(&decomp->mask, i, toggled);
             }
         }
@@ -480,7 +483,10 @@ int pocket_decompress_packet(
         /* Read full packet */
         for (size_t i = 0U; i < decomp->F; i++) {
             int bit = bitreader_read_bit(reader);
-            int bit_val = (bit > 0) ? 1 : 0;
+            int bit_val = 0;
+            if (bit > 0) {
+                bit_val = 1;
+            }
             bitvector_set_bit(output, i, bit_val);
         }
     } else {

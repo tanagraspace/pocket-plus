@@ -50,6 +50,9 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
             grep "misra-c2012" build/misra-report.txt >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "::error::Found $TOTAL unsuppressed MISRA-C:2012 violations"
+            exit 1
           else
             echo ":white_check_mark: **No unsuppressed MISRA-C:2012 violations**" >> $GITHUB_STEP_SUMMARY
           fi
