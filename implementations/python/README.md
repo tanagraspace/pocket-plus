@@ -2,8 +2,29 @@
 
 [![Python Build](https://github.com/tanagraspace/pocket-plus/actions/workflows/python-build.yml/badge.svg)](https://github.com/tanagraspace/pocket-plus/actions/workflows/python-build.yml)
 [![MicroPython Build](https://github.com/tanagraspace/pocket-plus/actions/workflows/micropython-build.yml/badge.svg)](https://github.com/tanagraspace/pocket-plus/actions/workflows/micropython-build.yml)
+[![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen)](build/docs/coverage/)
 
-Python implementation of the POCKET+ lossless compression algorithm (CCSDS 124.0-B-1).
+Python implementation of the ([CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)) POCKET+ lossless compression algorithm.
+
+## Citation
+
+If POCKET+ contributes to your research, please cite:
+
+> D. Evans, G. Labrèche, D. Marszk, S. Bammens, M. Hernandez-Cabronero, V. Zelenevskiy, V. Shiradhonkar, M. Starcik, and M. Henkel. 2022. "Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1," *Proceedings of the Small Satellite Conference*, Communications, SSC22-XII-03. https://digitalcommons.usu.edu/smallsat/2022/all2022/133/
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@inproceedings{evans2022pocketplus,
+  author    = {Evans, David and Labrèche, Georges and Marszk, Dominik and Bammens, Samuel and Hernandez-Cabronero, Miguel and Zelenevskiy, Vladimir and Shiradhonkar, Vasundhara and Starcik, Mario and Henkel, Maximilian},
+  title     = {Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1},
+  booktitle = {Proceedings of the Small Satellite Conference},
+  year      = {2022},
+  note      = {SSC22-XII-03},
+  url       = {https://digitalcommons.usu.edu/smallsat/2022/all2022/133/}
+}
+```
 
 ## Features
 
