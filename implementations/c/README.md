@@ -6,6 +6,28 @@
 
 A MISRA-C compliant C implementation of the POCKET+ lossless compression algorithm of fixed-length housekeeping data ([CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)).
 
+## Citation
+
+If POCKET+ contributes to your research, please cite:
+
+> D. Evans, G. Labrèche, D. Marszk, S. Bammens, M. Hernandez-Cabronero, V. Zelenevskiy, V. Shiradhonkar, M. Starcik, and M. Henkel. 2022. "Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1," *Proceedings of the Small Satellite Conference*, Communications, SSC22-XII-03. https://digitalcommons.usu.edu/smallsat/2022/all2022/133/
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@inproceedings{evans2022pocketplus,
+  author    = {Evans, David and Labrèche, Georges and Marszk, Dominik and Bammens, Samuel and Hernandez-Cabronero, Miguel and Zelenevskiy, Vladimir and Shiradhonkar, Vasundhara and Starcik, Mario and Henkel, Maximilian},
+  title     = {Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1},
+  booktitle = {Proceedings of the Small Satellite Conference},
+  year      = {2022},
+  note      = {SSC22-XII-03},
+  url       = {https://digitalcommons.usu.edu/smallsat/2022/all2022/133/}
+}
+```
+
+</details>
+
 ## Status
 
 - **Version**: 1.0.0
