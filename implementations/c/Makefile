@@ -33,7 +33,7 @@ COV_LIB = $(COV_DIR)/libpocketplus.a
 MISRA_SRCS = $(SRC_DIR)/bitvector.c $(SRC_DIR)/bitbuffer.c $(SRC_DIR)/compress.c \
              $(SRC_DIR)/decompress.c $(SRC_DIR)/encode.c $(SRC_DIR)/mask.c
 
-.PHONY: all clean test test-cli cli coverage coverage-html docs misra
+.PHONY: all clean test test-cli cli coverage coverage-html docs misra valgrind
 
 all: $(LIB) $(CLI)
 
@@ -164,6 +164,13 @@ misra:
 		grep -v "Unmatched suppression" $(BUILD_DIR)/misra-report.txt | grep "misra-c2012"; \
 		exit 1; \
 	fi
+
+valgrind: $(TEST_BINS)
+	@command -v valgrind >/dev/null 2>&1 || { echo "Error: valgrind not installed. Install with: brew install valgrind"; exit 1; }
+	@echo "Running valgrind memory check..."
+	@valgrind --leak-check=full --error-exitcode=1 $(BUILD_DIR)/test_vectors
+	@echo ""
+	@echo "Memory check passed - no leaks detected"
 
 clean:
 	rm -rf $(BUILD_DIR)/* $(BUILD_DIR)/.[!.]* 2>/dev/null || true

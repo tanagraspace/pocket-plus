@@ -85,6 +85,19 @@ jobs:
             echo "| $name | $input bytes | $output bytes | $ratio | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
           done
 
+      - name: Run valgrind memory check
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: implementations/c
+        run: |
+          sudo apt-get install -y valgrind
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Valgrind Memory Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          valgrind --leak-check=full --error-exitcode=1 ./build/test_vectors 2>&1 | tee valgrind-output.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E "ERROR SUMMARY|definitely lost|indirectly lost|possibly lost" valgrind-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4
         if: always()
@@ -94,6 +107,7 @@ jobs:
             implementations/c/test-output.txt
             implementations/c/cli-test-output.txt
             implementations/c/vector-output.txt
+            implementations/c/valgrind-output.txt
           retention-days: 7
 
   coverage:
