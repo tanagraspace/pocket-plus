@@ -1,10 +1,6 @@
 name: Python Build
 
 on:
-  push:
-    paths:
-      - 'implementations/python/**'
-      - '.github/workflows/python-build.yml'
   pull_request:
     paths:
       - 'implementations/python/**'
