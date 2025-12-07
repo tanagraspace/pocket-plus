@@ -89,3 +89,14 @@ class BitReader:
             result = (result << 1) | self.read_bit()
 
         return result
+
+    def align_byte(self) -> None:
+        """
+        Advance to the next byte boundary.
+
+        If already at a byte boundary, does nothing.
+        Used for packet separation in compressed streams.
+        """
+        bit_offset = self.position % 8
+        if bit_offset != 0:
+            self.position += 8 - bit_offset

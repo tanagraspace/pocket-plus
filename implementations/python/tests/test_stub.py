@@ -1,7 +1,5 @@
 """Stub test to verify CI pipeline works."""
 
-import pytest
-
 import pocketplus
 
 
@@ -17,7 +15,9 @@ def test_compress_works() -> None:
     assert len(result) > 0
 
 
-def test_decompress_not_implemented() -> None:
-    """Test that decompress raises NotImplementedError."""
-    with pytest.raises(NotImplementedError):
-        pocketplus.decompress(b"test", 4)
+def test_decompress_works() -> None:
+    """Test that decompress round-trips with compress."""
+    original = b"\x00\x00\x00\x00\x00\x00\x00\x00"
+    compressed = pocketplus.compress(original, packet_size=16)
+    decompressed = pocketplus.decompress(compressed, packet_size=16)
+    assert decompressed == original
