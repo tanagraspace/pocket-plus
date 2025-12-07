@@ -7,7 +7,7 @@ designed for spacecraft housekeeping data.
 MicroPython compatible - no typing module imports.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 from pocketplus.compress import compress
 from pocketplus.decompress import decompress

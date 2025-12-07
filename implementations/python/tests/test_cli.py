@@ -46,13 +46,13 @@ class TestCliHelp:
         result = run_cli("-v")
         assert result.returncode == 0
         assert "pocketplus" in result.stdout
-        assert "0.1.0" in result.stdout
+        assert "1.0.0" in result.stdout
 
     def test_version_long(self) -> None:
         """Test --version flag shows version."""
         result = run_cli("--version")
         assert result.returncode == 0
-        assert "0.1.0" in result.stdout
+        assert "1.0.0" in result.stdout
 
     def test_no_args_shows_help(self) -> None:
         """Test that no arguments shows help and exits with error."""

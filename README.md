@@ -35,7 +35,7 @@ The algorithm has been standardized by CCSDS as **CCSDS 124.0-B-1** for compress
 | Language | Version | Status | Location |
 |----------|---------|--------|----------|
 | C | 1.0.0 | Complete | [`implementations/c/`](implementations/c/) |
-| Python | 0.1.0 | Planned | [`implementations/python/`](implementations/python/) |
+| Python | 1.0.0 | Complete | [`implementations/python/`](implementations/python/) |
 | Go | 0.1.0 | Planned | [`implementations/go/`](implementations/go/) |
 
 ## Repository Structure

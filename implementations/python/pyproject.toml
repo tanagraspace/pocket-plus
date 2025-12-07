@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pocketplus"
-version = "0.1.0"
+version = "1.0.0"
 description = "POCKET+ lossless compression algorithm (CCSDS 124.0-B-1) for spacecraft housekeeping data"
 readme = "README.md"
 requires-python = ">=3.9"

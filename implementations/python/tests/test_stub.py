@@ -5,7 +5,7 @@ import pocketplus
 
 def test_version() -> None:
     """Test that version is defined."""
-    assert pocketplus.__version__ == "0.1.0"
+    assert pocketplus.__version__ == "1.0.0"
 
 
 def test_compress_works() -> None:
