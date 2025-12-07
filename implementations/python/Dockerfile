@@ -7,4 +7,15 @@ COPY test-vectors/ /app/test-vectors/
 
 RUN pip install --no-cache-dir -e ".[dev]"
 
-CMD ["sh", "-c", "ruff format --check . && ruff check . && mypy pocketplus && pytest -v --cov=pocketplus"]
+# Default: lint, type check, test with coverage and HTML reports, generate API docs
+CMD ["sh", "-c", "\
+    ruff format --check . && \
+    ruff check . && \
+    mypy pocketplus && \
+    mkdir -p build/docs && \
+    pytest -v --cov=pocketplus \
+        --cov-report=html:build/docs/coverage \
+        --cov-report=xml:build/docs/coverage.xml \
+        --html=build/docs/tests/report.html --self-contained-html && \
+    pdoc pocketplus -o build/docs/api \
+"]

@@ -38,9 +38,11 @@ pip install -e .           # Or: pip install -e ".[dev]" for development
 ### Docker
 
 ```bash
-docker-compose run --rm python                # Build, lint, test, coverage
+docker-compose run --rm python                # Lint, test, coverage, API docs
 docker-compose run --rm --build python        # Rebuild after changes
 ```
+
+Reports generated in `build/docs/`: `api/`, `coverage/`, `tests/`.
 
 ## Usage
 

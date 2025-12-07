@@ -40,11 +40,20 @@ jobs:
         run: mypy pocketplus
 
       - name: Run tests with coverage
-        run: pytest --cov=pocketplus --cov-report=xml --cov-report=term -v
+        run: |
+          mkdir -p build/docs
+          pytest -v --cov=pocketplus \
+            --cov-report=html:build/docs/coverage \
+            --cov-report=xml:build/docs/coverage.xml \
+            --html=build/docs/tests/report.html --self-contained-html
 
-      - name: Upload coverage
+      - name: Generate API docs
+        if: matrix.python-version == '3.11'
+        run: pdoc pocketplus -o build/docs/api
+
+      - name: Upload docs artifacts
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: implementations/python/coverage.xml
+          name: python-docs
+          path: implementations/python/build/docs/
