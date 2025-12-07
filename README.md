@@ -60,9 +60,8 @@ Build, test, and generate coverage for any implementation:
 
 ```bash
 docker-compose run --rm c          # C implementation
-# docker-compose run --rm python   # Python (planned)
+docker-compose run --rm python     # Python implementation
 # docker-compose run --rm go       # Go (planned)
-# docker-compose run --rm java     # Java (planned)
 ```
 
 Artifacts are written to `implementations/<lang>/build/`.

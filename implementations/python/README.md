@@ -25,22 +25,21 @@ If POCKET+ contributes to your research, please cite:
   url       = {https://digitalcommons.usu.edu/smallsat/2022/all2022/133/}
 }
 ```
-
-## Features
-
-- Full compression/decompression (byte-identical to ESA reference)
-- MicroPython compatible (no argparse, no typing module imports)
-- CLI matching C implementation interface
+</details>
 
 ## Installation
 
 ```bash
-pip install -e .
+python -m venv venv
+source venv/bin/activate   # On Windows: venv\Scripts\activate
+pip install -e .           # Or: pip install -e ".[dev]" for development
 ```
 
-For development:
+### Docker
+
 ```bash
-pip install -e ".[dev]"
+docker-compose run --rm python                # Build, lint, test, coverage
+docker-compose run --rm --build python        # Rebuild after changes
 ```
 
 ## Usage
@@ -75,8 +74,13 @@ python cli.py --help
 
 ```bash
 pytest                           # Run all tests
-pytest --cov=pocketplus          # With coverage
 pytest tests/test_vectors.py     # Reference validation only
+```
+
+Generate HTML reports:
+```bash
+pytest --cov=pocketplus --cov-report=html:build/docs/coverage \
+       --html=build/docs/tests/report.html --self-contained-html
 ```
 
 ## Development
@@ -87,6 +91,45 @@ ruff check .                     # Lint
 mypy pocketplus                  # Type check
 ```
 
-## License
+## Design
 
-See [LICENSE](../../LICENSE) in the root directory.
+- **Zero dependencies** - Standard library only
+- **MicroPython compatible** - No argparse, no typing imports
+- **Byte-identical output** - Matches ESA reference implementation
+
+## File Structure
+
+```
+implementations/python/
+├── pocketplus/
+│   ├── __init__.py          # Public API exports
+│   ├── bitvector.py         # Fixed-length bit vectors
+│   ├── bitbuffer.py         # Variable-length output buffer
+│   ├── bitreader.py         # Sequential bit reading
+│   ├── encode.py            # COUNT, RLE, BE encoding
+│   ├── decode.py            # COUNT, RLE decoding
+│   ├── mask.py              # Mask update logic
+│   ├── compress.py          # Compression algorithm
+│   └── decompress.py        # Decompression algorithm
+├── cli.py                   # Command-line interface
+└── tests/                   # Unit and integration tests
+```
+
+## API
+
+### High-Level
+
+- `compress()` / `decompress()` - Compress/decompress entire buffer
+
+### Low-Level
+
+- `Compressor` / `Decompressor` - Stateful packet-by-packet processing
+- `count_encode()` / `count_decode()` - Counter encoding (Eq. 9)
+- `rle_encode()` / `rle_decode()` - Run-length encoding (Eq. 10)
+- `bit_extract()` / `bit_insert()` - Bit extraction (Eq. 11)
+
+## References
+
+- [CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)
+- [ESA POCKET+](https://opssat.esa.int/pocket-plus/)
+

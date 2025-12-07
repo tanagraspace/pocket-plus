@@ -4,7 +4,7 @@
 ![Lines](assets/coverage-lines.svg)
 ![Functions](assets/coverage-functions.svg)
 
-A MISRA-C compliant C implementation of the POCKET+ lossless compression algorithm of fixed-length housekeeping data ([CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)).
+A MISRA-C compliant C implementation of the ([CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)) POCKET+ lossless compression algorithm of fixed-length housekeeping data.
 
 ## Citation
 
@@ -27,12 +27,6 @@ If POCKET+ contributes to your research, please cite:
 ```
 
 </details>
-
-## Status
-
-- **Version**: 1.0.0
-- **Compression**: Complete (byte-for-byte match with ESA reference)
-- **Decompression**: Complete (round-trip verified)
 
 ## Building
 
