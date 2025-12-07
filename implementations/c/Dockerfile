@@ -1,6 +1,6 @@
 FROM alpine:edge
 
-RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck python3 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
+RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck python3 valgrind --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
 
 WORKDIR /app/implementations/c
 
@@ -20,4 +20,4 @@ RUN mkdir -p doxygen-awesome-css && \
         -o doxygen-awesome-css/doxygen-awesome-sidebar-only.css) || \
     echo "Warning: Could not download Doxygen theme, using default"
 
-CMD ["sh", "-c", "make clean && make && make test-cli && make misra && make coverage && make coverage-html && make docs"]
+CMD ["sh", "-c", "make clean && make && make test-cli && make valgrind && make misra && make coverage && make coverage-html && make docs"]

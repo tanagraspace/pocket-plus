@@ -17,6 +17,7 @@ A MISRA-C compliant C implementation of the POCKET+ lossless compression algorit
 ```bash
 make               # Build library and CLI
 make test          # Run all tests
+make valgrind      # Run memory check (requires valgrind)
 make coverage      # Run tests with coverage report
 make coverage-html # Run tests with coverage report in html (requires lcov)
 make misra         # Run MISRA-C:2012 compliance check (requires cppcheck)
