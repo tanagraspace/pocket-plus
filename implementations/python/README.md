@@ -89,6 +89,7 @@ pytest --cov=pocketplus --cov-report=html:build/docs/coverage \
 ruff format .                    # Format code
 ruff check .                     # Lint
 mypy pocketplus                  # Type check
+pdoc pocketplus -o build/docs/api  # Generate API docs
 ```
 
 ## Design
