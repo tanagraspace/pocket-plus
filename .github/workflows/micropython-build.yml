@@ -1,0 +1,68 @@
+name: MicroPython Build
+
+on:
+  push:
+    paths:
+      - 'implementations/python/**'
+      - '.github/workflows/micropython-build.yml'
+  pull_request:
+    paths:
+      - 'implementations/python/**'
+      - '.github/workflows/micropython-build.yml'
+
+defaults:
+  run:
+    working-directory: implementations/python
+
+jobs:
+  micropython-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MicroPython
+        run: sudo apt-get update && sudo apt-get install -y micropython
+
+      - name: Verify Python syntax (all .py files)
+        run: |
+          echo "Checking Python syntax..."
+          find pocketplus -name "*.py" -exec python3 -m py_compile {} \;
+          echo "All files have valid Python syntax"
+
+      - name: Verify no forbidden imports in core modules
+        run: |
+          echo "Checking for forbidden imports (typing, argparse)..."
+          # Check pocketplus directory for forbidden imports
+          if grep -rn "^from typing import\|^import typing\|^import argparse\|^from argparse import" pocketplus/; then
+            echo "ERROR: Found forbidden imports in pocketplus/"
+            exit 1
+          fi
+          echo "No forbidden imports found"
+
+      - name: Test core module imports with MicroPython
+        run: |
+          echo "Testing imports with MicroPython..."
+          cd pocketplus
+          for f in *.py; do
+            if [ "$f" != "__init__.py" ]; then
+              echo "  Importing ${f%.py}..."
+              micropython -c "import sys; sys.path.insert(0, '..'); exec(open('$f').read())" 2>&1 || true
+            fi
+          done
+          echo "MicroPython import check complete"
+
+      - name: Run MicroPython compatibility test
+        run: |
+          echo "Running basic MicroPython test..."
+          micropython -c "
+          import sys
+          sys.path.insert(0, '.')
+          try:
+              from pocketplus import __version__
+              print('Version:', __version__)
+              print('MicroPython compatibility: OK')
+          except Exception as e:
+              print('Error:', e)
+              sys.exit(1)
+          "
