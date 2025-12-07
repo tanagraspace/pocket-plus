@@ -54,6 +54,17 @@ class BitVector:
             result._data[i] = self._data[i]
         return result
 
+    def copy_from(self, other: "BitVector") -> None:
+        """
+        Copy contents from another bit vector into this one.
+
+        Args:
+            other: Source bit vector to copy from
+        """
+        num_words = min(self.num_words, other.num_words)
+        for i in range(num_words):
+            self._data[i] = other._data[i]
+
     def get_bit(self, pos: int) -> int:
         """
         Get bit value at position.
@@ -170,41 +181,63 @@ class BitVector:
 
         return bytes(result)
 
-    def xor(self, other: "BitVector") -> "BitVector":
+    def xor(self, a: "BitVector", b: "BitVector | None" = None) -> "BitVector":
         """
-        Compute XOR with another bit vector.
+        Compute XOR of bit vectors.
+
+        Two calling conventions:
+        - result = v.xor(other) - returns new vector with v XOR other
+        - v.xor(a, b) - stores a XOR b into v (in-place)
 
         Args:
-            other: Other bit vector
+            a: First operand (or only operand if b is None)
+            b: Second operand (optional)
 
         Returns:
-            New BitVector with result
+            New BitVector if b is None, else self
         """
-        result = BitVector(self.length)
-        num_words = min(self.num_words, other.num_words)
+        if b is None:
+            # Old API: return self XOR a
+            result = BitVector(self.length)
+            num_words = min(self.num_words, a.num_words)
+            for i in range(num_words):
+                result._data[i] = self._data[i] ^ a._data[i]
+            return result
+        else:
+            # New API: self = a XOR b
+            num_words = min(self.num_words, a.num_words, b.num_words)
+            for i in range(num_words):
+                self._data[i] = a._data[i] ^ b._data[i]
+            return self
 
-        for i in range(num_words):
-            result._data[i] = self._data[i] ^ other._data[i]
-
-        return result
-
-    def or_(self, other: "BitVector") -> "BitVector":
+    def or_(self, a: "BitVector", b: "BitVector | None" = None) -> "BitVector":
         """
-        Compute OR with another bit vector.
+        Compute OR of bit vectors.
+
+        Two calling conventions:
+        - result = v.or_(other) - returns new vector with v OR other
+        - v.or_(a, b) - stores a OR b into v (in-place)
 
         Args:
-            other: Other bit vector
+            a: First operand (or only operand if b is None)
+            b: Second operand (optional)
 
         Returns:
-            New BitVector with result
+            New BitVector if b is None, else self
         """
-        result = BitVector(self.length)
-        num_words = min(self.num_words, other.num_words)
-
-        for i in range(num_words):
-            result._data[i] = self._data[i] | other._data[i]
-
-        return result
+        if b is None:
+            # Old API: return self OR a
+            result = BitVector(self.length)
+            num_words = min(self.num_words, a.num_words)
+            for i in range(num_words):
+                result._data[i] = self._data[i] | a._data[i]
+            return result
+        else:
+            # New API: self = a OR b
+            num_words = min(self.num_words, a.num_words, b.num_words)
+            for i in range(num_words):
+                self._data[i] = a._data[i] | b._data[i]
+            return self
 
     def and_(self, other: "BitVector") -> "BitVector":
         """
