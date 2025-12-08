@@ -62,7 +62,42 @@ If simple passes but others fail, check Vt and ct calculations.
 - Minimize dynamic allocation
 - See `implementations/c/` for reference
 
-### Python/Go/Other
+### Python
+
+**Compatibility:**
+- Zero external runtime dependencies (standard library only)
+- MicroPython compatible (ESP32, RP2040, etc.)
+- Python 3.7+ and MicroPython 1.17+
+
+**Code Style:**
+- Ruff for formatting and linting (`ruff format`, `ruff check`)
+- mypy for static type checking (CI only)
+- Simple type hints without `typing` module imports:
+  ```python
+  # Good - MicroPython compatible
+  def compress(data: bytes, packet_size: int) -> bytes:
+      ...
+
+  # Avoid - requires typing module
+  from typing import Optional, List
+  def compress(data: bytes) -> Optional[bytes]:
+      ...
+  ```
+
+**CLI:**
+- Use simple `sys.argv` parsing (no `argparse` - not in MicroPython)
+
+**Structure:**
+- Core library: `pocketplus.py` - compression/decompression
+- CLI: `cli.py` - command-line interface
+- Avoid large intermediate allocations (memory-constrained devices)
+
+### Go
+- Port from C implementation
+- Validate against same test vectors
+- Ensure bit-level compatibility
+
+### Other Languages
 - Port from C implementation
 - Validate against same test vectors
 - Ensure bit-level compatibility

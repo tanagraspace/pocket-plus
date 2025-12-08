@@ -17,11 +17,9 @@ services:
   #     - ./implementations/go/assets:/app/implementations/go/assets
   #     - ./test-vectors:/app/test-vectors:ro
 
-  # python:
-  #   build:
-  #     context: .
-  #     dockerfile: implementations/python/Dockerfile
-  #   volumes:
-  #     - ./implementations/python/build:/app/implementations/python/build
-  #     - ./implementations/python/assets:/app/implementations/python/assets
-  #     - ./test-vectors:/app/test-vectors:ro
+  python:
+    build:
+      context: .
+      dockerfile: implementations/python/Dockerfile
+    volumes:
+      - ./test-vectors:/app/test-vectors:ro

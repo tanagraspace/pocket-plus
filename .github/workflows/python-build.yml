@@ -1,0 +1,59 @@
+name: Python Build
+
+on:
+  pull_request:
+    paths:
+      - 'implementations/python/**'
+      - '.github/workflows/python-build.yml'
+
+defaults:
+  run:
+    working-directory: implementations/python
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Check formatting with ruff
+        run: ruff format --check .
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Type check with mypy
+        run: mypy pocketplus
+
+      - name: Run tests with coverage
+        run: |
+          mkdir -p build/docs
+          pytest -v --fast --cov=pocketplus \
+            --cov-report=html:build/docs/coverage \
+            --cov-report=xml:build/docs/coverage.xml \
+            --html=build/docs/tests/report.html --self-contained-html
+
+      - name: Generate API docs
+        if: matrix.python-version == '3.11'
+        run: pdoc -d google pocketplus -o build/docs/api
+
+      - name: Upload docs artifacts
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-docs
+          path: implementations/python/build/docs/
