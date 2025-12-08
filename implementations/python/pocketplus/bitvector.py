@@ -301,14 +301,14 @@ class BitVector:
         """
         result = BitVector(self.length)
 
-        # MSB-first: left shift means shift towards MSB (lower indices)
-        # Bit 0 → MSB, Bit N-1 → LSB
-        # Left shift: move all bits one position towards MSB, insert 0 at LSB
-        for i in range(self.length - 1):
-            bit = self.get_bit(i + 1)
-            result.set_bit(i, bit)
+        # Word-level left shift (big-endian: MSB in high bits of first word)
+        # Shift each word left by 1, carry MSB from next word
+        carry = 0
+        for i in range(self.num_words - 1, -1, -1):
+            word = self._data[i]
+            result._data[i] = ((word << 1) | carry) & 0xFFFFFFFF
+            carry = (word >> 31) & 1
 
-        result.set_bit(self.length - 1, 0)  # Clear LSB
         return result
 
     def hamming_weight(self) -> int:
@@ -319,9 +319,12 @@ class BitVector:
             Number of bits set to 1
         """
         count = 0
-        for i in range(self.length):
-            if self.get_bit(i):
-                count += 1
+        for word in self._data:
+            # Fast popcount using bit manipulation
+            n = word
+            while n:
+                count += n & 1
+                n >>= 1
         return count
 
     def equals(self, other: "BitVector") -> bool:

@@ -398,14 +398,10 @@ def has_positive_updates(Xt: "BitVector", mask: "BitVector") -> int:
     Returns:
         1 if positive updates exist, 0 otherwise
     """
-    # Check each changed bit
-    for i in range(Xt.length):
-        bit_changed = Xt.get_bit(i)
-        bit_predictable = mask.get_bit(i) == 0  # mask=0 means predictable
-
-        if bit_changed and bit_predictable:
-            return 1  # Found a positive update
-
+    # Word-level check: Xt AND (NOT mask) - any bit set means positive update
+    for i in range(min(Xt.num_words, mask.num_words)):
+        if Xt._data[i] & ~mask._data[i] & 0xFFFFFFFF:
+            return 1
     return 0
 
 
