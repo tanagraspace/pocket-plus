@@ -1,14 +1,10 @@
 name: MISRA-C Compliance
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'implementations/c/**'
   pull_request:
-    branches: [main]
     paths:
       - 'implementations/c/**'
+      - '.github/workflows/misra.yml'
 
 jobs:
   misra-check:
