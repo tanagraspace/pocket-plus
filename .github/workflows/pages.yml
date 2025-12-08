@@ -237,13 +237,13 @@ jobs:
             <details style="margin: 1em 0;">
               <summary style="cursor: pointer; color: #e3344a;">BibTeX</summary>
               <pre style="background: #ddd0ba; padding: 1em; border-radius: 4px; overflow-x: auto; font-size: 0.85em; margin-top: 0.5em;">@inproceedings{evans2022pocketplus,
-  author    = {Evans, David and Labrèche, Georges and Marszk, Dominik and Bammens, Samuel and Hernandez-Cabronero, Miguel and Zelenevskiy, Vladimir and Shiradhonkar, Vasundhara and Starcik, Mario and Henkel, Maximilian},
-  title     = {Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1},
-  booktitle = {Proceedings of the Small Satellite Conference},
-  year      = {2022},
-  note      = {SSC22-XII-03},
-  url       = {https://digitalcommons.usu.edu/smallsat/2022/all2022/133/}
-}</pre>
+              author    = {Evans, David and Labreche, Georges and Marszk, Dominik and Bammens, Samuel and Hernandez-Cabronero, Miguel and Zelenevskiy, Vladimir and Shiradhonkar, Vasundhara and Starcik, Mario and Henkel, Maximilian},
+              title     = {Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1},
+              booktitle = {Proceedings of the Small Satellite Conference},
+              year      = {2022},
+              note      = {SSC22-XII-03},
+              url       = {https://digitalcommons.usu.edu/smallsat/2022/all2022/133/}
+            }</pre>
             </details>
 
             <h2>Resources</h2>
