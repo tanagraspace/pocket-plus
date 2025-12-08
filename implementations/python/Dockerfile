@@ -17,5 +17,5 @@ CMD ["sh", "-c", "\
         --cov-report=html:build/docs/coverage \
         --cov-report=xml:build/docs/coverage.xml \
         --html=build/docs/tests/report.html --self-contained-html && \
-    pdoc pocketplus -o build/docs/api \
+    pdoc -d google pocketplus -o build/docs/api \
 "]

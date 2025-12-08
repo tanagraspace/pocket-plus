@@ -49,7 +49,7 @@ jobs:
 
       - name: Generate API docs
         if: matrix.python-version == '3.11'
-        run: pdoc pocketplus -o build/docs/api
+        run: pdoc -d google pocketplus -o build/docs/api
 
       - name: Upload docs artifacts
         if: matrix.python-version == '3.11'

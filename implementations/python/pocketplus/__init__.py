@@ -1,10 +1,9 @@
 """
-POCKET+ Lossless Compression Algorithm
+POCKET+
 
-Implementation of CCSDS 124.0-B-1 lossless compression algorithm
-designed for spacecraft housekeeping data.
-
-MicroPython compatible - no typing module imports.
+Python and MicroPython compatible implementation of the
+[CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf) POCKET+ lossless
+compression algorithm of fixed-length housekeeping data.
 """
 
 __version__ = "1.0.0"

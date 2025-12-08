@@ -4,7 +4,7 @@
 [![MicroPython Build](https://github.com/tanagraspace/pocket-plus/actions/workflows/micropython-build.yml/badge.svg)](https://github.com/tanagraspace/pocket-plus/actions/workflows/micropython-build.yml)
 [![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen)](build/docs/coverage/)
 
-Python and MicroPython compatible implementation of the ([CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf)) POCKET+ lossless compression algorithm for embedded systems (ESP32, RP2040, etc.).
+Python and MicroPython compatible implementation of the [CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf) POCKET+ lossless compression algorithm of fixed-length housekeeping data.
 
 ## Citation
 
@@ -92,7 +92,7 @@ pytest --cov=pocketplus --cov-report=html:build/docs/coverage \
 ruff format .                    # Format code
 ruff check .                     # Lint
 mypy pocketplus                  # Type check
-pdoc pocketplus -o build/docs/api  # Generate API docs
+pdoc -d google pocketplus -o build/docs/api  # Generate API docs
 ```
 
 ## Design
