@@ -1,0 +1,291 @@
+name: Deploy Docs to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-c-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y doxygen lcov
+
+      - name: Build and test with coverage
+        working-directory: implementations/c
+        run: make coverage
+
+      - name: Run tests and generate HTML report
+        working-directory: implementations/c
+        run: |
+          mkdir -p build/docs/tests
+          make test 2>&1 | tee build/test-output.txt
+
+          # Generate HTML test report
+          cat > build/docs/tests/report.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>POCKET+ C Test Report</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; background: #f8f9fa; }
+              h1 { color: #333; border-bottom: 2px solid #28a745; padding-bottom: 0.5rem; }
+              .summary { background: #28a745; color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+              .summary.fail { background: #dc3545; }
+              .suite { background: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+              .suite h2 { margin-top: 0; color: #555; font-size: 1.2rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+              .test { padding: 0.25rem 0; font-family: monospace; }
+              .test.pass::before { content: "✓ "; color: #28a745; }
+              .test.fail::before { content: "✗ "; color: #dc3545; }
+              .stats { color: #666; font-size: 0.9rem; margin-top: 0.5rem; }
+              pre { background: #f1f1f1; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+            </style>
+          </head>
+          <body>
+            <h1>POCKET+ C Test Report</h1>
+          HTMLEOF
+
+          # Parse test output and generate HTML
+          total_passed=0
+          total_tests=0
+          current_suite=""
+
+          while IFS= read -r line; do
+            # Check for suite header (line followed by ===)
+            if [[ "$line" =~ ^[A-Z] ]] && [[ ! "$line" =~ "Running" ]] && [[ ! "$line" =~ "tests passed" ]]; then
+              if [[ "$current_suite" != "" ]]; then
+                echo '</div>' >> build/docs/tests/report.html
+              fi
+              suite_name=$(echo "$line" | sed 's/Tests$//' | sed 's/:$//')
+              if [[ "$suite_name" != "" ]] && [[ ! "$suite_name" =~ "=" ]]; then
+                current_suite="$suite_name"
+                echo "<div class=\"suite\"><h2>$suite_name</h2>" >> build/docs/tests/report.html
+              fi
+            fi
+
+            # Check for test result
+            if [[ "$line" =~ "test_" ]]; then
+              test_name=$(echo "$line" | sed 's/^[[:space:]]*//' | sed 's/\.\.\..*//')
+              if [[ "$line" =~ "✓" ]]; then
+                echo "<div class=\"test pass\">$test_name</div>" >> build/docs/tests/report.html
+              elif [[ "$line" =~ "✗" ]]; then
+                echo "<div class=\"test fail\">$test_name</div>" >> build/docs/tests/report.html
+              fi
+            fi
+
+            # Check for summary line
+            if [[ "$line" =~ ([0-9]+)/([0-9]+)" tests passed" ]]; then
+              passed="${BASH_REMATCH[1]}"
+              tests="${BASH_REMATCH[2]}"
+              total_passed=$((total_passed + passed))
+              total_tests=$((total_tests + tests))
+              echo "<div class=\"stats\">$passed/$tests tests passed</div>" >> build/docs/tests/report.html
+            fi
+          done < build/test-output.txt
+
+          # Close last suite
+          if [[ "$current_suite" != "" ]]; then
+            echo '</div>' >> build/docs/tests/report.html
+          fi
+
+          # Add summary
+          if [[ $total_passed -eq $total_tests ]]; then
+            summary_class="summary"
+          else
+            summary_class="summary fail"
+          fi
+
+          cat >> build/docs/tests/report.html << HTMLEOF
+            <div class="$summary_class">
+              <strong>Total: $total_passed/$total_tests tests passed</strong>
+            </div>
+            <p style="color: #666; font-size: 0.8rem;">Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')</p>
+          </body>
+          </html>
+          HTMLEOF
+
+      - name: Generate coverage HTML
+        working-directory: implementations/c
+        run: make coverage-html
+
+      - name: Generate API docs
+        working-directory: implementations/c
+        run: make docs
+
+      - name: Prepare C artifacts
+        run: |
+          mkdir -p _site/c
+          cp -r implementations/c/build/docs/html _site/c/api
+          cp -r implementations/c/build/coverage/html _site/c/coverage
+          cp -r implementations/c/build/docs/tests _site/c/tests
+
+      - name: Upload C docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: c-docs
+          path: _site/c
+
+  build-python-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: implementations/python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests with coverage
+        working-directory: implementations/python
+        run: |
+          mkdir -p build/docs
+          pytest -v --fast --cov=pocketplus \
+            --cov-report=html:build/docs/coverage \
+            --html=build/docs/tests/report.html --self-contained-html
+
+      - name: Generate API docs
+        working-directory: implementations/python
+        run: pdoc -d google pocketplus -o build/docs/api
+
+      - name: Prepare Python artifacts
+        run: |
+          mkdir -p _site/python
+          cp -r implementations/python/build/docs/api _site/python/api
+          cp -r implementations/python/build/docs/coverage _site/python/coverage
+          cp -r implementations/python/build/docs/tests _site/python/tests
+
+      - name: Upload Python docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-docs
+          path: _site/python
+
+  deploy:
+    needs: [build-c-docs, build-python-docs]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download C docs
+        uses: actions/download-artifact@v4
+        with:
+          name: c-docs
+          path: _site/c
+
+      - name: Download Python docs
+        uses: actions/download-artifact@v4
+        with:
+          name: python-docs
+          path: _site/python
+
+      - name: Create landing page
+        run: |
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>POCKET+ Documentation</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.5; background-color: #e8d5b7; color: #000; }
+              h1 { border-bottom: 2px solid #fc3a52; padding-bottom: 0.5rem; }
+              h2 { color: #000; margin-top: 2rem; }
+              .impl { background: #ddd0ba; padding: 1rem; border-radius: 4px; margin: 1rem 0; border: 1px solid #baaa92; }
+              .impl h3 { margin-top: 0; }
+              a { color: #e3344a; text-decoration: none; }
+              a:hover { color: #ea6777; }
+              a:visited { color: #aa2738; }
+              ul { padding-left: 1.5rem; }
+              li { margin-bottom: 0.5em; }
+            </style>
+          </head>
+          <body>
+            <h1>POCKET+ Documentation</h1>
+            <p>The definitive implementation of the <a href="https://ccsds.org/Pubs/124x0b1.pdf">CCSDS 124.0-B-1</a> POCKET+ lossless compression algorithm of fixed-length housekeeping data.</p>
+
+            <h2>Citation</h2>
+            <p>If POCKET+ contributes to your research, please cite:</p>
+            <blockquote style="font-size: 0.9em; border-left: 3px solid #baaa92; padding-left: 1em; margin: 1em 0;">
+              D. Evans, G. Labrèche, D. Marszk, S. Bammens, M. Hernandez-Cabronero, V. Zelenevskiy, V. Shiradhonkar, M. Starcik, and M. Henkel. 2022. "Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1," <em>Proceedings of the Small Satellite Conference</em>, Communications, SSC22-XII-03. <a href="https://digitalcommons.usu.edu/smallsat/2022/all2022/133/">https://digitalcommons.usu.edu/smallsat/2022/all2022/133/</a>
+            </blockquote>
+            <details style="margin: 1em 0;">
+              <summary style="cursor: pointer; color: #e3344a;">BibTeX</summary>
+              <pre style="background: #ddd0ba; padding: 1em; border-radius: 4px; overflow-x: auto; font-size: 0.85em; margin-top: 0.5em;">@inproceedings{evans2022pocketplus,
+              author    = {Evans, David and Labreche, Georges and Marszk, Dominik and Bammens, Samuel and Hernandez-Cabronero, Miguel and Zelenevskiy, Vladimir and Shiradhonkar, Vasundhara and Starcik, Mario and Henkel, Maximilian},
+              title     = {Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1},
+              booktitle = {Proceedings of the Small Satellite Conference},
+              year      = {2022},
+              note      = {SSC22-XII-03},
+              url       = {https://digitalcommons.usu.edu/smallsat/2022/all2022/133/}
+            }</pre>
+            </details>
+
+            <h2>Resources</h2>
+            <ul>
+              <li><a href="https://github.com/tanagraspace/pocket-plus">GitHub Repository</a></li>
+              <li><a href="https://ccsds.org/Pubs/124x0b1.pdf">CCSDS 124.0-B-1 Specification</a></li>
+            </ul>
+
+            <h2>Implementations</h2>
+
+            <div class="impl">
+              <h3>C</h3>
+              <ul>
+                <li><a href="https://github.com/tanagraspace/pocket-plus/tree/main/implementations/c">Source Code</a></li>
+                <li><a href="c/api/">API Documentation</a></li>
+                <li><a href="c/coverage/">Coverage Report</a></li>
+                <li><a href="c/tests/report.html">Test Report</a></li>
+              </ul>
+            </div>
+
+            <div class="impl">
+              <h3>Python</h3>
+              <ul>
+                <li><a href="https://github.com/tanagraspace/pocket-plus/tree/main/implementations/python">Source Code</a></li>
+                <li><a href="python/api/">API Documentation</a></li>
+                <li><a href="python/coverage/">Coverage Report</a></li>
+                <li><a href="python/tests/report.html">Test Report</a></li>
+              </ul>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

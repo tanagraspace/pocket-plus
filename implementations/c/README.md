@@ -86,7 +86,7 @@ pocket_decompress(&decomp, compressed, comp_size, output, output_max, &output_si
 ## Design
 
 - **Zero dependencies** - C99 standard library only
-- **Static allocation** - No malloc/free, embedded-friendly
+- **Static allocation** - No malloc/free, embedded-friendly (verified via valgrind in CI)
 - **MISRA-C compliant** - Suitable for safety-critical systems
 
 ## MISRA-C:2012 Compliance
