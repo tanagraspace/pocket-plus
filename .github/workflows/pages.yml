@@ -90,7 +90,6 @@ jobs:
 
   deploy:
     needs: [build-c-docs, build-python-docs]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
