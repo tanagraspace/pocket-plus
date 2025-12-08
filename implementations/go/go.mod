@@ -1,3 +1,3 @@
-module github.com/tanagraspace/pocket-plus/go
+module github.com/tanagraspace/pocket-plus/implementations/go
 
 go 1.21
