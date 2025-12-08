@@ -2,6 +2,12 @@
 
 Validates Python POCKET+ output matches byte-for-byte with
 expected output from ESA reference implementation.
+
+Run all tests:
+    pytest tests/test_vectors.py
+
+Skip slow tests (venus-express, housekeeping):
+    pytest tests/test_vectors.py -m "not slow"
 """
 
 import json
@@ -16,6 +22,9 @@ REPO_ROOT = Path(__file__).parent.parent.parent.parent
 TEST_VECTORS_DIR = REPO_ROOT / "test-vectors"
 INPUT_DIR = TEST_VECTORS_DIR / "input"
 EXPECTED_DIR = TEST_VECTORS_DIR / "expected-output"
+
+# Large vectors that take significant time to process
+SLOW_VECTORS = {"venus-express", "housekeeping"}
 
 
 def load_metadata(name: str) -> dict:
@@ -69,9 +78,18 @@ def get_test_vectors() -> list:
 TEST_VECTORS = get_test_vectors()
 
 
-def vector_ids(vector: dict) -> str:
-    """Generate test ID from vector name."""
-    return vector["name"]
+def get_parametrized_vectors():
+    """Get test vectors with slow markers applied."""
+    params = []
+    for v in TEST_VECTORS:
+        if v["name"] in SLOW_VECTORS:
+            params.append(pytest.param(v, marks=pytest.mark.slow, id=v["name"]))
+        else:
+            params.append(pytest.param(v, id=v["name"]))
+    return params
+
+
+PARAMETRIZED_VECTORS = get_parametrized_vectors()
 
 
 @pytest.fixture
@@ -98,12 +116,7 @@ def vector_data(request):
 class TestVectorCompression:
     """Test compression output matches reference."""
 
-    @pytest.mark.parametrize(
-        "vector_data",
-        TEST_VECTORS,
-        indirect=True,
-        ids=vector_ids,
-    )
+    @pytest.mark.parametrize("vector_data", PARAMETRIZED_VECTORS, indirect=True)
     def test_compression_matches_reference(self, vector_data: dict) -> None:
         """Test that compression produces byte-identical output."""
         input_data = vector_data["input_data"]
@@ -132,12 +145,7 @@ class TestVectorCompression:
 class TestVectorRoundTrip:
     """Test round-trip decompression."""
 
-    @pytest.mark.parametrize(
-        "vector_data",
-        TEST_VECTORS,
-        indirect=True,
-        ids=vector_ids,
-    )
+    @pytest.mark.parametrize("vector_data", PARAMETRIZED_VECTORS, indirect=True)
     def test_round_trip(self, vector_data: dict) -> None:
         """Test that compress then decompress returns original."""
         input_data = vector_data["input_data"]
@@ -169,12 +177,7 @@ class TestVectorRoundTrip:
 class TestVectorDecompressReference:
     """Test decompression of reference compressed output."""
 
-    @pytest.mark.parametrize(
-        "vector_data",
-        TEST_VECTORS,
-        indirect=True,
-        ids=vector_ids,
-    )
+    @pytest.mark.parametrize("vector_data", PARAMETRIZED_VECTORS, indirect=True)
     def test_decompress_reference_output(self, vector_data: dict) -> None:
         """Test that decompressing reference output produces original input."""
         input_data = vector_data["input_data"]

@@ -76,6 +76,7 @@ python cli.py --help
 
 ```bash
 pytest                           # Run all tests
+pytest --fast                    # Skip slow tests (venus-express, housekeeping)
 pytest tests/test_vectors.py     # Reference validation only
 ```
 
