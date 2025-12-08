@@ -201,10 +201,10 @@ func TestBitBufferMultipleAppends(t *testing.T) {
 	bb := NewBitBuffer()
 
 	// Mix different append methods
-	bb.AppendBit(1)                   // 1
-	bb.AppendBit(0)                   // 10
-	bb.AppendBits([]byte{0xFF}, 4)    // 10 1111
-	bb.AppendValue(3, 2)              // 10 1111 11
+	bb.AppendBit(1)                // 1
+	bb.AppendBit(0)                // 10
+	bb.AppendBits([]byte{0xFF}, 4) // 10 1111
+	bb.AppendValue(3, 2)           // 10 1111 11
 
 	if bb.NumBits() != 8 {
 		t.Errorf("Expected 8 bits, got %d", bb.NumBits())
