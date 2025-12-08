@@ -29,6 +29,97 @@ jobs:
         working-directory: implementations/c
         run: make coverage
 
+      - name: Run tests and generate HTML report
+        working-directory: implementations/c
+        run: |
+          mkdir -p build/docs/tests
+          make test 2>&1 | tee build/test-output.txt
+
+          # Generate HTML test report
+          cat > build/docs/tests/report.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>POCKET+ C Test Report</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; background: #f8f9fa; }
+              h1 { color: #333; border-bottom: 2px solid #28a745; padding-bottom: 0.5rem; }
+              .summary { background: #28a745; color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+              .summary.fail { background: #dc3545; }
+              .suite { background: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+              .suite h2 { margin-top: 0; color: #555; font-size: 1.2rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
+              .test { padding: 0.25rem 0; font-family: monospace; }
+              .test.pass::before { content: "✓ "; color: #28a745; }
+              .test.fail::before { content: "✗ "; color: #dc3545; }
+              .stats { color: #666; font-size: 0.9rem; margin-top: 0.5rem; }
+              pre { background: #f1f1f1; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+            </style>
+          </head>
+          <body>
+            <h1>POCKET+ C Test Report</h1>
+          HTMLEOF
+
+          # Parse test output and generate HTML
+          total_passed=0
+          total_tests=0
+          current_suite=""
+
+          while IFS= read -r line; do
+            # Check for suite header (line followed by ===)
+            if [[ "$line" =~ ^[A-Z] ]] && [[ ! "$line" =~ "Running" ]] && [[ ! "$line" =~ "tests passed" ]]; then
+              if [[ "$current_suite" != "" ]]; then
+                echo '</div>' >> build/docs/tests/report.html
+              fi
+              suite_name=$(echo "$line" | sed 's/Tests$//' | sed 's/:$//')
+              if [[ "$suite_name" != "" ]] && [[ ! "$suite_name" =~ "=" ]]; then
+                current_suite="$suite_name"
+                echo "<div class=\"suite\"><h2>$suite_name</h2>" >> build/docs/tests/report.html
+              fi
+            fi
+
+            # Check for test result
+            if [[ "$line" =~ "test_" ]]; then
+              test_name=$(echo "$line" | sed 's/^[[:space:]]*//' | sed 's/\.\.\..*//')
+              if [[ "$line" =~ "✓" ]]; then
+                echo "<div class=\"test pass\">$test_name</div>" >> build/docs/tests/report.html
+              elif [[ "$line" =~ "✗" ]]; then
+                echo "<div class=\"test fail\">$test_name</div>" >> build/docs/tests/report.html
+              fi
+            fi
+
+            # Check for summary line
+            if [[ "$line" =~ ([0-9]+)/([0-9]+)" tests passed" ]]; then
+              passed="${BASH_REMATCH[1]}"
+              tests="${BASH_REMATCH[2]}"
+              total_passed=$((total_passed + passed))
+              total_tests=$((total_tests + tests))
+              echo "<div class=\"stats\">$passed/$tests tests passed</div>" >> build/docs/tests/report.html
+            fi
+          done < build/test-output.txt
+
+          # Close last suite
+          if [[ "$current_suite" != "" ]]; then
+            echo '</div>' >> build/docs/tests/report.html
+          fi
+
+          # Add summary
+          if [[ $total_passed -eq $total_tests ]]; then
+            summary_class="summary"
+          else
+            summary_class="summary fail"
+          fi
+
+          cat >> build/docs/tests/report.html << HTMLEOF
+            <div class="$summary_class">
+              <strong>Total: $total_passed/$total_tests tests passed</strong>
+            </div>
+            <p style="color: #666; font-size: 0.8rem;">Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')</p>
+          </body>
+          </html>
+          HTMLEOF
+
       - name: Generate coverage HTML
         working-directory: implementations/c
         run: make coverage-html
@@ -42,6 +133,7 @@ jobs:
           mkdir -p _site/c
           cp -r implementations/c/build/docs/html _site/c/api
           cp -r implementations/c/build/coverage/html _site/c/coverage
+          cp -r implementations/c/build/docs/tests _site/c/tests
 
       - name: Upload C docs artifact
         uses: actions/upload-artifact@v4
@@ -128,7 +220,6 @@ jobs:
               .impl h3 { margin-top: 0; }
               a { color: #0066cc; }
               ul { padding-left: 1.5rem; }
-              .badge { display: inline-block; margin-right: 0.5rem; }
             </style>
           </head>
           <body>
@@ -138,19 +229,20 @@ jobs:
             <h2>Implementations</h2>
 
             <div class="impl">
-              <h3>C Implementation</h3>
+              <h3>C</h3>
               <ul>
-                <li><a href="c/api/">API Documentation</a> (Doxygen)</li>
-                <li><a href="c/coverage/">Coverage Report</a> (lcov)</li>
+                <li><a href="c/api/">API Documentation</a></li>
+                <li><a href="c/coverage/">Coverage Report</a></li>
+                <li><a href="c/tests/report.html">Test Report</a></li>
               </ul>
             </div>
 
             <div class="impl">
-              <h3>Python Implementation</h3>
+              <h3>Python</h3>
               <ul>
-                <li><a href="python/api/">API Documentation</a> (pdoc)</li>
-                <li><a href="python/coverage/">Coverage Report</a> (pytest-cov)</li>
-                <li><a href="python/tests/report.html">Test Report</a> (pytest-html)</li>
+                <li><a href="python/api/">API Documentation</a></li>
+                <li><a href="python/coverage/">Coverage Report</a></li>
+                <li><a href="python/tests/report.html">Test Report</a></li>
               </ul>
             </div>
 
