@@ -42,7 +42,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           mkdir -p build/docs
-          pytest -v --cov=pocketplus \
+          pytest -v --fast --cov=pocketplus \
             --cov-report=html:build/docs/coverage \
             --cov-report=xml:build/docs/coverage.xml \
             --html=build/docs/tests/report.html --self-contained-html
