@@ -210,32 +210,40 @@ int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitve
         if (data->length != mask->length) {
             /* Length mismatch - result already set to INVALID_ARG */
         } else {
-            size_t hamming_weight = bitvector_hamming_weight(mask);
+            /* DeBruijn lookup for fast LSB finding (same as RLE) */
+            static const uint32_t debruijn_lookup[32] = {
+                1U, 2U, 29U, 3U, 30U, 15U, 25U, 4U, 31U, 23U, 21U, 16U,
+                26U, 18U, 5U, 9U, 32U, 28U, 14U, 24U, 22U, 20U, 17U, 8U,
+                27U, 13U, 19U, 7U, 12U, 6U, 11U, 10U
+            };
 
-            if (hamming_weight == 0U) {
-                /* No bits to extract */
-                result = POCKET_OK;
-            } else {
-                /* Collect positions of '1' bits in mask */
-                size_t positions[POCKET_MAX_PACKET_LENGTH];
-                size_t pos_count = 0U;
+            result = POCKET_OK;
 
-                for (size_t i = 0U; (i < mask->length) && (pos_count < hamming_weight); i++) {
-                    if (bitvector_get_bit(mask, i) != 0) {
-                        positions[pos_count] = i;
-                        pos_count++;
+            /* Process words in REVERSE order (high to low) like RLE.
+             * This gives bits from highest position to lowest, which is
+             * the correct output order for BE (no reversal needed). */
+            for (int word = (int)mask->num_words - 1; (word >= 0) && (result == POCKET_OK); word--) {
+                uint32_t mask_word = mask->data[word];
+                uint32_t data_word = data->data[word];
+
+                while ((mask_word != 0U) && (result == POCKET_OK)) {
+                    /* Isolate LSB */
+                    uint32_t lsb = mask_word & (uint32_t)(-(int32_t)mask_word);
+
+                    /* Find LSB position using DeBruijn */
+                    uint32_t debruijn_index = (lsb * 0x077CB531U) >> 27U;
+                    int bit_pos_in_word = 32 - (int)debruijn_lookup[debruijn_index];
+
+                    /* Check if this bit is within the valid length */
+                    int global_pos = (word * 32) + bit_pos_in_word;
+                    if ((size_t)global_pos < data->length) {
+                        /* Extract and output data bit directly */
+                        int bit = ((data_word & lsb) != 0U) ? 1 : 0;
+                        result = bitbuffer_append_bit(output, bit);
                     }
-                }
 
-                /* Extract bits in reverse order (highest position to lowest)
-                 * With MSB-first indexing, higher bit indices are closer to LSB
-                 * CCSDS BE(a,b) extracts from highest to lowest position */
-                result = POCKET_OK;
-                for (size_t i = pos_count; (i > 0U) && (result == POCKET_OK); i--) {
-                    size_t pos = positions[i - 1U];
-                    int bit = bitvector_get_bit(data, pos);
-
-                    result = bitbuffer_append_bit(output, bit);
+                    /* Clear processed bit */
+                    mask_word ^= lsb;
                 }
             }
         }
@@ -252,32 +260,32 @@ int pocket_bit_extract_forward(bitbuffer_t *output, const bitvector_t *data, con
         if (data->length != mask->length) {
             /* Length mismatch - result already set to INVALID_ARG */
         } else {
-            size_t hamming_weight = bitvector_hamming_weight(mask);
+            result = POCKET_OK;
 
-            if (hamming_weight == 0U) {
-                /* No bits to extract */
-                result = POCKET_OK;
-            } else {
-                /* Collect positions of '1' bits in mask */
-                size_t positions[POCKET_MAX_PACKET_LENGTH];
-                size_t pos_count = 0U;
+            /* Process words in FORWARD order (low to high).
+             * Within each word, find MSBs first using clz to get
+             * bits from lowest position to highest. */
+            for (size_t word = 0U; (word < mask->num_words) && (result == POCKET_OK); word++) {
+                uint32_t mask_word = mask->data[word];
+                uint32_t data_word = data->data[word];
 
-                for (size_t i = 0U; (i < mask->length) && (pos_count < hamming_weight); i++) {
-                    if (bitvector_get_bit(mask, i) != 0) {
-                        positions[pos_count] = i;
-                        pos_count++;
+                while ((mask_word != 0U) && (result == POCKET_OK)) {
+                    /* Find MSB position using count leading zeros */
+                    int clz = __builtin_clz(mask_word);
+                    int bit_pos_in_word = clz;  /* Physical position from left */
+
+                    /* MSB-first: physical position 0 = bit index 0 */
+                    size_t global_pos = (word * 32U) + (size_t)bit_pos_in_word;
+
+                    if (global_pos < data->length) {
+                        /* Extract data bit at this position */
+                        uint32_t bit_mask = 1U << (31U - (uint32_t)clz);
+                        int bit = ((data_word & bit_mask) != 0U) ? 1 : 0;
+                        result = bitbuffer_append_bit(output, bit);
                     }
-                }
 
-                /* Extract bits in FORWARD order (lowest position to highest)
-                 * For kt component: processes mask values at changed positions
-                 * in order from lowest position index to highest */
-                result = POCKET_OK;
-                for (size_t i = 0U; (i < pos_count) && (result == POCKET_OK); i++) {
-                    size_t pos = positions[i];
-                    int bit = bitvector_get_bit(data, pos);
-
-                    result = bitbuffer_append_bit(output, bit);
+                    /* Clear the MSB we just processed */
+                    mask_word &= ~(1U << (31U - (uint32_t)clz));
                 }
             }
         }
