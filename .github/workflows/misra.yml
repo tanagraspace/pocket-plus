@@ -34,8 +34,8 @@ jobs:
               src/bitvector.c src/bitbuffer.c src/compress.c \
               src/decompress.c src/encode.c src/mask.c 2>&1
 
-          # Count violations by category
-          TOTAL=$(grep -c "misra-c2012" build/misra-report.txt 2>/dev/null || echo "0")
+          # Count violations (exclude unmatchedSuppression warnings)
+          TOTAL=$(grep "misra-c2012" build/misra-report.txt 2>/dev/null | grep -cv "unmatchedSuppression" || echo "0")
 
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -45,7 +45,7 @@ jobs:
           if [ "$TOTAL" -gt 0 ]; then
             echo "### Violations" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            grep "misra-c2012" build/misra-report.txt >> $GITHUB_STEP_SUMMARY || true
+            grep "misra-c2012" build/misra-report.txt | grep -v "unmatchedSuppression" >> $GITHUB_STEP_SUMMARY || true
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo ""
             echo "::error::Found $TOTAL unsuppressed MISRA-C:2012 violations"
