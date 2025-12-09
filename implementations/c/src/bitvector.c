@@ -96,22 +96,16 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     int result = 0;
 
     if ((bv != NULL) && (pos < bv->length)) {
-        /* Calculate byte and bit within byte */
-        size_t byte_index = pos / 8U;
-        size_t bit_in_byte = pos % 8U;
-
-        /* Calculate word index and byte position within word */
-        size_t word_index = byte_index / 4U;
-        size_t byte_in_word = byte_index % 4U;
-
-        /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-         * MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
-         * This matches the reference implementation */
-        size_t bit_in_word = ((3U - byte_in_word) * 8U) + (7U - bit_in_byte);
+        /* Direct bit-to-word mapping (optimized):
+         * word_index = pos / 32, bit_in_word = 31 - (pos % 32)
+         * MSB-first: bit 0 is at position 31 in word 0 */
+        size_t word_index = pos >> 5U;
+        size_t bit_in_word = 31U - (pos & 31U);
 
         uint32_t shifted = bv->data[word_index] >> bit_in_word;
-        uint32_t masked = shifted & 1U;
-        result = (int)masked;
+        if ((shifted & 1U) != 0U) {
+            result = 1;
+        }
     }
 
     return result;
@@ -120,24 +114,15 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
 
 void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
     if ((bv != NULL) && (pos < bv->length)) {
-        /* Calculate byte and bit within byte */
-        size_t byte_index = pos / 8U;
-        size_t bit_in_byte = pos % 8U;
-
-        /* Calculate word index and byte position within word */
-        size_t word_index = byte_index / 4U;
-        size_t byte_in_word = byte_index % 4U;
-
-        /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-         * MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
-         * This matches the reference implementation */
-        size_t bit_in_word = ((3U - byte_in_word) * 8U) + (7U - bit_in_byte);
+        /* Direct bit-to-word mapping (optimized):
+         * word_index = pos / 32, bit_in_word = 31 - (pos % 32)
+         * MSB-first: bit 0 is at position 31 in word 0 */
+        size_t word_index = pos >> 5U;
+        size_t bit_in_word = 31U - (pos & 31U);
 
         if (value != 0) {
-            /* Set bit to 1 */
             bv->data[word_index] |= (1U << bit_in_word);
         } else {
-            /* Clear bit to 0 */
             bv->data[word_index] &= ~(1U << bit_in_word);
         }
     }
@@ -240,18 +225,22 @@ void bitvector_not(bitvector_t *result, const bitvector_t *a) {
 
 void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     if ((result != NULL) && (a != NULL)) {
-        bitvector_zero(result);
         result->length = a->length;
         result->num_words = a->num_words;
 
-        /* MSB-first: left shift means shift towards MSB (lower indices)
-         * Bit 0 → MSB, Bit N-1 → LSB
-         * Left shift: move all bits one position towards MSB, insert 0 at LSB */
-        for (size_t i = 0U; i < (a->length - 1U); i++) {
-            int bit = bitvector_get_bit(a, i + 1U);
-            bitvector_set_bit(result, i, bit);
+        /* MSB-first with big-endian word packing:
+         * Left shift means shift towards MSB (bit 0).
+         * In big-endian packing, MSB is at high bits of first word.
+         * Word-level: shift each word left by 1, carry high bit from next word. */
+        if (a->num_words > 0U) {
+            /* Process words from first (MSB) to last (LSB) */
+            for (size_t i = 0U; i < (a->num_words - 1U); i++) {
+                /* Shift current word left by 1, bring in MSB from next word */
+                result->data[i] = (a->data[i] << 1U) | (a->data[i + 1U] >> 31U);
+            }
+            /* Last word: shift left, LSB becomes 0 */
+            result->data[a->num_words - 1U] = a->data[a->num_words - 1U] << 1U;
         }
-        bitvector_set_bit(result, a->length - 1U, 0);  /* Clear LSB */
     }
 }
 
@@ -282,15 +271,9 @@ size_t bitvector_hamming_weight(const bitvector_t *bv) {
     size_t count = 0U;
 
     if (bv != NULL) {
-        /* Count '1' bits in each word */
+        /* Count '1' bits in each word using popcount intrinsic */
         for (size_t i = 0U; i < bv->num_words; i++) {
-            uint32_t word = bv->data[i];
-
-            /* Brian Kernighan's algorithm */
-            while (word != 0U) {
-                word &= (word - 1U);
-                count++;
-            }
+            count += (size_t)__builtin_popcount(bv->data[i]);
         }
 
         /* Adjust for any extra bits in last word */
@@ -301,12 +284,7 @@ size_t bitvector_hamming_weight(const bitvector_t *bv) {
             uint32_t last_word = bv->data[bv->num_words - 1U];
             uint32_t mask = ((1U << (uint32_t)extra_bits) - 1U);  /* Mask for the unused LSBs */
             uint32_t extra_word = last_word & mask;
-
-            /* Subtract any '1' bits in the extra portion */
-            while (extra_word != 0U) {
-                extra_word &= (extra_word - 1U);
-                count--;
-            }
+            count -= (size_t)__builtin_popcount(extra_word);
         }
     }
 

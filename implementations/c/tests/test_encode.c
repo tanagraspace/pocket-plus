@@ -65,7 +65,9 @@ TEST(test_count_encode_1) {
 
     assert(result == POCKET_OK);
     assert(bb.num_bits == 1);
-    assert(bb.data[0] == 0x00);  /* '0' */
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0x00);  /* '0' */
 }
 
 TEST(test_count_encode_2) {
@@ -77,7 +79,9 @@ TEST(test_count_encode_2) {
     /* 2 → '110' ∥ BIT₅(0) = '110' ∥ '00000' = '11000000' = 0xC0 */
     assert(result == POCKET_OK);
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0xC0);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xC0);
 }
 
 TEST(test_count_encode_3) {
@@ -89,7 +93,9 @@ TEST(test_count_encode_3) {
     /* 3 → '110' ∥ BIT₅(1) = '110' ∥ '00001' = '11000001' = 0xC1 */
     assert(result == POCKET_OK);
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0xC1);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xC1);
 }
 
 TEST(test_count_encode_33) {
@@ -101,7 +107,9 @@ TEST(test_count_encode_33) {
     /* 33 → '110' ∥ BIT₅(31) = '110' ∥ '11111' = '11011111' = 0xDF */
     assert(result == POCKET_OK);
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0xDF);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xDF);
 }
 
 TEST(test_count_encode_34) {
@@ -125,7 +133,9 @@ TEST(test_count_encode_4) {
     /* 4 → '110' ∥ BIT₅(2) = '110' ∥ '00010' = '11000010' = 0xC2 */
     assert(result == POCKET_OK);
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0xC2);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xC2);
 }
 
 TEST(test_count_encode_example_from_spec) {
@@ -185,7 +195,9 @@ TEST(test_rle_encode_all_zeros) {
     /* No '1' bits, so just '10' terminator MSB-first */
     assert(bb.num_bits == 2);
     /* '10' → bits 1,0 → 0b10000000 = 0x80 */
-    assert(bb.data[0] == 0x80);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0x80);
 }
 
 TEST(test_rle_encode_example_from_algorithm) {
@@ -247,7 +259,9 @@ TEST(test_bit_extract_simple) {
        Result: 100 (binary) → 0b10000000 = 0x80 */
 
     assert(bb.num_bits == 3);
-    assert(bb.data[0] == 0x80);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0x80);
 }
 
 TEST(test_bit_extract_no_mask) {
@@ -287,7 +301,9 @@ TEST(test_bit_extract_all_mask) {
        Input: 10101011 (bits 0-7)
        Extract order: bit[7,6,5,4,3,2,1,0] = 1,1,0,1,0,1,0,1
        Output: 11010101 = 0xD5 (bit-reversed) */
-    assert(bb.data[0] == 0xD5);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xD5);
 }
 
 TEST(test_bit_extract_length_mismatch) {

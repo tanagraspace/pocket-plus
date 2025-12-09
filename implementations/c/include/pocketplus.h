@@ -259,10 +259,13 @@ int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes);
  * @brief Variable-length bit buffer structure.
  *
  * Accumulates bits during compression, then converts to bytes.
+ * Uses a 32-bit accumulator for efficient bit packing.
  */
 struct bitbuffer {
     uint8_t data[POCKET_MAX_OUTPUT_BYTES]; /**< Byte storage */
     size_t num_bits;                       /**< Number of bits written */
+    uint32_t acc;                          /**< Bit accumulator (up to 32 bits) */
+    size_t acc_len;                        /**< Number of bits in accumulator */
 };
 
 /**
@@ -293,6 +296,19 @@ int bitbuffer_append_bit(bitbuffer_t *bb, int bit);
  * @return POCKET_OK on success, POCKET_ERROR_OVERFLOW if full
  */
 int bitbuffer_append_bits(bitbuffer_t *bb, const uint8_t *data, size_t num_bits);
+
+/**
+ * @brief Append multiple bits from a value directly to accumulator.
+ *
+ * Efficiently appends up to 24 bits from a uint32_t value MSB-first.
+ * The top 'num_bits' bits of the value (shifted left) are appended.
+ *
+ * @param[out] bb       Bit buffer
+ * @param[in]  value    Value containing bits to append (left-justified)
+ * @param[in]  num_bits Number of bits to append (1-24)
+ * @return POCKET_OK on success, POCKET_ERROR_OVERFLOW if full
+ */
+int bitbuffer_append_value(bitbuffer_t *bb, uint32_t value, size_t num_bits);
 
 /**
  * @brief Append all bits from a bit vector.
@@ -510,6 +526,16 @@ struct pocket_compressor {
     int pt_counter; /**< Countdown to next ṗₜ=1 */
     int ft_counter; /**< Countdown to next ḟₜ=1 */
     int rt_counter; /**< Countdown to next ṙₜ=1 */
+    /** @} */
+
+    /** @name Pre-allocated work buffers (avoid per-packet init) */
+    /** @{ */
+    bitvector_t work_prev_build;   /**< Temporary for prev_build */
+    bitvector_t work_change;       /**< Temporary for change vector */
+    bitvector_t work_Xt;           /**< Temporary for robustness window */
+    bitvector_t work_inverted;     /**< Temporary for inverted mask */
+    bitvector_t work_shifted;      /**< Temporary for shifted mask */
+    bitvector_t work_diff;         /**< Temporary for mask diff */
     /** @} */
 };
 

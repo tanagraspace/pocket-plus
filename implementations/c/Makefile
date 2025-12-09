@@ -1,8 +1,11 @@
 # POCKET+ C Implementation Makefile
 
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -Iinclude -pedantic -Werror
-LDFLAGS = -lm
+CFLAGS_BASE = -Wall -Wextra -std=c99 -Iinclude -pedantic -Werror -O3 -flto
+CFLAGS ?= $(CFLAGS_BASE)
+LDFLAGS = -flto
+
+# For maximum performance on local machine, use: make CFLAGS="$(CFLAGS_BASE) -march=native"
 
 # Coverage flags
 COV_CFLAGS = $(CFLAGS) --coverage -fprofile-arcs -ftest-coverage
@@ -19,8 +22,8 @@ SRCS = $(filter-out $(SRC_DIR)/cli.c, $(wildcard $(SRC_DIR)/*.c))
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 COV_OBJS = $(SRCS:$(SRC_DIR)/%.c=$(COV_DIR)/%.o)
 
-# Test files
-TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
+# Test files (exclude benchmarks from regular tests)
+TEST_SRCS = $(filter-out $(TEST_DIR)/test_bench.c, $(wildcard $(TEST_DIR)/*.c))
 TEST_BINS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(BUILD_DIR)/%)
 COV_TEST_BINS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(COV_DIR)/%)
 
@@ -33,7 +36,7 @@ COV_LIB = $(COV_DIR)/libpocketplus.a
 MISRA_SRCS = $(SRC_DIR)/bitvector.c $(SRC_DIR)/bitbuffer.c $(SRC_DIR)/compress.c \
              $(SRC_DIR)/decompress.c $(SRC_DIR)/encode.c $(SRC_DIR)/mask.c
 
-.PHONY: all clean test test-cli cli coverage coverage-html docs misra valgrind
+.PHONY: all clean test test-cli cli coverage coverage-html docs misra valgrind bench
 
 all: $(LIB) $(CLI)
 
@@ -68,6 +71,9 @@ test: $(TEST_BINS)
 
 test-cli: $(CLI)
 	@$(TEST_DIR)/test_cli.sh
+
+bench: $(BUILD_DIR)/test_bench
+	@$(BUILD_DIR)/test_bench
 
 $(BUILD_DIR)/%: $(TEST_DIR)/%.c $(LIB) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -L$(BUILD_DIR) -lpocketplus $(LDFLAGS) -o $@
@@ -155,7 +161,9 @@ misra:
 	@mkdir -p $(BUILD_DIR)
 	@echo "Running MISRA-C:2012 compliance check..."
 	@cppcheck --addon=misra --suppressions-list=misra.supp \
-		--enable=all -I$(INCLUDE_DIR) $(MISRA_SRCS) 2>&1 | tee $(BUILD_DIR)/misra-report.txt
+		--enable=all -I$(INCLUDE_DIR) \
+		--output-file=$(BUILD_DIR)/misra-report.txt \
+		$(MISRA_SRCS) 2>&1
 	@echo ""
 	@echo "Report saved to $(BUILD_DIR)/misra-report.txt"
 	@if grep -v "Unmatched suppression" $(BUILD_DIR)/misra-report.txt | grep -q "misra-c2012"; then \
