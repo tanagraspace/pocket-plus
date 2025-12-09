@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tanagra Space</title>
+  <meta name="description" content="POCKET+ is a lossless compression algorithm for satellite housekeeping telemetry data, standardized as CCSDS 124.0-B-1. Flight-proven on ESA's OPS-SAT-1 spacecraft.">
+  <meta name="keywords" content="POCKET+, CCSDS 124.0-B-1, satellite telemetry, lossless compression, housekeeping data, spacecraft, ESA, OPS-SAT, space software">
+  <meta name="author" content="Tanagra Space">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://tanagraspace.com/pocket-plus/">
+  <meta property="og:title" content="POCKET+ — Lossless Compression for Satellite Telemetry">
+  <meta property="og:description" content="The definitive implementation of the CCSDS 124.0-B-1 POCKET+ lossless compression algorithm for fixed-length spacecraft housekeeping data.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://tanagraspace.com/pocket-plus/">
+  <meta property="og:site_name" content="Tanagra Space">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="POCKET+ — Lossless Compression for Satellite Telemetry">
+  <meta name="twitter:description" content="The definitive implementation of the CCSDS 124.0-B-1 POCKET+ lossless compression algorithm for fixed-length spacecraft housekeeping data.">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", Arial, sans-serif; line-height: 1.5; background-color: #e8d5b7; color: #000; }
+    .hero { position: relative; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://tanagraspace.com/assets/img/splash.jpg'); background-size: cover; background-position: center; min-height: 280px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 2rem; }
+    .hero h1 { color: #fff; font-size: 2.5rem; font-weight: 700; margin-bottom: 0.25rem; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 2px 2px 4px rgba(0,0,0,0.5); }
+    .hero h1 span { font-weight: 400; font-style: italic; font-size: 0.5em; opacity: 0.9; }
+    .hero p { color: #fff; font-size: 1.2rem; max-width: 600px; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 2px 2px 4px rgba(0,0,0,0.5); }
+    .content { max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h2 { color: #000; margin-top: 2rem; border-bottom: 2px solid #fc3a52; padding-bottom: 0.5rem; }
+    .impl { background: #ddd0ba; padding: 1rem; border-radius: 4px; margin: 1rem 0; border: 1px solid #baaa92; }
+    .impl h3 { margin-top: 0; }
+    a { color: #e3344a; text-decoration: none; }
+    a:hover { color: #ea6777; }
+    a:visited { color: #aa2738; }
+    ul { padding-left: 1.5rem; }
+    li { margin-bottom: 0.5em; }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <h1>POCKET+</h1>
+    <p>Lossless compression for satellite housekeeping telemetry data.</p>
+  </header>
+  <div class="content">
+    <p>The definitive implementation of the <a href="https://ccsds.org/Pubs/124x0b1.pdf">CCSDS 124.0-B-1</a> POCKET+ lossless compression algorithm of fixed-length housekeeping data.</p>
+    <br>
+    <p>POCKET+ is patented by the <a href="https://www.esa.int/">European Space Agency (ESA)</a>, standardized by the <a href="https://ccsds.org/">Consultative Committee for Space Data Systems (CCSDS)</a>, and implemented by <a href="https://tanagraspace.com/">Tanagra Space</a>.</p>
+
+    <h2>Citation</h2>
+    <p>If POCKET+ contributes to your research, please cite:</p>
+    <blockquote style="font-size: 0.9em; border-left: 3px solid #baaa92; padding-left: 1em; margin: 1em 0;">
+      D. Evans, G. Labrèche, D. Marszk, S. Bammens, M. Hernandez-Cabronero, V. Zelenevskiy, V. Shiradhonkar, M. Starcik, and M. Henkel. 2022. "Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1," <em>Proceedings of the Small Satellite Conference</em>, Communications, SSC22-XII-03. <a href="https://digitalcommons.usu.edu/smallsat/2022/all2022/133/">https://digitalcommons.usu.edu/smallsat/2022/all2022/133/</a>
+    </blockquote>
+    <details style="margin: 1em 0;">
+      <summary style="cursor: pointer; color: #e3344a;">BibTeX</summary>
+      <pre style="background: #ddd0ba; padding: 1em; border-radius: 4px; overflow-x: auto; font-size: 0.85em; margin-top: 0.5em;">@inproceedings{evans2022pocketplus,
+  author    = {Evans, David and Labreche, Georges and Marszk, Dominik and Bammens, Samuel and Hernandez-Cabronero, Miguel and Zelenevskiy, Vladimir and Shiradhonkar, Vasundhara and Starcik, Mario and Henkel, Maximilian},
+  title     = {Implementing the New CCSDS Housekeeping Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1},
+  booktitle = {Proceedings of the Small Satellite Conference},
+  year      = {2022},
+  note      = {SSC22-XII-03},
+  url       = {https://digitalcommons.usu.edu/smallsat/2022/all2022/133/}
+}</pre>
+    </details>
+
+    <h2>Resources</h2>
+    <ul>
+      <li><a href="https://github.com/tanagraspace/pocket-plus">GitHub Repository</a></li>
+      <li><a href="https://ccsds.org/Pubs/124x0b1.pdf">CCSDS 124.0-B-1 Specification</a></li>
+    </ul>
+
+    <h2>Implementations</h2>
+
+    <div class="impl">
+      <h3>C</h3>
+      <ul>
+        <li><a href="https://github.com/tanagraspace/pocket-plus/tree/main/implementations/c">Source Code</a></li>
+        <li><a href="c/api/">API Documentation</a></li>
+        <li><a href="c/coverage/">Coverage Report</a></li>
+        <li><a href="c/tests/report.html">Test Report</a></li>
+      </ul>
+    </div>
+
+    <div class="impl">
+      <h3>Python</h3>
+      <ul>
+        <li><a href="https://github.com/tanagraspace/pocket-plus/tree/main/implementations/python">Source Code</a></li>
+        <li><a href="python/api/">API Documentation</a></li>
+        <li><a href="python/coverage/">Coverage Report</a></li>
+        <li><a href="python/tests/report.html">Test Report</a></li>
+      </ul>
+    </div>
+
+    <div class="impl">
+      <h3>Go</h3>
+      <ul>
+        <li><a href="https://github.com/tanagraspace/pocket-plus/tree/main/implementations/go">Source Code</a></li>
+        <li><a href="go/api/">API Documentation</a></li>
+        <li><a href="go/coverage/">Coverage Report</a></li>
+        <li><a href="go/tests/report.html">Test Report</a></li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
