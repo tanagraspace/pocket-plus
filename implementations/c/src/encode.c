@@ -252,7 +252,10 @@ int pocket_bit_extract(bitbuffer_t *output, const bitvector_t *data, const bitve
                     int global_pos = (word * 32) + bit_pos_in_word;
                     if ((size_t)global_pos < data->length) {
                         /* Extract and output data bit directly */
-                        int bit = ((data_word & lsb) != 0U) ? 1 : 0;
+                        int bit = 0;
+                        if ((data_word & lsb) != 0U) {
+                            bit = 1;
+                        }
                         result = bitbuffer_append_bit(output, bit);
                     }
 
@@ -294,7 +297,10 @@ int pocket_bit_extract_forward(bitbuffer_t *output, const bitvector_t *data, con
                     if (global_pos < data->length) {
                         /* Extract data bit at this position */
                         uint32_t bit_mask = 1U << (31U - (uint32_t)clz);
-                        int bit = ((data_word & bit_mask) != 0U) ? 1 : 0;
+                        int bit = 0;
+                        if ((data_word & bit_mask) != 0U) {
+                            bit = 1;
+                        }
                         result = bitbuffer_append_bit(output, bit);
                     }
 

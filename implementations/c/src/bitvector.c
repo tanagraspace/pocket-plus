@@ -103,8 +103,9 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
         size_t bit_in_word = 31U - (pos & 31U);
 
         uint32_t shifted = bv->data[word_index] >> bit_in_word;
-        uint32_t masked = shifted & 1U;
-        result = (masked != 0U) ? 1 : 0;
+        if ((shifted & 1U) != 0U) {
+            result = 1;
+        }
     }
 
     return result;
