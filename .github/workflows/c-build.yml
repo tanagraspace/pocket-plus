@@ -2,7 +2,7 @@ name: C Build & Test
 
 on:
   push:
-    branches: [main, 28-ci-auto-update-coverage-badges-for-c-and-python-implementations]
+    branches: [main]
     paths:
       - 'implementations/c/**'
       - '.github/workflows/c-build.yml'
@@ -166,7 +166,7 @@ jobs:
           retention-days: 7
 
       - name: Update coverage badges
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/28-ci-auto-update-coverage-badges-for-c-and-python-implementations')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: implementations/c
         run: |
           # Extract line and function coverage from lcov
@@ -220,7 +220,7 @@ jobs:
           SVGEOF
 
       - name: Commit coverage badges
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/28-ci-auto-update-coverage-badges-for-c-and-python-implementations')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: implementations/c
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
