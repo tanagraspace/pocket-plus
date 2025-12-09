@@ -445,5 +445,3 @@ func TestBitVectorHammingWeightNonByteAligned(t *testing.T) {
 		t.Errorf("HammingWeight of 12 set bits should be 12, got %d", hw)
 	}
 }
-
-

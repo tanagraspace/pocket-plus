@@ -303,7 +303,6 @@ func TestBitBufferAppendValueZeroBits(t *testing.T) {
 	}
 }
 
-
 func TestBitBufferFlushAccumulator(t *testing.T) {
 	bb := NewBitBuffer()
 

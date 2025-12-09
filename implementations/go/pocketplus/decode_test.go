@@ -363,7 +363,7 @@ func TestBitInsertForwardErrors(t *testing.T) {
 	// Not enough bits to read
 	data2, _ := NewBitVector(8)
 	mask2, _ := NewBitVector(8)
-	mask2.FromBytes([]byte{0xFF}) // All ones - needs 8 bits
+	mask2.FromBytes([]byte{0xFF})     // All ones - needs 8 bits
 	br2 := NewBitReader([]byte{0x0F}) // Only provides partial data
 	br2.ReadBits(5)                   // Consume some bits
 	err = BitInsertForward(br2, data2, mask2)
