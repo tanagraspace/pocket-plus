@@ -1,0 +1,217 @@
+name: Rust Build & Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'implementations/rust/**'
+      - '.github/workflows/rust-build.yml'
+  pull_request:
+    paths:
+      - 'implementations/rust/**'
+      - '.github/workflows/rust-build.yml'
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: implementations/rust
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        rust: [stable, beta, nightly]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run clippy (pedantic)
+        run: cargo clippy -- -D warnings -W clippy::pedantic
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Run tests
+        run: |
+          echo "## Unit Test Results (${{ matrix.os }} - ${{ matrix.rust }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cargo test --release 2>&1 | tee test-output.txt
+          cat test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.rust }}
+          path: implementations/rust/test-output.txt
+          retention-days: 7
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+
+      - name: Run cargo audit
+        run: |
+          echo "## Security Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cargo audit 2>&1 | tee audit-output.txt || true
+          cat audit-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cargo audit
+
+      - name: Run cargo deny
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Dependency Policy Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cargo deny check 2>&1 | tee deny-output.txt || true
+          cat deny-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cargo deny check
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run tests with coverage
+        run: |
+          mkdir -p build/coverage
+          cargo tarpaulin --out Html --output-dir build/coverage 2>&1 | tee coverage-output.txt
+
+      - name: Parse coverage summary
+        run: |
+          echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Extract coverage percentage
+          COVERAGE=$(grep -oP '\d+\.\d+% coverage' coverage-output.txt | head -1 | grep -oP '\d+\.\d+')
+          if [ -z "$COVERAGE" ]; then
+            COVERAGE="0"
+          fi
+
+          echo "**Overall Coverage: ${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: implementations/rust/build/coverage
+          retention-days: 7
+
+      - name: Update coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Extract coverage percentage
+          COVERAGE=$(grep -oP '\d+\.\d+% coverage' coverage-output.txt | head -1 | grep -oP '\d+\.\d+')
+          if [ -z "$COVERAGE" ]; then
+            COVERAGE="0"
+          fi
+          # Round to integer
+          COVERAGE_INT=$(printf "%.0f" "$COVERAGE")
+          echo "Coverage: ${COVERAGE_INT}%"
+
+          # Determine badge color based on coverage
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+            COLOR="#97ca00"
+          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            COLOR="#a4a61d"
+          elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+            COLOR="#dfb317"
+          else
+            COLOR="#e05d44"
+          fi
+
+          # Generate coverage badge
+          cat > assets/coverage.svg << SVGEOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="106" height="20">
+          <linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+          <mask id="a"><rect width="106" height="20" rx="3" fill="#fff"/></mask>
+          <g mask="url(#a)"><path fill="#555" d="M0 0h61v20H0z"/><path fill="${COLOR}" d="M61 0h45v20H61z"/><path fill="url(#b)" d="M0 0h106v20H0z"/></g>
+          <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+          <text x="30.5" y="15" fill="#010101" fill-opacity=".3">coverage</text>
+          <text x="30.5" y="14">coverage</text>
+          <text x="83" y="15" fill="#010101" fill-opacity=".3">${COVERAGE_INT}%</text>
+          <text x="83" y="14">${COVERAGE_INT}%</text></g></svg>
+          SVGEOF
+
+      - name: Commit coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add assets/coverage.svg
+          git diff --staged --quiet || git commit -m "chore(rust): update coverage badge [skip ci]"
+          git push
+
+  docs:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate documentation
+        run: |
+          mkdir -p build/docs
+          cargo doc --no-deps --document-private-items
+
+      - name: Copy docs to build directory
+        run: cp -r target/doc build/docs/api
+
+      - name: Add docs summary
+        run: |
+          echo "## API Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Rust documentation generated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the **docs-api** artifact to view the HTML documentation." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-api
+          path: implementations/rust/build/docs/api
+          retention-days: 7
