@@ -22,8 +22,8 @@ SRCS = $(filter-out $(SRC_DIR)/cli.c, $(wildcard $(SRC_DIR)/*.c))
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 COV_OBJS = $(SRCS:$(SRC_DIR)/%.c=$(COV_DIR)/%.o)
 
-# Test files
-TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
+# Test files (exclude benchmarks from regular tests)
+TEST_SRCS = $(filter-out $(TEST_DIR)/test_bench.c, $(wildcard $(TEST_DIR)/*.c))
 TEST_BINS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(BUILD_DIR)/%)
 COV_TEST_BINS = $(TEST_SRCS:$(TEST_DIR)/%.c=$(COV_DIR)/%)
 
@@ -36,7 +36,7 @@ COV_LIB = $(COV_DIR)/libpocketplus.a
 MISRA_SRCS = $(SRC_DIR)/bitvector.c $(SRC_DIR)/bitbuffer.c $(SRC_DIR)/compress.c \
              $(SRC_DIR)/decompress.c $(SRC_DIR)/encode.c $(SRC_DIR)/mask.c
 
-.PHONY: all clean test test-cli cli coverage coverage-html docs misra valgrind
+.PHONY: all clean test test-cli cli coverage coverage-html docs misra valgrind bench
 
 all: $(LIB) $(CLI)
 
@@ -71,6 +71,9 @@ test: $(TEST_BINS)
 
 test-cli: $(CLI)
 	@$(TEST_DIR)/test_cli.sh
+
+bench: $(BUILD_DIR)/test_bench
+	@$(BUILD_DIR)/test_bench
 
 $(BUILD_DIR)/%: $(TEST_DIR)/%.c $(LIB) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $< -L$(BUILD_DIR) -lpocketplus $(LDFLAGS) -o $@
