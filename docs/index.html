@@ -36,11 +36,37 @@
     a:visited { color: #aa2738; }
     ul { padding-left: 1.5rem; }
     li { margin-bottom: 0.5em; }
+
+    /* Satellite animation */
+    .sat-animation { display: flex; align-items: center; justify-content: center; gap: 0; margin: 0.5rem 0 1.5rem 0; font-size: 2rem; transform: rotate(15deg); }
+    .sat-animation .satellite { display: inline-block; animation: float-sat 3s ease-in-out infinite; }
+    .sat-animation .antenna { display: inline-block; font-size: 1.8rem; animation: float-antenna 3s ease-in-out infinite; }
+    .sat-animation .signal { display: flex; align-items: center; width: 120px; justify-content: space-around; overflow: hidden; transform-origin: right center; transform: rotate(4deg) translateY(5px); }
+    .sat-animation .dash { color: #fff; font-weight: bold; opacity: 0; animation: transmit 1.5s linear infinite; text-shadow: 0 0 8px rgba(255,255,255,0.8); }
+    .sat-animation .dash:nth-child(1) { animation-delay: 0s; }
+    .sat-animation .dash:nth-child(2) { animation-delay: 0.3s; }
+    .sat-animation .dash:nth-child(3) { animation-delay: 0.6s; }
+    .sat-animation .dash:nth-child(4) { animation-delay: 0.9s; }
+    .sat-animation .dash:nth-child(5) { animation-delay: 1.2s; }
+    @keyframes float-sat { 0%, 100% { transform: rotate(225deg) translateX(5px) translateY(2px); } 50% { transform: rotate(225deg) translateX(5px) translateY(-4px); } }
+    @keyframes float-antenna { 0%, 100% { transform: scaleX(-1) rotate(40deg) translateY(18px); } 50% { transform: scaleX(-1) rotate(40deg) translateY(12px); } }
+    @keyframes transmit { 0% { opacity: 0; transform: translateX(-10px); } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(10px); } }
   </style>
 </head>
 <body>
   <header class="hero">
     <h1>POCKET+</h1>
+    <div class="sat-animation">
+      <span class="satellite">🛰️</span>
+      <span class="signal">
+        <span class="dash">—</span>
+        <span class="dash">—</span>
+        <span class="dash">—</span>
+        <span class="dash">—</span>
+        <span class="dash">—</span>
+      </span>
+      <span class="antenna">📡</span>
+    </div>
     <p>Lossless compression for satellite housekeeping telemetry data.</p>
   </header>
   <div class="content">
