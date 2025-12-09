@@ -97,7 +97,9 @@ TEST(test_bitbuffer_append_bit) {
     bitbuffer_append_bit(&bb, 1);  /* bit 0 (LSB) = 1 */
 
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0xCD);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xCD);
 }
 
 TEST(test_bitbuffer_append_bits) {
@@ -110,8 +112,10 @@ TEST(test_bitbuffer_append_bits) {
 
     assert(result == POCKET_OK);
     assert(bb.num_bits == 16);
-    assert(bb.data[0] == 0xAB);
-    assert(bb.data[1] == 0xCD);
+    uint8_t output[2];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xAB);
+    assert(output[1] == 0xCD);
 }
 
 TEST(test_bitbuffer_append_bits_partial_byte) {
@@ -126,7 +130,9 @@ TEST(test_bitbuffer_append_bits_partial_byte) {
     assert(result == POCKET_OK);
     assert(bb.num_bits == 5);
     /* Top 5 bits (bits 7:3) of 0x17 = 0b00010, shifted to top of byte = 0b00010000 = 0x10 */
-    assert(bb.data[0] == 0x10);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0x10);
 }
 
 TEST(test_bitbuffer_append_bitvector) {
@@ -144,7 +150,9 @@ TEST(test_bitbuffer_append_bitvector) {
 
     assert(result == POCKET_OK);
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0xAB);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0xAB);
 }
 
 TEST(test_bitbuffer_append_multiple) {
@@ -163,7 +171,9 @@ TEST(test_bitbuffer_append_multiple) {
 
     /* Result: 0b01010011 = 0x53 */
     assert(bb.num_bits == 8);
-    assert(bb.data[0] == 0x53);
+    uint8_t output[1];
+    bitbuffer_to_bytes(&bb, output, sizeof(output));
+    assert(output[0] == 0x53);
 }
 
 /* ========================================================================

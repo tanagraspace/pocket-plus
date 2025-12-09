@@ -259,10 +259,13 @@ int bitvector_to_bytes(const bitvector_t *bv, uint8_t *data, size_t num_bytes);
  * @brief Variable-length bit buffer structure.
  *
  * Accumulates bits during compression, then converts to bytes.
+ * Uses a 32-bit accumulator for efficient bit packing.
  */
 struct bitbuffer {
     uint8_t data[POCKET_MAX_OUTPUT_BYTES]; /**< Byte storage */
     size_t num_bits;                       /**< Number of bits written */
+    uint32_t acc;                          /**< Bit accumulator (up to 32 bits) */
+    size_t acc_len;                        /**< Number of bits in accumulator */
 };
 
 /**
