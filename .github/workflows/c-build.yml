@@ -1,10 +1,18 @@
 name: C Build & Test
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'implementations/c/**'
+      - '.github/workflows/c-build.yml'
   pull_request:
     paths:
       - 'implementations/c/**'
       - '.github/workflows/c-build.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build-and-test:
@@ -156,6 +164,70 @@ jobs:
           name: coverage-report
           path: implementations/c/build/coverage/html
           retention-days: 7
+
+      - name: Update coverage badges
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: implementations/c
+        run: |
+          # Extract line and function coverage from lcov
+          LINES=$(lcov --summary build/coverage/coverage.info 2>&1 | grep "lines" | sed 's/.*: //' | sed 's/%.*//')
+          FUNCS=$(lcov --summary build/coverage/coverage.info 2>&1 | grep "functions" | sed 's/.*: //' | sed 's/%.*//')
+
+          echo "Line coverage: ${LINES}%"
+          echo "Function coverage: ${FUNCS}%"
+
+          # Determine badge color based on coverage
+          get_color() {
+            local cov=$1
+            if (( $(echo "$cov >= 90" | bc -l) )); then
+              echo "#97ca00"
+            elif (( $(echo "$cov >= 80" | bc -l) )); then
+              echo "#a4a61d"
+            elif (( $(echo "$cov >= 70" | bc -l) )); then
+              echo "#dfb317"
+            else
+              echo "#e05d44"
+            fi
+          }
+
+          LINES_COLOR=$(get_color $LINES)
+          FUNCS_COLOR=$(get_color $FUNCS)
+
+          # Generate line coverage badge
+          cat > assets/coverage-lines.svg << SVGEOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="90" height="20">
+          <linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+          <mask id="a"><rect width="90" height="20" rx="3" fill="#fff"/></mask>
+          <g mask="url(#a)"><path fill="#555" d="M0 0h45v20H0z"/><path fill="${LINES_COLOR}" d="M45 0h45v20H45z"/><path fill="url(#b)" d="M0 0h90v20H0z"/></g>
+          <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+          <text x="22.5" y="15" fill="#010101" fill-opacity=".3">lines</text>
+          <text x="22.5" y="14">lines</text>
+          <text x="67" y="15" fill="#010101" fill-opacity=".3">${LINES}%</text>
+          <text x="67" y="14">${LINES}%</text></g></svg>
+          SVGEOF
+
+          # Generate function coverage badge
+          cat > assets/coverage-functions.svg << SVGEOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="106" height="20">
+          <linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+          <mask id="a"><rect width="106" height="20" rx="3" fill="#fff"/></mask>
+          <g mask="url(#a)"><path fill="#555" d="M0 0h61v20H0z"/><path fill="${FUNCS_COLOR}" d="M61 0h45v20H61z"/><path fill="url(#b)" d="M0 0h106v20H0z"/></g>
+          <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+          <text x="30.5" y="15" fill="#010101" fill-opacity=".3">functions</text>
+          <text x="30.5" y="14">functions</text>
+          <text x="83" y="15" fill="#010101" fill-opacity=".3">${FUNCS}%</text>
+          <text x="83" y="14">${FUNCS}%</text></g></svg>
+          SVGEOF
+
+      - name: Commit coverage badges
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: implementations/c
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add assets/coverage-lines.svg assets/coverage-functions.svg
+          git diff --staged --quiet || git commit -m "chore(c): update coverage badges [skip ci]"
+          git push
 
   docs:
     runs-on: ubuntu-latest
