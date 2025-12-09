@@ -1,0 +1,27 @@
+[package]
+name = "pocketplus"
+version = "1.0.0"
+edition = "2021"
+authors = ["Tanagra Space"]
+description = "CCSDS 124.0-B-1 POCKET+ lossless compression algorithm"
+license = "MIT"
+repository = "https://github.com/tanagraspace/pocket-plus"
+keywords = ["compression", "ccsds", "space", "housekeeping", "pocket-plus"]
+categories = ["compression", "aerospace"]
+rust-version = "1.70"
+
+[dependencies]
+# No dependencies - standard library only
+
+[[bin]]
+name = "pocketplus"
+path = "src/bin/pocketplus.rs"
+
+[[bin]]
+name = "bench"
+path = "src/bin/bench.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

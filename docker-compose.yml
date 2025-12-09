@@ -26,3 +26,15 @@ services:
       dockerfile: implementations/python/Dockerfile
     volumes:
       - ./test-vectors:/app/test-vectors:ro
+
+  rust:
+    build:
+      context: .
+      dockerfile: implementations/rust/Dockerfile
+    volumes:
+      - type: bind
+        source: ./implementations/rust/build
+        target: /app/implementations/rust/build
+        bind:
+          create_host_path: true
+      - ./test-vectors:/app/test-vectors:ro

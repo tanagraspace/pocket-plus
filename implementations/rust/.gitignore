@@ -1,0 +1,13 @@
+# Rust build artifacts
+/target/
+
+# Cargo lock is committed for binaries, excluded for libraries
+# Since this is both, we commit it for reproducible CLI builds
+
+# Coverage artifacts
+/build/
+
+# Generated test output
+*.gcov
+test-output.txt
+coverage-output.txt
