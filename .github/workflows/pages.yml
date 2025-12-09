@@ -225,8 +225,51 @@ jobs:
           name: go-docs
           path: _site/go
 
+  build-rust-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Run tests and generate report
+        working-directory: implementations/rust
+        run: |
+          mkdir -p build/docs/tests
+          cargo test --release 2>&1 | tee build/test-output.txt
+          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
+
+      - name: Generate coverage HTML
+        working-directory: implementations/rust
+        run: |
+          mkdir -p build/docs/coverage
+          cargo tarpaulin --out Html --output-dir build/docs/coverage
+
+      - name: Generate API docs
+        working-directory: implementations/rust
+        run: |
+          cargo doc --no-deps --document-private-items
+          cp -r target/doc build/docs/api
+
+      - name: Prepare Rust artifacts
+        run: |
+          mkdir -p _site/rust
+          cp -r implementations/rust/build/docs/api _site/rust/api
+          cp -r implementations/rust/build/docs/coverage _site/rust/coverage
+          cp -r implementations/rust/build/docs/tests _site/rust/tests
+
+      - name: Upload Rust docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-docs
+          path: _site/rust
+
   deploy:
-    needs: [build-c-docs, build-python-docs, build-go-docs]
+    needs: [build-c-docs, build-python-docs, build-go-docs, build-rust-docs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
@@ -252,6 +295,13 @@ jobs:
         with:
           name: go-docs
           path: _site/go
+
+      - name: Download Rust docs
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-docs
+          path: _site/rust
+
 
       - name: Copy landing page
         run: cp docs/index.html _site/index.html

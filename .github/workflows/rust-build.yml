@@ -50,8 +50,20 @@ jobs:
           echo "## Unit Test Results (${{ matrix.os }} - ${{ matrix.rust }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cargo test --release 2>&1 | tee test-output.txt
-          cat test-output.txt >> $GITHUB_STEP_SUMMARY
+          mkdir -p build/docs/tests
+          cargo test --release 2>&1 | tee build/test-output.txt
+          cat build/test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate HTML test report
+        run: ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
+
+      - name: Run CLI round-trip tests
+        run: |
+          echo "## CLI Round-trip Tests (${{ matrix.os }} - ${{ matrix.rust }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ./tests/test_cli.sh 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test artifacts
@@ -59,7 +71,9 @@ jobs:
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.rust }}
-          path: implementations/rust/test-output.txt
+          path: |
+            implementations/rust/build/test-output.txt
+            implementations/rust/build/docs/tests/report.html
           retention-days: 7
 
   security:
@@ -193,25 +207,83 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Generate documentation
+      - name: Run tests and generate HTML report
         run: |
-          mkdir -p build/docs
-          cargo doc --no-deps --document-private-items
+          mkdir -p build/docs/tests
+          cargo test --release 2>&1 | tee build/test-output.txt
+          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
 
-      - name: Copy docs to build directory
-        run: cp -r target/doc build/docs/api
+      - name: Generate API documentation
+        run: |
+          cargo doc --no-deps --document-private-items
+          cp -r target/doc build/docs/api
 
       - name: Add docs summary
         run: |
-          echo "## API Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "## Documentation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Rust documentation generated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "Generated artifacts:" >> $GITHUB_STEP_SUMMARY
+          echo "- **API docs**: \`build/docs/api/\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test report**: \`build/docs/tests/report.html\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download the **docs-api** artifact to view the HTML documentation." >> $GITHUB_STEP_SUMMARY
+          echo "Download the **docs** artifact to view all documentation." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload documentation artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: docs-api
-          path: implementations/rust/build/docs/api
+          name: docs
+          path: implementations/rust/build/docs
+          retention-days: 7
+
+  # Combined artifact with all reports
+  all-reports:
+    runs-on: ubuntu-latest
+    needs: [coverage, docs]
+
+    steps:
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: all-reports/coverage
+
+      - name: Download docs
+        uses: actions/download-artifact@v4
+        with:
+          name: docs
+          path: all-reports/docs
+
+      - name: Create index page
+        run: |
+          cat > all-reports/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>POCKET+ Rust Reports</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; }
+              h1 { color: #f46623; }
+              ul { list-style: none; padding: 0; }
+              li { margin: 1rem 0; }
+              a { color: #0066cc; text-decoration: none; font-size: 1.1rem; }
+              a:hover { text-decoration: underline; }
+            </style>
+          </head>
+          <body>
+            <h1>POCKET+ Rust Reports</h1>
+            <ul>
+              <li><a href="docs/api/pocketplus/index.html">API Documentation</a></li>
+              <li><a href="docs/tests/report.html">Unit Test Report</a></li>
+              <li><a href="coverage/tarpaulin-report.html">Code Coverage Report</a></li>
+            </ul>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload combined reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-reports
+          path: all-reports
           retention-days: 7

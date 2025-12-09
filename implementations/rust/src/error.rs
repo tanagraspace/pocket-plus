@@ -22,6 +22,12 @@ pub enum PocketError {
 
     /// Buffer overflow during compression
     BufferOverflow,
+
+    /// Not enough bits remaining in input (underflow)
+    Underflow,
+
+    /// Invalid length parameter
+    InvalidLength,
 }
 
 impl fmt::Display for PocketError {
@@ -47,6 +53,12 @@ impl fmt::Display for PocketError {
             }
             Self::BufferOverflow => {
                 write!(f, "buffer overflow")
+            }
+            Self::Underflow => {
+                write!(f, "not enough bits remaining in input")
+            }
+            Self::InvalidLength => {
+                write!(f, "invalid length parameter")
             }
         }
     }
@@ -80,5 +92,11 @@ mod tests {
 
         let err = PocketError::BufferOverflow;
         assert!(err.to_string().contains("buffer overflow"));
+
+        let err = PocketError::Underflow;
+        assert!(err.to_string().contains("not enough bits"));
+
+        let err = PocketError::InvalidLength;
+        assert!(err.to_string().contains("invalid length"));
     }
 }
