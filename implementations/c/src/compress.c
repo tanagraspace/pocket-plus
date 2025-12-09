@@ -252,18 +252,20 @@ int pocket_has_positive_updates(
     int result = 0;  /* No positive updates by default */
 
     /* eₜ = 1 if any changed bits (in Xₜ) are predictable (mask bit = 0)
-     * Xₜ is not reversed, so check directly */
+     * This is equivalent to: (Xt AND (NOT mask)) != 0
+     * Use word-level operations for efficiency */
 
-    /* Check each changed bit */
-    for (size_t i = 0U; (i < Xt->length) && (result == 0); i++) {
-        int bit_changed = bitvector_get_bit(Xt, i);
-        int bit_predictable = 0;
-        if (bitvector_get_bit(mask, i) == 0) {
-            bit_predictable = 1;  /* mask=0 means predictable */
+    if ((Xt != NULL) && (mask != NULL)) {
+        size_t num_words = Xt->num_words;
+        if (mask->num_words < num_words) {
+            num_words = mask->num_words;
         }
 
-        if ((bit_changed != 0) && (bit_predictable != 0)) {
-            result = 1;  /* Found a positive update (unpredictable → predictable) */
+        for (size_t i = 0U; (i < num_words) && (result == 0); i++) {
+            /* Check if any bit in Xt is set where mask is clear */
+            if ((Xt->data[i] & ~mask->data[i]) != 0U) {
+                result = 1;
+            }
         }
     }
 

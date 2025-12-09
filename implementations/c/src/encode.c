@@ -25,7 +25,6 @@
  */
 
 #include "pocketplus.h"
-#include <math.h>
 
 /**
  * @name Counter Encoding (COUNT)
@@ -83,10 +82,11 @@ int pocket_count_encode(bitbuffer_t *output, uint32_t A) {
             }
 
             if (result == POCKET_OK) {
-                /* Calculate E = 2⌊log₂(A-2)+1⌋ - 6 */
+                /* Calculate E = 2⌊log₂(A-2)+1⌋ - 6
+                 * floor(log2(value)) = highest set bit = 31 - clz(value) */
                 uint32_t value = A - 2U;
-                double log_val = log2((double)value);
-                int E = (2 * ((int)floor(log_val) + 1)) - 6;
+                int highest_bit = 31 - __builtin_clz(value);
+                int E = (2 * (highest_bit + 1)) - 6;
 
                 /* Append BIT_E(A-2) MSB-first - E bits from bit E-1 down to bit 0 */
                 for (int i = E - 1; (i >= 0) && (result == POCKET_OK); i--) {

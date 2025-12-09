@@ -1,8 +1,11 @@
 # POCKET+ C Implementation Makefile
 
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -Iinclude -pedantic -Werror
-LDFLAGS = -lm
+CFLAGS_BASE = -Wall -Wextra -std=c99 -Iinclude -pedantic -Werror -O3 -flto
+CFLAGS ?= $(CFLAGS_BASE)
+LDFLAGS = -flto
+
+# For maximum performance on local machine, use: make CFLAGS="$(CFLAGS_BASE) -march=native"
 
 # Coverage flags
 COV_CFLAGS = $(CFLAGS) --coverage -fprofile-arcs -ftest-coverage

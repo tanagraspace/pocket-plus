@@ -240,18 +240,22 @@ void bitvector_not(bitvector_t *result, const bitvector_t *a) {
 
 void bitvector_left_shift(bitvector_t *result, const bitvector_t *a) {
     if ((result != NULL) && (a != NULL)) {
-        bitvector_zero(result);
         result->length = a->length;
         result->num_words = a->num_words;
 
-        /* MSB-first: left shift means shift towards MSB (lower indices)
-         * Bit 0 → MSB, Bit N-1 → LSB
-         * Left shift: move all bits one position towards MSB, insert 0 at LSB */
-        for (size_t i = 0U; i < (a->length - 1U); i++) {
-            int bit = bitvector_get_bit(a, i + 1U);
-            bitvector_set_bit(result, i, bit);
+        /* MSB-first with big-endian word packing:
+         * Left shift means shift towards MSB (bit 0).
+         * In big-endian packing, MSB is at high bits of first word.
+         * Word-level: shift each word left by 1, carry high bit from next word. */
+        if (a->num_words > 0U) {
+            /* Process words from first (MSB) to last (LSB) */
+            for (size_t i = 0U; i < (a->num_words - 1U); i++) {
+                /* Shift current word left by 1, bring in MSB from next word */
+                result->data[i] = (a->data[i] << 1U) | (a->data[i + 1U] >> 31U);
+            }
+            /* Last word: shift left, LSB becomes 0 */
+            result->data[a->num_words - 1U] = a->data[a->num_words - 1U] << 1U;
         }
-        bitvector_set_bit(result, a->length - 1U, 0);  /* Clear LSB */
     }
 }
 
@@ -282,15 +286,9 @@ size_t bitvector_hamming_weight(const bitvector_t *bv) {
     size_t count = 0U;
 
     if (bv != NULL) {
-        /* Count '1' bits in each word */
+        /* Count '1' bits in each word using popcount intrinsic */
         for (size_t i = 0U; i < bv->num_words; i++) {
-            uint32_t word = bv->data[i];
-
-            /* Brian Kernighan's algorithm */
-            while (word != 0U) {
-                word &= (word - 1U);
-                count++;
-            }
+            count += (size_t)__builtin_popcount(bv->data[i]);
         }
 
         /* Adjust for any extra bits in last word */
@@ -301,12 +299,7 @@ size_t bitvector_hamming_weight(const bitvector_t *bv) {
             uint32_t last_word = bv->data[bv->num_words - 1U];
             uint32_t mask = ((1U << (uint32_t)extra_bits) - 1U);  /* Mask for the unused LSBs */
             uint32_t extra_word = last_word & mask;
-
-            /* Subtract any '1' bits in the extra portion */
-            while (extra_word != 0U) {
-                extra_word &= (extra_word - 1U);
-                count--;
-            }
+            count -= (size_t)__builtin_popcount(extra_word);
         }
     }
 

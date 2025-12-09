@@ -91,13 +91,14 @@ pocket_decompress(&decomp, compressed, comp_size, output, output_max, &output_si
 
 ## MISRA-C:2012 Compliance
 
-The core library has **zero Required/Mandatory violations**. Remaining violations are all **Advisory** and suppressed with documented rationale in `misra.supp`:
+The core library has **zero Required violations**. One **Mandatory** rule (17.3) is suppressed for performance-critical compiler intrinsics. Remaining violations are all **Advisory**. All suppressions have documented rationale in `misra.supp`:
 
-| Rule | Description | Rationale |
-|------|-------------|-----------|
-| 8.7 | External linkage could be internal | Public API functions require external linkage |
-| 15.5 | Multiple return statements | Early returns for error handling in decompression |
-| 2.5 | Unused macros | Version macros used in CLI, not library |
+| Rule | Level | Description | Rationale |
+|------|-------|-------------|-----------|
+| 17.3 | Mandatory | Implicit function declaration | `__builtin_popcount`/`__builtin_clz` intrinsics for 5x performance improvement. Supported by GCC, Clang, and ARM CC. |
+| 8.7 | Advisory | External linkage could be internal | Public API functions require external linkage |
+| 15.5 | Advisory | Multiple return statements | Early returns for error handling in decompression |
+| 2.5 | Advisory | Unused macros | Version macros used in CLI, not library |
 
 Run MISRA checks locally (requires [cppcheck](https://cppcheck.sourceforge.io/)):
 ```bash
