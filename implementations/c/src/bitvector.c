@@ -96,22 +96,15 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
     int result = 0;
 
     if ((bv != NULL) && (pos < bv->length)) {
-        /* Calculate byte and bit within byte */
-        size_t byte_index = pos / 8U;
-        size_t bit_in_byte = pos % 8U;
-
-        /* Calculate word index and byte position within word */
-        size_t word_index = byte_index / 4U;
-        size_t byte_in_word = byte_index % 4U;
-
-        /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-         * MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
-         * This matches the reference implementation */
-        size_t bit_in_word = ((3U - byte_in_word) * 8U) + (7U - bit_in_byte);
+        /* Direct bit-to-word mapping (optimized):
+         * word_index = pos / 32, bit_in_word = 31 - (pos % 32)
+         * MSB-first: bit 0 is at position 31 in word 0 */
+        size_t word_index = pos >> 5U;
+        size_t bit_in_word = 31U - (pos & 31U);
 
         uint32_t shifted = bv->data[word_index] >> bit_in_word;
         uint32_t masked = shifted & 1U;
-        result = (int)masked;
+        result = (masked != 0U) ? 1 : 0;
     }
 
     return result;
@@ -120,24 +113,15 @@ int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
 
 void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
     if ((bv != NULL) && (pos < bv->length)) {
-        /* Calculate byte and bit within byte */
-        size_t byte_index = pos / 8U;
-        size_t bit_in_byte = pos % 8U;
-
-        /* Calculate word index and byte position within word */
-        size_t word_index = byte_index / 4U;
-        size_t byte_in_word = byte_index % 4U;
-
-        /* Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-         * MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
-         * This matches the reference implementation */
-        size_t bit_in_word = ((3U - byte_in_word) * 8U) + (7U - bit_in_byte);
+        /* Direct bit-to-word mapping (optimized):
+         * word_index = pos / 32, bit_in_word = 31 - (pos % 32)
+         * MSB-first: bit 0 is at position 31 in word 0 */
+        size_t word_index = pos >> 5U;
+        size_t bit_in_word = 31U - (pos & 31U);
 
         if (value != 0) {
-            /* Set bit to 1 */
             bv->data[word_index] |= (1U << bit_in_word);
         } else {
-            /* Clear bit to 0 */
             bv->data[word_index] &= ~(1U << bit_in_word);
         }
     }
