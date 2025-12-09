@@ -8,14 +8,17 @@ services:
       - ./implementations/c/assets:/app/implementations/c/assets
       - ./test-vectors:/app/test-vectors:ro
 
-  # go:
-  #   build:
-  #     context: .
-  #     dockerfile: implementations/go/Dockerfile
-  #   volumes:
-  #     - ./implementations/go/build:/app/implementations/go/build
-  #     - ./implementations/go/assets:/app/implementations/go/assets
-  #     - ./test-vectors:/app/test-vectors:ro
+  go:
+    build:
+      context: .
+      dockerfile: implementations/go/Dockerfile
+    volumes:
+      - type: bind
+        source: ./implementations/go/build
+        target: /app/implementations/go/build
+        bind:
+          create_host_path: true
+      - ./test-vectors:/app/test-vectors:ro
 
   python:
     build:

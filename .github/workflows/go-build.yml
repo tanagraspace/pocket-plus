@@ -1,0 +1,139 @@
+name: Go Build & Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'implementations/go/**'
+      - '.github/workflows/go-build.yml'
+  pull_request:
+    paths:
+      - 'implementations/go/**'
+      - '.github/workflows/go-build.yml'
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: implementations/go
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['1.21', '1.22', '1.23']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Build
+        run: go build ./...
+
+      - name: Format check
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Code is not formatted. Run 'gofmt -w .'"
+            gofmt -l .
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test with race detection
+        run: go test -v -race ./...
+
+      - name: Test with coverage
+        run: |
+          go test -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.22'
+        with:
+          name: coverage-${{ matrix.os }}-go${{ matrix.go-version }}
+          path: implementations/go/coverage.out
+          retention-days: 7
+
+  coverage:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Generate coverage HTML
+        run: |
+          mkdir -p build
+          go test -coverprofile=build/coverage.out ./...
+          go tool cover -html=build/coverage.out -o build/coverage.html
+
+      - name: Parse coverage summary
+        run: |
+          echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          go tool cover -func=build/coverage.out >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: implementations/go/build/coverage.html
+          retention-days: 7
+
+      - name: Update coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Extract coverage percentage
+          COVERAGE=$(go tool cover -func=build/coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Coverage: ${COVERAGE}%"
+
+          # Determine badge color based on coverage
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+            COLOR="#97ca00"  # bright green
+          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            COLOR="#a4a61d"  # yellow-green
+          elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+            COLOR="#dfb317"  # yellow
+          else
+            COLOR="#e05d44"  # red
+          fi
+
+          # Generate SVG badge
+          cat > assets/coverage.svg << SVGEOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="106" height="20">
+          <linearGradient id="b" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+          <mask id="a"><rect width="106" height="20" rx="3" fill="#fff"/></mask>
+          <g mask="url(#a)"><path fill="#555" d="M0 0h61v20H0z"/><path fill="${COLOR}" d="M61 0h45v20H61z"/><path fill="url(#b)" d="M0 0h106v20H0z"/></g>
+          <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+          <text x="30.5" y="15" fill="#010101" fill-opacity=".3">coverage</text>
+          <text x="30.5" y="14">coverage</text>
+          <text x="83" y="15" fill="#010101" fill-opacity=".3">${COVERAGE}%</text>
+          <text x="83" y="14">${COVERAGE}%</text></g></svg>
+          SVGEOF
+
+      - name: Commit coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: implementations/go
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add assets/coverage.svg
+          git diff --staged --quiet || git commit -m "chore(go): update coverage badge [skip ci]"
+          git push

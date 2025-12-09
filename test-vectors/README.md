@@ -37,6 +37,18 @@ cd implementations/c
 make test  # Runs test_vectors against all test vectors
 ```
 
+### Python
+```bash
+cd implementations/python
+pytest tests/test_vectors.py -v
+```
+
+### Go
+```bash
+cd implementations/go
+go test -v ./pocketplus/ -run TestVector
+```
+
 ## Validation
 
 A correct implementation must produce **byte-for-byte identical** output to the expected-output files. Any difference indicates an implementation bug.

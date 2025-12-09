@@ -11,6 +11,7 @@
 go.work
 
 # Build artifacts
+build/
 bin/
 dist/
 
@@ -24,3 +25,6 @@ coverage.html
 .idea/
 *.swp
 *.swo
+
+# macOS
+.DS_Store
