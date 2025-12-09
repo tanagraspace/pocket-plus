@@ -298,6 +298,19 @@ int bitbuffer_append_bit(bitbuffer_t *bb, int bit);
 int bitbuffer_append_bits(bitbuffer_t *bb, const uint8_t *data, size_t num_bits);
 
 /**
+ * @brief Append multiple bits from a value directly to accumulator.
+ *
+ * Efficiently appends up to 24 bits from a uint32_t value MSB-first.
+ * The top 'num_bits' bits of the value (shifted left) are appended.
+ *
+ * @param[out] bb       Bit buffer
+ * @param[in]  value    Value containing bits to append (left-justified)
+ * @param[in]  num_bits Number of bits to append (1-24)
+ * @return POCKET_OK on success, POCKET_ERROR_OVERFLOW if full
+ */
+int bitbuffer_append_value(bitbuffer_t *bb, uint32_t value, size_t num_bits);
+
+/**
  * @brief Append all bits from a bit vector.
  * @param[out] bb Bit buffer
  * @param[in]  bv Bit vector to append
