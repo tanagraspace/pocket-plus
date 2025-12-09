@@ -227,7 +227,6 @@ jobs:
 
   deploy:
     needs: [build-c-docs, build-python-docs, build-go-docs]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
