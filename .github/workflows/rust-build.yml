@@ -254,6 +254,7 @@ jobs:
           path: all-reports/docs
 
       - name: Create index page
+        working-directory: .
         run: |
           cat > all-reports/index.html << 'EOF'
           <!DOCTYPE html>
