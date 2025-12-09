@@ -178,33 +178,31 @@ void pocket_compute_robustness_window(
     /* Xₜ = <(Dₜ₋ᴿₜ OR Dₜ₋ᴿₜ₊₁ OR ... OR Dₜ)>
      * Where <a> means reverse the bit order */
 
-    (void)bitvector_init(Xt, comp->F);
+    /* Use Xt directly as accumulator to avoid stack allocations */
+    Xt->length = comp->F;
+    Xt->num_words = (((comp->F + 7U) / 8U) + 3U) / 4U;
 
     if ((comp->robustness == 0U) || (comp->t == 0U)) {
         /* Xₜ = Dₜ (no reversal - RLE processes LSB to MSB directly) */
         bitvector_copy(Xt, current_change);
     } else {
-        /* OR together changes from t-Rt to t */
-        bitvector_t combined;
-        (void)bitvector_init(&combined, comp->F);
-        bitvector_copy(&combined, current_change);
+        /* Start with current change, accumulate OR directly into Xt */
+        bitvector_copy(Xt, current_change);
 
         /* Determine how many historical changes to include */
         size_t num_changes = (comp->t < (size_t)comp->robustness) ? comp->t : (size_t)comp->robustness;
 
-        /* OR with historical changes (going backwards from current) */
+        /* OR with historical changes (going backwards from current)
+         * Use in-place OR: Xt = Xt OR history[i] */
         for (size_t i = 1U; i <= num_changes; i++) {
-            /* Calculate index of change from i iterations ago */
             size_t hist_idx = ((comp->history_index + (size_t)POCKET_MAX_HISTORY) - i) % (size_t)POCKET_MAX_HISTORY;
+            const bitvector_t *hist = &comp->change_history[hist_idx];
 
-            bitvector_t temp;
-            (void)bitvector_init(&temp, comp->F);
-            bitvector_or(&temp, &combined, &comp->change_history[hist_idx]);
-            bitvector_copy(&combined, &temp);
+            /* In-place OR at word level */
+            for (size_t w = 0U; w < Xt->num_words; w++) {
+                Xt->data[w] |= hist->data[w];
+            }
         }
-
-        /* Don't reverse - RLE will process from LSB to MSB directly */
-        bitvector_copy(Xt, &combined);
     }
 }
 
