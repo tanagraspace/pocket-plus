@@ -2,7 +2,7 @@ package pocketplus
 
 import (
 	"errors"
-	"math"
+	"math/bits"
 )
 
 // CountEncode implements CCSDS 124.0-B-1 Section 5.2.2, Table 5-1, Equation 9.
@@ -38,9 +38,9 @@ func CountEncode(bb *BitBuffer, A int) error {
 		bb.AppendBit(1)
 
 		// Calculate E = 2*floor(log2(A-2)+1) - 6
+		// Using bits.Len for fast integer log2: floor(log2(x)) = bits.Len(x) - 1
 		value := A - 2
-		logVal := math.Log2(float64(value))
-		E := (2 * (int(math.Floor(logVal)) + 1)) - 6
+		E := (2 * bits.Len(uint(value))) - 6
 
 		// Append BIT_E(A-2) MSB-first - E bits
 		for i := E - 1; i >= 0; i-- {
@@ -129,7 +129,7 @@ func RLEEncode(bb *BitBuffer, input *BitVector) error {
 // where g_i is the position of the i-th '1' bit in b (MSB to LSB order)
 //
 // Extracts bits from 'data' at positions where 'mask' has '1' bits.
-// Output order: MSB to LSB (reverse order of finding '1' bits)
+// Output order: highest position to lowest position
 func BitExtract(bb *BitBuffer, data, mask *BitVector) error {
 	if data == nil || mask == nil {
 		return errors.New("BitExtract: data and mask cannot be nil")
@@ -138,26 +138,32 @@ func BitExtract(bb *BitBuffer, data, mask *BitVector) error {
 		return errors.New("BitExtract: data and mask must have same length")
 	}
 
-	hammingWeight := mask.HammingWeight()
-	if hammingWeight == 0 {
-		return nil // No bits to extract
-	}
+	// Process words from last to first (high positions to low)
+	// Within each word: bit 0 = highest position, bit 31 = lowest position
+	for w := mask.numWords - 1; w >= 0; w-- {
+		maskWord := mask.data[w]
+		dataWord := data.data[w]
 
-	// Collect positions of '1' bits in mask
-	positions := make([]int, 0, hammingWeight)
-	for i := 0; i < mask.length; i++ {
-		if mask.GetBit(i) != 0 {
-			positions = append(positions, i)
+		if maskWord == 0 {
+			continue
 		}
-	}
 
-	// Extract bits in reverse order (highest position to lowest)
-	// With MSB-first indexing, higher bit indices are closer to LSB
-	// CCSDS BE(a,b) extracts from highest to lowest position
-	for i := len(positions) - 1; i >= 0; i-- {
-		pos := positions[i]
-		bit := data.GetBit(pos)
-		bb.AppendBit(bit)
+		// Extract bits from low bit index to high (= high position to low position)
+		// Use isolate-LSB technique to process from bit 0 upward
+		for maskWord != 0 {
+			// Isolate lowest set bit: lsb = x & -x
+			lsb := maskWord & uint32(-int32(maskWord))
+
+			// Get bit position using trailing zeros
+			bitPos := bits.TrailingZeros32(lsb)
+
+			// Extract data bit at that position
+			dataBit := int((dataWord >> bitPos) & 1)
+			bb.AppendBit(dataBit)
+
+			// Clear the processed bit
+			maskWord ^= lsb
+		}
 	}
 
 	return nil
@@ -174,16 +180,24 @@ func BitExtractForward(bb *BitBuffer, data, mask *BitVector) error {
 		return errors.New("BitExtractForward: data and mask must have same length")
 	}
 
-	hammingWeight := mask.HammingWeight()
-	if hammingWeight == 0 {
-		return nil // No bits to extract
-	}
+	// Process words from first to last (low positions to high)
+	for w := 0; w < mask.numWords; w++ {
+		maskWord := mask.data[w]
+		dataWord := data.data[w]
 
-	// Extract bits in forward order (lowest position to highest)
-	for i := 0; i < mask.length; i++ {
-		if mask.GetBit(i) != 0 {
-			bit := data.GetBit(i)
-			bb.AppendBit(bit)
+		if maskWord == 0 {
+			continue
+		}
+
+		// Extract bits from high bit index to low (= low position to high position)
+		for maskWord != 0 {
+			// Find highest set bit (corresponds to lowest position in this word's range)
+			highBit := 31 - bits.LeadingZeros32(maskWord)
+
+			dataBit := int((dataWord >> highBit) & 1)
+			bb.AppendBit(dataBit)
+
+			maskWord &= ^(uint32(1) << highBit)
 		}
 	}
 

@@ -1,9 +1,16 @@
-.PHONY: all build test test-race coverage coverage-html fmt fmt-check vet clean
+.PHONY: all build test test-race coverage coverage-html test-report docs fmt fmt-check vet clean cli
+
+BUILD_DIR = build
+DOCS_DIR = $(BUILD_DIR)/docs
 
 all: build
 
 build:
 	go build ./...
+
+cli:
+	mkdir -p $(BUILD_DIR)
+	go build -o $(BUILD_DIR)/pocketplus ./cmd/pocketplus/
 
 test:
 	go test -v ./...
@@ -11,15 +18,29 @@ test:
 test-race:
 	go test -v -race ./...
 
+test-report:
+	@mkdir -p $(DOCS_DIR)/tests
+	@echo "Running tests and generating report..."
+	@go test -v ./pocketplus/ 2>&1 | tee $(BUILD_DIR)/test-output.txt
+	@echo "Generating HTML report..."
+	@./scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/report.html
+
 coverage:
-	mkdir -p build
-	go test -coverprofile=build/coverage.out ./...
-	go tool cover -func=build/coverage.out
+	mkdir -p $(BUILD_DIR)
+	go test -coverprofile=$(BUILD_DIR)/coverage.out ./...
+	go tool cover -func=$(BUILD_DIR)/coverage.out
 
 coverage-html:
-	mkdir -p build
-	go test -coverprofile=build/coverage.out ./...
-	go tool cover -html=build/coverage.out -o build/coverage.html
+	mkdir -p $(DOCS_DIR)/coverage
+	go test -coverprofile=$(BUILD_DIR)/coverage.out ./...
+	go tool cover -html=$(BUILD_DIR)/coverage.out -o $(DOCS_DIR)/coverage/index.html
+
+docs: coverage-html test-report api-docs
+
+api-docs:
+	@mkdir -p $(DOCS_DIR)/api
+	@echo "Generating API documentation..."
+	@./scripts/generate-api-docs.sh $(DOCS_DIR)/api
 
 fmt:
 	gofmt -w .
@@ -31,4 +52,5 @@ vet:
 	go vet ./...
 
 clean:
-	rm -rf build/
+	rm -rf $(BUILD_DIR)/* 2>/dev/null || true
+	rmdir $(BUILD_DIR) 2>/dev/null || true

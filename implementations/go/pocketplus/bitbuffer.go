@@ -11,6 +11,9 @@ package pocketplus
 type BitBuffer struct {
 	data    []byte
 	numBits int
+	// Accumulator for batch bit operations
+	acc    uint64 // accumulate up to 64 bits
+	accLen int    // number of bits in accumulator
 }
 
 // NewBitBuffer creates a new empty bit buffer.
@@ -25,6 +28,8 @@ func NewBitBuffer() *BitBuffer {
 func (bb *BitBuffer) Clear() {
 	bb.data = bb.data[:0]
 	bb.numBits = 0
+	bb.acc = 0
+	bb.accLen = 0
 }
 
 // NumBits returns the number of bits in the buffer.
@@ -32,22 +37,45 @@ func (bb *BitBuffer) NumBits() int {
 	return bb.numBits
 }
 
+// flushAcc writes accumulated bits to the data slice.
+func (bb *BitBuffer) flushAcc() {
+	for bb.accLen >= 8 {
+		// Extract top 8 bits
+		bb.accLen -= 8
+		b := byte(bb.acc >> bb.accLen)
+		bb.data = append(bb.data, b)
+		bb.acc &= (1 << bb.accLen) - 1 // clear extracted bits
+	}
+}
+
 // AppendBit appends a single bit to the buffer.
 func (bb *BitBuffer) AppendBit(bit int) {
-	byteIndex := bb.numBits / 8
-	bitIndex := bb.numBits % 8
-
-	// Extend buffer if needed
-	for byteIndex >= len(bb.data) {
-		bb.data = append(bb.data, 0)
-	}
-
-	// CCSDS uses MSB-first bit ordering: first bit goes to position 7
-	if bit != 0 {
-		bb.data[byteIndex] |= 1 << (7 - bitIndex)
-	}
-
+	bb.acc = (bb.acc << 1) | uint64(bit&1)
+	bb.accLen++
 	bb.numBits++
+
+	// Flush when accumulator has 8+ bits
+	if bb.accLen >= 8 {
+		bb.flushAcc()
+	}
+}
+
+// AppendBitsFromWord appends n bits from a 32-bit word (MSB-first).
+// The bits are taken from the top n bits of the word.
+func (bb *BitBuffer) AppendBitsFromWord(word uint32, n int) {
+	if n <= 0 {
+		return
+	}
+	// Shift word so the n bits are at the top
+	bits := uint64(word >> (32 - n))
+	bb.acc = (bb.acc << n) | bits
+	bb.accLen += n
+	bb.numBits += n
+
+	// Flush complete bytes
+	if bb.accLen >= 8 {
+		bb.flushAcc()
+	}
 }
 
 // AppendBits appends multiple bits from bytes.
@@ -103,9 +131,17 @@ func (bb *BitBuffer) AppendBitVectorN(bv *BitVector, n int) {
 
 // AppendValue appends a value as count bits (MSB-first).
 func (bb *BitBuffer) AppendValue(value uint64, count int) {
-	for i := count - 1; i >= 0; i-- {
-		bit := int((value >> i) & 1)
-		bb.AppendBit(bit)
+	if count <= 0 {
+		return
+	}
+	// Mask to get only the bottom 'count' bits
+	mask := uint64((1 << count) - 1)
+	bb.acc = (bb.acc << count) | (value & mask)
+	bb.accLen += count
+	bb.numBits += count
+
+	if bb.accLen >= 8 {
+		bb.flushAcc()
 	}
 }
 
@@ -115,8 +151,37 @@ func (bb *BitBuffer) ToBytes() []byte {
 		return []byte{}
 	}
 
-	// Calculate number of bytes needed
+	// Flush any remaining bits in accumulator
 	numBytes := (bb.numBits + 7) / 8
+
+	// Make sure we have enough space
+	for len(bb.data) < numBytes {
+		// Pad accumulator and flush
+		if bb.accLen > 0 {
+			// Pad to byte boundary
+			padBits := 8 - (bb.accLen % 8)
+			if padBits < 8 {
+				bb.acc <<= padBits
+				bb.accLen += padBits
+			}
+			bb.flushAcc()
+		} else {
+			bb.data = append(bb.data, 0)
+		}
+	}
+
+	// Handle any remaining bits in accumulator (< 8 bits)
+	if bb.accLen > 0 {
+		// Pad to byte boundary and add
+		padBits := 8 - bb.accLen
+		lastByte := byte(bb.acc << padBits)
+		if len(bb.data) < numBytes {
+			bb.data = append(bb.data, lastByte)
+		} else {
+			bb.data[numBytes-1] = lastByte
+		}
+	}
+
 	result := make([]byte, numBytes)
 	copy(result, bb.data[:numBytes])
 	return result

@@ -1,6 +1,9 @@
 package pocketplus
 
-import "errors"
+import (
+	"errors"
+	"math/bits"
+)
 
 // BitVector is a fixed-length bit vector using 32-bit word storage.
 //
@@ -76,17 +79,11 @@ func (bv *BitVector) GetBit(pos int) int {
 		return 0
 	}
 
-	// Calculate byte and bit within byte
-	byteIndex := pos / 8
-	bitInByte := pos % 8
-
-	// Calculate word index and byte position within word
-	wordIndex := byteIndex / 4
-	byteInWord := byteIndex % 4
-
-	// Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-	// MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
-	bitInWord := ((3 - byteInWord) * 8) + (7 - bitInByte)
+	// Optimized: single division, bit operations for the rest
+	// pos/8 = byte index, pos&7 = bit within byte
+	// byte/4 = word index, byte&3 = byte within word
+	wordIndex := pos >> 5 // pos / 32
+	bitInWord := 31 - (pos & 31)
 
 	return int((bv.data[wordIndex] >> bitInWord) & 1)
 }
@@ -98,17 +95,9 @@ func (bv *BitVector) SetBit(pos int, value int) {
 		return
 	}
 
-	// Calculate byte and bit within byte
-	byteIndex := pos / 8
-	bitInByte := pos % 8
-
-	// Calculate word index and byte position within word
-	wordIndex := byteIndex / 4
-	byteInWord := byteIndex % 4
-
-	// Big-endian: byte 0 is at bits 24-31, byte 1 at 16-23, etc.
-	// MSB-first indexing: bit 0 is the MSB (leftmost) within each byte
-	bitInWord := ((3 - byteInWord) * 8) + (7 - bitInByte)
+	// Optimized: use bit operations instead of multiple divisions
+	wordIndex := pos >> 5 // pos / 32
+	bitInWord := 31 - (pos & 31)
 
 	if value != 0 {
 		// Set bit to 1
@@ -313,15 +302,9 @@ func (bv *BitVector) Reverse() *BitVector {
 func (bv *BitVector) HammingWeight() int {
 	count := 0
 
-	// Count '1' bits in each word
+	// Count '1' bits in each word using hardware POPCNT
 	for i := 0; i < bv.numWords; i++ {
-		word := bv.data[i]
-
-		// Brian Kernighan's algorithm
-		for word != 0 {
-			word &= word - 1
-			count++
-		}
+		count += bits.OnesCount32(bv.data[i])
 	}
 
 	// Adjust for any extra bits in last word
@@ -331,12 +314,7 @@ func (bv *BitVector) HammingWeight() int {
 		// Count bits in the unused portion of the last word and subtract
 		lastWord := bv.data[bv.numWords-1]
 		mask := uint32((1 << extraBits) - 1)
-		extraWord := lastWord & mask
-
-		for extraWord != 0 {
-			extraWord &= extraWord - 1
-			count--
-		}
+		count -= bits.OnesCount32(lastWord & mask)
 	}
 
 	return count

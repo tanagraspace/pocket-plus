@@ -241,3 +241,47 @@ func TestBitReaderRoundTrip(t *testing.T) {
 		t.Error("Round-trip: expected bit 1")
 	}
 }
+
+func TestNewBitReaderWithBitsExceedsData(t *testing.T) {
+	// Request more bits than data contains - should clamp
+	data := []byte{0xFF, 0xAA} // 16 bits
+	br := NewBitReaderWithBits(data, 100)
+
+	// Should clamp to 16 bits
+	if br.Remaining() != 16 {
+		t.Errorf("Expected 16 bits (clamped), got %d", br.Remaining())
+	}
+}
+
+func TestBitReaderReadBitsLarge(t *testing.T) {
+	// Test reading many bits at once
+	data := []byte{0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE}
+	br := NewBitReader(data)
+
+	val, err := br.ReadBits(64)
+	if err != nil {
+		t.Errorf("ReadBits(64) error: %v", err)
+	}
+	if val != 0xDEADBEEFCAFEBABE {
+		t.Errorf("Expected 0xDEADBEEFCAFEBABE, got 0x%016X", val)
+	}
+}
+
+func TestBitReaderPosition(t *testing.T) {
+	data := []byte{0xFF}
+	br := NewBitReader(data)
+
+	if br.Position() != 0 {
+		t.Errorf("Initial position should be 0, got %d", br.Position())
+	}
+
+	br.ReadBit()
+	if br.Position() != 1 {
+		t.Errorf("Position after ReadBit should be 1, got %d", br.Position())
+	}
+
+	br.ReadBits(4)
+	if br.Position() != 5 {
+		t.Errorf("Position after ReadBits(4) should be 5, got %d", br.Position())
+	}
+}

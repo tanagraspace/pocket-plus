@@ -1,6 +1,9 @@
 package pocketplus
 
-import "errors"
+import (
+	"bytes"
+	"errors"
+)
 
 // Decompress decompresses POCKET+ compressed data.
 //
@@ -21,6 +24,26 @@ func Decompress(data []byte, packetSize, robustness int) ([]byte, error) {
 		return nil, errors.New("robustness must be between 1 and 7")
 	}
 
-	// TODO: Implement decompression algorithm
-	return nil, ErrNotImplemented
+	// Convert packet size from bytes to bits
+	F := packetSize * 8
+
+	// Create decompressor
+	decomp, err := NewDecompressor(F, nil, robustness)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decompress stream
+	packets, err := decomp.DecompressStream(data, len(data)*8)
+	if err != nil {
+		return nil, err
+	}
+
+	// Concatenate output
+	var output bytes.Buffer
+	for _, packet := range packets {
+		output.Write(packet)
+	}
+
+	return output.Bytes(), nil
 }

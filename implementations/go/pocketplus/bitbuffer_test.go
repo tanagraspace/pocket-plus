@@ -236,3 +236,123 @@ func TestBitBufferLargeData(t *testing.T) {
 		t.Error("Large data round-trip failed")
 	}
 }
+
+func TestBitBufferAppendBitsFromWord(t *testing.T) {
+	bb := NewBitBuffer()
+
+	// Append a 32-bit word
+	bb.AppendBitsFromWord(0xDEADBEEF, 32)
+
+	if bb.NumBits() != 32 {
+		t.Errorf("Expected 32 bits, got %d", bb.NumBits())
+	}
+
+	result := bb.ToBytes()
+	expected := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+	if !bytes.Equal(result, expected) {
+		t.Errorf("Expected %v, got %v", expected, result)
+	}
+}
+
+func TestBitBufferAppendBitsFromWordPartial(t *testing.T) {
+	bb := NewBitBuffer()
+
+	// Append only 12 bits of a word (0xABC = 101010111100)
+	bb.AppendBitsFromWord(0xABC, 12)
+
+	if bb.NumBits() != 12 {
+		t.Errorf("Expected 12 bits, got %d", bb.NumBits())
+	}
+
+	result := bb.ToBytes()
+	// Just verify we got 12 bits stored in 2 bytes
+	if len(result) != 2 {
+		t.Errorf("Expected 2 bytes, got %d", len(result))
+	}
+}
+
+func TestBitBufferToBytesWithPartialByte(t *testing.T) {
+	bb := NewBitBuffer()
+
+	// Append 5 bits: 10110
+	bb.AppendBit(1)
+	bb.AppendBit(0)
+	bb.AppendBit(1)
+	bb.AppendBit(1)
+	bb.AppendBit(0)
+
+	if bb.NumBits() != 5 {
+		t.Errorf("Expected 5 bits, got %d", bb.NumBits())
+	}
+
+	// 10110 padded = 10110 000 = 0xB0
+	result := bb.ToBytes()
+	if result[0] != 0xB0 {
+		t.Errorf("Expected 0xB0, got 0x%02X", result[0])
+	}
+}
+
+func TestBitBufferAppendValueZeroBits(t *testing.T) {
+	bb := NewBitBuffer()
+
+	// Appending 0 bits should do nothing
+	bb.AppendValue(0xFF, 0)
+
+	if bb.NumBits() != 0 {
+		t.Errorf("Expected 0 bits, got %d", bb.NumBits())
+	}
+}
+
+
+func TestBitBufferFlushAccumulator(t *testing.T) {
+	bb := NewBitBuffer()
+
+	// Add enough bits to trigger multiple flushes
+	for i := 0; i < 20; i++ {
+		bb.AppendBit(i % 2)
+	}
+
+	if bb.NumBits() != 20 {
+		t.Errorf("Expected 20 bits, got %d", bb.NumBits())
+	}
+
+	// Verify ToBytes handles remaining accumulator bits
+	result := bb.ToBytes()
+	if len(result) != 3 { // 20 bits = 2.5 bytes = 3 bytes padded
+		t.Errorf("Expected 3 bytes, got %d", len(result))
+	}
+}
+
+func TestBitBufferAppendBitVectorNExceedsLength(t *testing.T) {
+	bb := NewBitBuffer()
+
+	bv, _ := NewBitVector(8)
+	bv.FromBytes([]byte{0xAB})
+
+	// Request more bits than vector has - should clamp to vector length
+	bb.AppendBitVectorN(bv, 100)
+
+	if bb.NumBits() != 8 {
+		t.Errorf("Expected 8 bits (clamped), got %d", bb.NumBits())
+	}
+}
+
+func TestBitBufferToBytesEmpty(t *testing.T) {
+	bb := NewBitBuffer()
+
+	result := bb.ToBytes()
+	if len(result) != 0 {
+		t.Errorf("Expected empty slice, got %d bytes", len(result))
+	}
+}
+
+func TestBitBufferAppendBitsFromWordZero(t *testing.T) {
+	bb := NewBitBuffer()
+
+	// Append 0 bits should do nothing
+	bb.AppendBitsFromWord(0xFFFFFFFF, 0)
+
+	if bb.NumBits() != 0 {
+		t.Errorf("Expected 0 bits, got %d", bb.NumBits())
+	}
+}

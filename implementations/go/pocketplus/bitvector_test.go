@@ -344,3 +344,106 @@ func TestBitVectorOutOfBoundsAccess(t *testing.T) {
 		}
 	}
 }
+
+func TestBitVectorCopyFromDifferentSizes(t *testing.T) {
+	// Copy from smaller to larger (different numWords: 64-bit = 2 words, 32-bit = 1 word)
+	large, _ := NewBitVector(64)
+	large.FromBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF})
+
+	small, _ := NewBitVector(32)
+	small.FromBytes([]byte{0xAB, 0xCD, 0xEF, 0x12})
+
+	large.CopyFrom(small)
+	// First word should be copied from small
+	result := large.ToBytes()
+	if result[0] != 0xAB {
+		t.Errorf("CopyFrom smaller: expected 0xAB at position 0, got 0x%02X", result[0])
+	}
+}
+
+func TestBitVectorXORDifferentSizes(t *testing.T) {
+	// 64-bit = 2 words, 32-bit = 1 word
+	large, _ := NewBitVector(64)
+	large.FromBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF})
+
+	small, _ := NewBitVector(32)
+	small.FromBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})
+
+	// XOR large with small - should use min(numWords)
+	result := large.XOR(small)
+	if result.Length() != 64 {
+		t.Errorf("XOR result should have length 64, got %d", result.Length())
+	}
+}
+
+func TestBitVectorXORIntoDifferentSizes(t *testing.T) {
+	// dest = 96 bits (3 words), a = 64 bits (2 words), b = 32 bits (1 word)
+	dest, _ := NewBitVector(96)
+	a, _ := NewBitVector(64)
+	b, _ := NewBitVector(32)
+
+	a.FromBytes([]byte{0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00})
+	b.FromBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})
+
+	dest.XORInto(a, b)
+	// Should use minimum of all three numWords
+	if dest.Length() != 96 {
+		t.Errorf("XORInto result should have length 96, got %d", dest.Length())
+	}
+}
+
+func TestBitVectorORDifferentSizes(t *testing.T) {
+	// 64-bit = 2 words, 32-bit = 1 word
+	large, _ := NewBitVector(64)
+	large.FromBytes([]byte{0xF0, 0x00, 0xF0, 0x00, 0xF0, 0x00, 0xF0, 0x00})
+
+	small, _ := NewBitVector(32)
+	small.FromBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})
+
+	result := large.OR(small)
+	if result.Length() != 64 {
+		t.Errorf("OR result should have length 64, got %d", result.Length())
+	}
+}
+
+func TestBitVectorORIntoDifferentSizes(t *testing.T) {
+	// dest = 96 bits (3 words), a = 64 bits (2 words), b = 32 bits (1 word)
+	dest, _ := NewBitVector(96)
+	a, _ := NewBitVector(64)
+	b, _ := NewBitVector(32)
+
+	a.FromBytes([]byte{0xF0, 0x00, 0xF0, 0x00, 0xF0, 0x00, 0xF0, 0x00})
+	b.FromBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})
+
+	dest.ORInto(a, b)
+	if dest.Length() != 96 {
+		t.Errorf("ORInto result should have length 96, got %d", dest.Length())
+	}
+}
+
+func TestBitVectorANDDifferentSizes(t *testing.T) {
+	// 64-bit = 2 words, 32-bit = 1 word
+	large, _ := NewBitVector(64)
+	large.FromBytes([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF})
+
+	small, _ := NewBitVector(32)
+	small.FromBytes([]byte{0x0F, 0x0F, 0x0F, 0x0F})
+
+	result := large.AND(small)
+	if result.Length() != 64 {
+		t.Errorf("AND result should have length 64, got %d", result.Length())
+	}
+}
+
+func TestBitVectorHammingWeightNonByteAligned(t *testing.T) {
+	// Test with 12 bits (not byte-aligned) to cover extraBits branch
+	bv, _ := NewBitVector(12)
+	bv.FromBytes([]byte{0xFF, 0xF0}) // All 12 bits set to 1
+
+	hw := bv.HammingWeight()
+	if hw != 12 {
+		t.Errorf("HammingWeight of 12 set bits should be 12, got %d", hw)
+	}
+}
+
+

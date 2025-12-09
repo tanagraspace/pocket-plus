@@ -182,8 +182,51 @@ jobs:
           name: python-docs
           path: _site/python
 
+  build-go-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run tests and generate report
+        working-directory: implementations/go
+        run: |
+          mkdir -p build/docs/tests
+          go test -v ./pocketplus/ 2>&1 | tee build/test-output.txt
+          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
+
+      - name: Generate coverage HTML
+        working-directory: implementations/go
+        run: |
+          mkdir -p build/docs/coverage
+          go test -coverprofile=build/coverage.out ./...
+          go tool cover -html=build/coverage.out -o build/docs/coverage/index.html
+
+      - name: Generate API docs
+        working-directory: implementations/go
+        run: |
+          mkdir -p build/docs/api
+          ./scripts/generate-api-docs.sh build/docs/api
+
+      - name: Prepare Go artifacts
+        run: |
+          mkdir -p _site/go
+          cp -r implementations/go/build/docs/api _site/go/api
+          cp -r implementations/go/build/docs/coverage _site/go/coverage
+          cp -r implementations/go/build/docs/tests _site/go/tests
+
+      - name: Upload Go docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-docs
+          path: _site/go
+
   deploy:
-    needs: [build-c-docs, build-python-docs]
+    needs: [build-c-docs, build-python-docs, build-go-docs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
@@ -203,6 +246,12 @@ jobs:
         with:
           name: python-docs
           path: _site/python
+
+      - name: Download Go docs
+        uses: actions/download-artifact@v4
+        with:
+          name: go-docs
+          path: _site/go
 
       - name: Create landing page
         run: |
@@ -272,6 +321,16 @@ jobs:
                 <li><a href="python/api/">API Documentation</a></li>
                 <li><a href="python/coverage/">Coverage Report</a></li>
                 <li><a href="python/tests/report.html">Test Report</a></li>
+              </ul>
+            </div>
+
+            <div class="impl">
+              <h3>Go</h3>
+              <ul>
+                <li><a href="https://github.com/tanagraspace/pocket-plus/tree/main/implementations/go">Source Code</a></li>
+                <li><a href="go/api/">API Documentation</a></li>
+                <li><a href="go/coverage/">Coverage Report</a></li>
+                <li><a href="go/tests/report.html">Test Report</a></li>
               </ul>
             </div>
           </body>

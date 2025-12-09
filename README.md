@@ -36,7 +36,7 @@ The algorithm has been standardized by CCSDS as **CCSDS 124.0-B-1** for compress
 |----------|---------|--------|----------|
 | C | 1.0.0 | Complete | [`implementations/c/`](implementations/c/) |
 | Python | 1.0.0 | Complete | [`implementations/python/`](implementations/python/) |
-| Go | 0.1.0 | Planned | [`implementations/go/`](implementations/go/) |
+| Go | 1.0.0 | Complete | [`implementations/go/`](implementations/go/) |
 
 ## Repository Structure
 
@@ -61,7 +61,7 @@ Build, test, and generate coverage for any implementation:
 ```bash
 docker-compose run --rm c          # C implementation
 docker-compose run --rm python     # Python implementation
-# docker-compose run --rm go       # Go (planned)
+docker-compose run --rm go         # Go implementation
 ```
 
 Artifacts are written to `implementations/<lang>/build/`.
@@ -81,6 +81,8 @@ make coverage # Run tests with coverage report
 
 ```bash
 cd implementations/python
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e ".[dev]"
 pytest
 ```
@@ -89,7 +91,10 @@ pytest
 
 ```bash
 cd implementations/go
-go test ./...
+make build    # Build library
+make test     # Run tests
+make coverage # Run tests with coverage
+make docs     # Generate documentation
 ```
 
 ## Contributing

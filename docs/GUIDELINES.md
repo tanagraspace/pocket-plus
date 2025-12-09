@@ -93,9 +93,29 @@ If simple passes but others fail, check Vt and ct calculations.
 - Avoid large intermediate allocations (memory-constrained devices)
 
 ### Go
-- Port from C implementation
-- Validate against same test vectors
-- Ensure bit-level compatibility
+
+**Compatibility:**
+- Zero external dependencies (standard library only)
+- Go 1.21+ supported
+- Idiomatic Go patterns (error returns, interfaces)
+
+**Code Style:**
+- `gofmt` for formatting (enforced by CI)
+- `go vet` for static analysis
+- Return errors, don't panic
+
+**Testing:**
+```bash
+cd implementations/go
+go test -v ./...           # Run tests
+go test -race ./...        # Race detection
+go test -cover ./...       # Coverage
+```
+
+**Structure:**
+- Core library: `pocketplus/` package
+- CLI: `cmd/pocketplus/main.go`
+- Uses 32-bit word storage for bit vectors (optimized for performance)
 
 ### Other Languages
 - Port from C implementation
