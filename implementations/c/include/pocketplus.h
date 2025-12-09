@@ -514,6 +514,16 @@ struct pocket_compressor {
     int ft_counter; /**< Countdown to next ḟₜ=1 */
     int rt_counter; /**< Countdown to next ṙₜ=1 */
     /** @} */
+
+    /** @name Pre-allocated work buffers (avoid per-packet init) */
+    /** @{ */
+    bitvector_t work_prev_build;   /**< Temporary for prev_build */
+    bitvector_t work_change;       /**< Temporary for change vector */
+    bitvector_t work_Xt;           /**< Temporary for robustness window */
+    bitvector_t work_inverted;     /**< Temporary for inverted mask */
+    bitvector_t work_shifted;      /**< Temporary for shifted mask */
+    bitvector_t work_diff;         /**< Temporary for mask diff */
+    /** @} */
 };
 
 /**

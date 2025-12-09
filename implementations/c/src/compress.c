@@ -85,6 +85,14 @@ int pocket_compressor_init(
                 bitvector_zero(&comp->mask);
             }
 
+            /* Initialize work buffers (pre-allocated to avoid per-packet init) */
+            (void)bitvector_init(&comp->work_prev_build, F);
+            (void)bitvector_init(&comp->work_change, F);
+            (void)bitvector_init(&comp->work_Xt, F);
+            (void)bitvector_init(&comp->work_inverted, F);
+            (void)bitvector_init(&comp->work_shifted, F);
+            (void)bitvector_init(&comp->work_diff, F);
+
             /* Reset state */
             pocket_compressor_reset(comp);
 
@@ -349,13 +357,11 @@ int pocket_compress_packet(
          * STEP 1: Update Mask and Build Vectors (CCSDS Section 4)
          * ==================================================================== */
 
-        bitvector_t prev_mask;
-        (void)bitvector_init(&prev_mask, comp->F);
-        bitvector_copy(&prev_mask, &comp->mask);
+        /* Use pre-allocated prev_mask from struct */
+        bitvector_copy(&comp->prev_mask, &comp->mask);
 
-        bitvector_t prev_build;
-        (void)bitvector_init(&prev_build, comp->F);
-        bitvector_copy(&prev_build, &comp->build);
+        /* Use pre-allocated work buffer for prev_build */
+        bitvector_copy(&comp->work_prev_build, &comp->build);
 
         /* Update build vector (Equation 6) */
         if (comp->t > 0U) {
@@ -366,17 +372,14 @@ int pocket_compress_packet(
         /* Update mask vector (Equation 7) */
         if (comp->t > 0U) {
             pocket_update_mask(&comp->mask, input, &comp->prev_input,
-                              &prev_build, effective_params->new_mask_flag);
+                              &comp->work_prev_build, effective_params->new_mask_flag);
         }
 
-        /* Compute change vector (Equation 8) */
-        bitvector_t change;
-        (void)bitvector_init(&change, comp->F);
-
-        pocket_compute_change(&change, &comp->mask, &prev_mask, comp->t);
+        /* Compute change vector (Equation 8) - use pre-allocated work buffer */
+        pocket_compute_change(&comp->work_change, &comp->mask, &comp->prev_mask, comp->t);
 
         /* Store change in history (circular buffer) */
-        bitvector_copy(&comp->change_history[comp->history_index], &change);
+        bitvector_copy(&comp->change_history[comp->history_index], &comp->work_change);
 
         /* ====================================================================
          * STEP 2: Encode Output Packet (CCSDS Section 5.3)
@@ -384,12 +387,11 @@ int pocket_compress_packet(
          * Full CCSDS encoding per ALGORITHM.md
          * ==================================================================== */
 
-        /* Calculate Xₜ (robustness window) */
-        bitvector_t Xt;
-        pocket_compute_robustness_window(&Xt, comp, &change);
+        /* Calculate Xₜ (robustness window) - use pre-allocated work buffer */
+        pocket_compute_robustness_window(&comp->work_Xt, comp, &comp->work_change);
 
         /* Calculate Vₜ (effective robustness) */
-        uint8_t Vt = pocket_compute_effective_robustness(comp, &change);
+        uint8_t Vt = pocket_compute_effective_robustness(comp, &comp->work_change);
 
         /* Calculate ḋₜ flag */
         uint8_t dt = ((effective_params->send_mask_flag == 0U) && (effective_params->uncompressed_flag == 0U)) ? 1U : 0U;
@@ -400,7 +402,7 @@ int pocket_compress_packet(
          * ==================================================================== */
 
         /* 1. RLE(Xₜ) - Run-length encode the robustness window */
-        (void)pocket_rle_encode(output, &Xt);
+        (void)pocket_rle_encode(output, &comp->work_Xt);
 
         /* 2. BIT₄(Vₜ) - 4-bit effective robustness level
          * CCSDS encodes Vt directly (reference implementation confirmed) */
@@ -412,9 +414,9 @@ int pocket_compress_packet(
         }
 
         /* 3. eₜ, kₜ, cₜ - Only if Vₜ > 0 and there are mask changes */
-        if ((Vt > 0U) && (bitvector_hamming_weight(&Xt) > 0U)) {
+        if ((Vt > 0U) && (bitvector_hamming_weight(&comp->work_Xt) > 0U)) {
             /* Calculate eₜ */
-            int et = pocket_has_positive_updates(&Xt, &comp->mask);
+            int et = pocket_has_positive_updates(&comp->work_Xt, &comp->mask);
 
             (void)bitbuffer_append_bit(output, et);
 
@@ -423,15 +425,10 @@ int pocket_compress_packet(
                  * Reference implementation shows kt outputs 1 when mask bit is 0 at changed positions */
 
                 /* Extract INVERTED mask values (1 where mask=0, 0 where mask=1)
-                 * Use forward order (lowest position to highest) for kt */
-                bitvector_t inverted_mask;
-                (void)bitvector_init(&inverted_mask, comp->F);
-                for (size_t j = 0U; j < comp->mask.length; j++) {
-                    int mask_bit = bitvector_get_bit(&comp->mask, j);
-                    bitvector_set_bit(&inverted_mask, j, (mask_bit == 0) ? 1 : 0);
-                }
+                 * Use pre-allocated work buffer for inverted mask */
+                bitvector_not(&comp->work_inverted, &comp->mask);
 
-                (void)pocket_bit_extract_forward(output, &inverted_mask, &Xt);
+                (void)pocket_bit_extract_forward(output, &comp->work_inverted, &comp->work_Xt);
 
                 /* Calculate and encode cₜ */
                 int ct = pocket_compute_ct_flag(comp, Vt, effective_params->new_mask_flag);
@@ -452,16 +449,11 @@ int pocket_compress_packet(
             if (effective_params->send_mask_flag != 0U) {
                 (void)bitbuffer_append_bit(output, 1);  /* Flag: mask follows */
 
-                /* Encode mask as RLE(M XOR (M<<)) - no reversal needed */
-                bitvector_t mask_shifted;
-                bitvector_t mask_diff;
-                (void)bitvector_init(&mask_shifted, comp->F);
-                (void)bitvector_init(&mask_diff, comp->F);
+                /* Encode mask as RLE(M XOR (M<<)) - use pre-allocated work buffers */
+                bitvector_left_shift(&comp->work_shifted, &comp->mask);
+                bitvector_xor(&comp->work_diff, &comp->mask, &comp->work_shifted);
 
-                bitvector_left_shift(&mask_shifted, &comp->mask);
-                bitvector_xor(&mask_diff, &comp->mask, &mask_shifted);
-
-                (void)pocket_rle_encode(output, &mask_diff);
+                (void)pocket_rle_encode(output, &comp->work_diff);
             } else {
                 (void)bitbuffer_append_bit(output, 0);  /* Flag: no mask */
             }
@@ -489,13 +481,11 @@ int pocket_compress_packet(
             int ct = pocket_compute_ct_flag(comp, Vt, effective_params->new_mask_flag);
 
             if ((ct != 0) && (Vt > 0U)) {
-                /* BE(Iₜ, (Xₜ OR Mₜ)) - extract bits where mask OR changes are set */
-                bitvector_t extraction_mask;
-                (void)bitvector_init(&extraction_mask, comp->F);
+                /* BE(Iₜ, (Xₜ OR Mₜ)) - extract bits where mask OR changes are set
+                 * Reuse work_diff as extraction mask (not used at this point) */
+                bitvector_or(&comp->work_diff, &comp->mask, &comp->work_Xt);  /* Mₜ OR Xₜ */
 
-                bitvector_or(&extraction_mask, &comp->mask, &Xt);  /* Mₜ OR Xₜ */
-
-                (void)pocket_bit_extract(output, input, &extraction_mask);
+                (void)pocket_bit_extract(output, input, &comp->work_diff);
             } else {
                 /* BE(Iₜ, Mₜ) - extract only unpredictable bits */
                 (void)pocket_bit_extract(output, input, &comp->mask);
