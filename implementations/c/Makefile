@@ -161,7 +161,9 @@ misra:
 	@mkdir -p $(BUILD_DIR)
 	@echo "Running MISRA-C:2012 compliance check..."
 	@cppcheck --addon=misra --suppressions-list=misra.supp \
-		--enable=all -I$(INCLUDE_DIR) $(MISRA_SRCS) 2>&1 | tee $(BUILD_DIR)/misra-report.txt
+		--enable=all -I$(INCLUDE_DIR) \
+		--output-file=$(BUILD_DIR)/misra-report.txt \
+		$(MISRA_SRCS) 2>&1
 	@echo ""
 	@echo "Report saved to $(BUILD_DIR)/misra-report.txt"
 	@if grep -v "Unmatched suppression" $(BUILD_DIR)/misra-report.txt | grep -q "misra-c2012"; then \

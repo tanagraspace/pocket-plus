@@ -27,11 +27,12 @@ jobs:
           echo "## MISRA-C:2012 Compliance Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Run cppcheck with MISRA addon
+          # Run cppcheck with MISRA addon using --output-file for report
           cppcheck --addon=misra --suppressions-list=misra.supp \
               --enable=all -Iinclude \
+              --output-file=build/misra-report.txt \
               src/bitvector.c src/bitbuffer.c src/compress.c \
-              src/decompress.c src/encode.c src/mask.c 2>&1 | tee build/misra-report.txt
+              src/decompress.c src/encode.c src/mask.c 2>&1
 
           # Count violations by category
           TOTAL=$(grep -c "misra-c2012" build/misra-report.txt 2>/dev/null || echo "0")
