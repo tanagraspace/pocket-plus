@@ -38,12 +38,15 @@ jobs:
           cache: 'maven'
 
       - name: Check formatting
+        if: matrix.java != '11'
         run: mvn spotless:check
 
       - name: Run checkstyle
+        if: matrix.java != '11'
         run: mvn checkstyle:check
 
       - name: Run SpotBugs
+        if: matrix.java != '11'
         run: mvn spotbugs:check
 
       - name: Build
