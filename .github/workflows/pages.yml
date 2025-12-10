@@ -268,8 +268,54 @@ jobs:
           name: rust-docs
           path: _site/rust
 
+  build-java-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run tests and generate report
+        working-directory: implementations/java
+        run: |
+          mkdir -p build/docs/tests
+          mvn test surefire-report:report-only site -DgenerateReports=false
+          cp target/site/surefire-report.html build/docs/tests/index.html
+          cp -r target/site/css build/docs/tests/ 2>/dev/null || true
+
+      - name: Generate coverage HTML
+        working-directory: implementations/java
+        run: |
+          mkdir -p build/docs/coverage
+          mvn verify jacoco:report
+          cp -r target/site/jacoco/* build/docs/coverage/
+
+      - name: Generate API docs
+        working-directory: implementations/java
+        run: |
+          mvn javadoc:javadoc
+          cp -r target/site/apidocs build/docs/api
+
+      - name: Prepare Java artifacts
+        run: |
+          mkdir -p _site/java
+          cp -r implementations/java/build/docs/api _site/java/api
+          cp -r implementations/java/build/docs/coverage _site/java/coverage
+          cp -r implementations/java/build/docs/tests _site/java/tests
+
+      - name: Upload Java docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-docs
+          path: _site/java
+
   deploy:
-    needs: [build-c-docs, build-python-docs, build-go-docs, build-rust-docs]
+    needs: [build-c-docs, build-python-docs, build-go-docs, build-rust-docs, build-java-docs]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
@@ -302,6 +348,11 @@ jobs:
           name: rust-docs
           path: _site/rust
 
+      - name: Download Java docs
+        uses: actions/download-artifact@v4
+        with:
+          name: java-docs
+          path: _site/java
 
       - name: Copy landing page
         run: cp docs/index.html _site/index.html

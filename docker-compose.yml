@@ -38,3 +38,20 @@ services:
         bind:
           create_host_path: true
       - ./test-vectors:/app/test-vectors:ro
+
+  java:
+    build:
+      context: .
+      dockerfile: implementations/java/Dockerfile
+    volumes:
+      - type: bind
+        source: ./implementations/java/build
+        target: /app/implementations/java/build
+        bind:
+          create_host_path: true
+      - type: bind
+        source: ./implementations/java/assets
+        target: /app/implementations/java/assets
+        bind:
+          create_host_path: true
+      - ./test-vectors:/app/test-vectors:ro

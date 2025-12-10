@@ -25,6 +25,11 @@ Each gotcha includes:
 7. [Reference Implementation's Final Padding (FIXED)](#-gotcha-7-reference-implementations-final-padding-fixed)
 8. [cₜ Calculation: Include Current Packet's pₜ Flag!](#8-cₜ-calculation-include-current-packets-pₜ-flag)
 
+### High-Level API Gotchas
+
+17. [Packet Byte-Boundary Padding](#17-packet-byte-boundary-padding)
+18. [COUNT Extended Format ('111'): Include Terminating '1' in Value](#18-count-extended-format-111-include-terminating-1-in-value)
+
 ### Decompression Gotchas
 
 9. [COUNT Decoding: '10' is Terminator, Not a Value](#9-count-decoding-10-is-terminator-not-a-value)
@@ -1001,6 +1006,162 @@ Before declaring your decompressor "working":
 - [ ] Unpredictable bits inserted in reverse order (BE)
 - [ ] Horizontal XOR mask properly reversed
 - [ ] ct=1 uses extended extraction mask (Xt OR Mt)
+
+---
+
+---
+
+# High-Level API Gotchas
+
+---
+
+## 17. Packet Byte-Boundary Padding
+
+**⭐ Discovery - December 2025**
+
+### ✅ What the Reference Does
+
+The C reference implementation converts **each compressed packet to bytes separately** before concatenating them into the output buffer:
+
+```c
+// Convert packet to bytes with byte-boundary padding
+size_t packet_size = bitbuffer_to_bytes(&packet_output, packet_bytes, sizeof(packet_bytes));
+
+// Append to output buffer
+memcpy(&output_buffer[total_output_bytes], packet_bytes, packet_size);
+total_output_bytes += packet_size;
+```
+
+### ❌ Common Mistake
+
+Concatenating packet bits into a single buffer, then converting to bytes only at the end:
+
+```java
+// WRONG: Concatenate bits, convert once at end
+for (int i = 0; i < numPackets; i++) {
+    BitBuffer packetOutput = compressor.compressPacket(input);
+    output.appendBitBuffer(packetOutput);  // ❌ Appends bits!
+}
+return output.toBytes();  // ❌ Single conversion at end
+```
+
+**Why this seems reasonable:** Bit-level concatenation is more efficient and simpler.
+
+**Why it's wrong:** Each packet needs its own byte-boundary padding. Without per-packet padding, you lose ~0.3 bytes per packet on average.
+
+### 🔧 Correct Implementation
+
+```java
+// CORRECT: Convert each packet to bytes, then concatenate
+ByteArrayOutputStream output = new ByteArrayOutputStream();
+for (int i = 0; i < numPackets; i++) {
+    BitBuffer packetOutput = compressor.compressPacket(input);
+    // Convert this packet to bytes with padding
+    byte[] packetBytes = packetOutput.toBytes();
+    output.write(packetBytes, 0, packetBytes.length);
+}
+return output.toByteArray();
+```
+
+### 📊 Impact
+
+- **Divergence:** Immediate - first packet boundary
+- **Symptom:** Output size smaller than reference by ~0.3 bytes/packet
+- **Size error:** For 100 packets: ~29 bytes shorter
+- **Example:** simple.bin with 100 packets: 612 bytes instead of 641 bytes
+- **Detection:** Compare total compressed size with reference
+
+### 🔍 Why This Was Hard to Find
+
+1. **Not in CCSDS spec** - The spec doesn't mention packet concatenation at all
+2. **Compression still works** - Output is valid, just different from reference
+3. **Decompression might still work** - If decompressor aligns to byte boundaries
+4. **Subtle size difference** - Easy to miss ~5% size difference
+
+---
+
+## 18. COUNT Extended Format ('111'): Include Terminating '1' in Value
+
+**⭐ Discovery - December 2025**
+
+### ✅ What the C Reference Does
+
+For COUNT values >= 34 (the '111' extended format), the reference uses a do-while loop that **includes the terminating '1' in the size count**, then backs up to include it in the value:
+
+```c
+// '111' case
+size_t size = 0;
+int next_bit;
+
+// Count zeros to determine field size
+do {
+    next_bit = bitreader_read_bit(reader);
+    size++;  // Increments even for the terminating '1'!
+} while ((next_bit == 0) && (remaining > 0));
+
+// Size includes the '1' we just read
+size_t value_bits = size + 5;
+
+// Back up one bit since the '1' is part of the value
+reader->bit_pos--;
+
+// Read the full value (starting from the '1')
+uint32_t raw = bitreader_read_bits(reader, value_bits);
+*value = raw + 2;
+```
+
+### ❌ Common Mistake
+
+Using peek/read pattern that doesn't include the terminating '1':
+
+```java
+// WRONG: Misses the terminating '1' in size calculation
+int zeros = 0;
+while (reader.peekBit() == 0) {
+    reader.readBit();
+    zeros++;
+}
+int numBits = zeros + 5;  // ❌ Off by 1!
+int value = reader.readBits(numBits);
+```
+
+**Example with '11101XXXXX' (1 zero before '1'):**
+- C approach: size=2 (includes '1'), value_bits=7, reads 7 bits starting from '1'
+- Wrong approach: zeros=1, numBits=6, reads 6 bits AFTER '1'
+
+### 🔧 Correct Implementation
+
+Either back up like C, or account for the '1' differently:
+
+```java
+// CORRECT: Match C behavior
+int size = 0;
+int nextBit;
+do {
+    nextBit = reader.readBit();
+    size++;
+} while (nextBit == 0);
+
+// The '1' is part of the value, account for it
+int numRemainingBits = size + 5 - 1;  // We already consumed the leading '1'
+int value = (1 << numRemainingBits) | reader.readBits(numRemainingBits);
+
+return value + 2;
+```
+
+### 📊 Impact
+
+- **Divergence:** First packet with full uncompressed data (COUNT(720) uses extended format)
+- **Symptom:** Output appears bit-shifted by 1
+- **Example:** `08 d4 f1 ab` becomes `04 6a 78 d5 80` (right-shifted by 1 bit)
+- **Detection:** First decompressed packet data is shifted
+
+### 🔍 Why This Was Hard to Find
+
+1. **Only affects large counts** - Small counts (1-33) use different encoding
+2. **Common in first packets** - COUNT(720) for full packet uses extended format
+3. **Subtle shift** - Data looks almost right, just shifted
+4. **C uses do-while** - Different from typical while-peek pattern
 
 ---
 

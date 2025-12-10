@@ -37,12 +37,14 @@ The algorithm has been standardized by CCSDS as **CCSDS 124.0-B-1** for compress
 | C | 1.0.0 | Complete | Embedded / Desktop / Server | [`implementations/c/`](implementations/c/) |
 | Python | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/python/`](implementations/python/) |
 | Go | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/go/`](implementations/go/) |
+| Rust | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/rust/`](implementations/rust/) |
+| Java | 1.0.0 | In Progress | Embedded Linux / Desktop / Server | [`implementations/java/`](implementations/java/) |
 
 ### Which implementation should I use?
 
 **For bare-metal embedded systems**: Use the **C implementation**. It is the only implementation suitable for resource-constrained microcontrollers such as spacecraft on-board computers (e.g., GomSpace Nanomind 3200 / AVR32 MCU). The C implementation is optimized for 32-bit architectures and has no external dependencies.
 
-**For payload computers**: Python and Go can run on embedded Linux systems such as payload processors (e.g., SEPP on OPS-SAT-1). Choose based on your runtime environment and preference.
+**For payload computers**: Python, Go, Rust, and Java can run on embedded Linux systems such as payload processors (e.g., SEPP on OPS-SAT-1). Choose based on your runtime environment and preference.
 
 **For ground systems and prototyping**: All implementations produce identical compression output. Use whichever language fits your toolchain.
 
@@ -53,7 +55,9 @@ pocket-plus/
 ├── implementations/
 │   ├── c/              # C implementation
 │   ├── python/         # Python implementation
-│   └── go/             # Go implementation
+│   ├── go/             # Go implementation
+│   ├── rust/           # Rust implementation
+│   └── java/           # Java implementation
 ├── docs/               # Shared documentation
 ├── test-vectors/       # Shared test data for validation
 ├── LICENSE
@@ -70,6 +74,8 @@ Build, test, and generate coverage for any implementation:
 docker-compose run --rm c          # C implementation
 docker-compose run --rm python     # Python implementation
 docker-compose run --rm go         # Go implementation
+docker-compose run --rm rust       # Rust implementation
+docker-compose run --rm java       # Java implementation
 ```
 
 Artifacts are written to `implementations/<lang>/build/`.
@@ -103,6 +109,24 @@ make build    # Build library
 make test     # Run tests
 make coverage # Run tests with coverage
 make docs     # Generate documentation
+```
+
+#### Rust
+
+```bash
+cd implementations/rust
+cargo build --release  # Build library and CLI
+cargo test             # Run tests
+cargo doc --open       # Generate and view documentation
+```
+
+#### Java
+
+```bash
+cd implementations/java
+mvn package            # Build library and CLI
+mvn test               # Run tests
+mvn javadoc:javadoc    # Generate documentation
 ```
 
 ## Contributing

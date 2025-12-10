@@ -4,16 +4,18 @@ This file provides guidance for AI agents (like Claude Code) working on the POCK
 
 ## Project Overview
 
-POCKET+ is a multi-language implementation of the CCSDS 124.0-B-1 lossless compression algorithm designed for spacecraft housekeeping data. This is a **monorepo** with independent implementations in C, Python, and Go.
+POCKET+ is a multi-language implementation of the CCSDS 124.0-B-1 lossless compression algorithm designed for spacecraft housekeeping data. This is a **monorepo** with independent implementations in C, Python, Go, Rust, and Java.
 
 ## Repository Structure
 
 ```
 pocket-plus/
 ├── implementations/
-│   ├── c/          # C implementation
-│   ├── python/     # Python implementation
-│   └── go/         # Go implementation
+│   ├── c/          # C implementation (embedded/flight)
+│   ├── python/     # Python implementation (MicroPython compatible)
+│   ├── go/         # Go implementation
+│   ├── rust/       # Rust implementation
+│   └── java/       # Java implementation (enterprise/ground)
 ├── docs/           # Shared documentation
 └── test-vectors/   # Shared test data
 ```
@@ -27,12 +29,14 @@ pocket-plus/
 
 ## Versioning Rules
 
-- Use **prefixed git tags**: `c/vX.Y.Z`, `python/vX.Y.Z`, `go/vX.Y.Z`
+- Use **prefixed git tags**: `c/vX.Y.Z`, `python/vX.Y.Z`, `go/vX.Y.Z`, `rust/vX.Y.Z`, `java/vX.Y.Z`
 - Follow [Semantic Versioning](https://semver.org/)
 - Update version in language-specific files:
   - C: `implementations/c/VERSION` and `implementations/c/include/pocket_plus.h`
   - Python: `implementations/python/pyproject.toml` and `implementations/python/pocket_plus/__init__.py`
   - Go: Git tag (Go uses tags directly)
+  - Rust: `implementations/rust/Cargo.toml`
+  - Java: `implementations/java/pom.xml` and `implementations/java/VERSION`
 
 ## Commit Conventions
 
@@ -76,6 +80,23 @@ python: fix decompression bug
 - Include benchmarks for performance-critical code
 - Run tests: `go test ./...`
 - Format code: `go fmt ./...`
+
+### Rust Implementation
+- Follow Rust idioms and ownership patterns
+- Use `Result<T, E>` for error handling
+- Include benchmarks with Criterion
+- Run tests: `cargo test`
+- Format code: `cargo fmt`
+- Lint: `cargo clippy`
+
+### Java Implementation
+- Target enterprise/ground systems (JDK 11+)
+- Zero runtime dependencies (test-only dependencies allowed)
+- Use Maven for builds
+- Follow Google Java Style Guide
+- Run tests: `mvn test`
+- Format code: `mvn spotless:apply`
+- Lint: `mvn checkstyle:check` and `mvn spotbugs:check`
 
 ## Testing Requirements
 
