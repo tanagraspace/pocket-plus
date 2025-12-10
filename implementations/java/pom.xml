@@ -177,6 +177,9 @@
                 <configuration>
                     <doclint>all,-missing</doclint>
                     <source>11</source>
+                    <overview>${basedir}/src/main/javadoc/overview.html</overview>
+                    <doctitle>POCKET+ Java API</doctitle>
+                    <windowtitle>POCKET+ Java - CCSDS 124.0-B-1</windowtitle>
                 </configuration>
             </plugin>
         </plugins>
