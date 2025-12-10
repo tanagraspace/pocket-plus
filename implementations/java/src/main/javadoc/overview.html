@@ -1,47 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>POCKET+ Java Implementation</title>
+    <title>POCKET+ Java API</title>
 </head>
 <body>
-
-<h1>POCKET+ Java Implementation</h1>
 
 <p>Java implementation of the <a href="https://ccsds.org/Pubs/124x0b1.pdf">CCSDS 124.0-B-1</a>
 POCKET+ lossless compression algorithm for satellite housekeeping telemetry.</p>
 
-<h2>Features</h2>
-<ul>
-    <li><strong>Zero runtime dependencies</strong> - Only requires Java 11+</li>
-    <li><strong>Clean OOP design</strong> - Proper interfaces, classes, and encapsulation</li>
-    <li><strong>Comprehensive Javadoc</strong> - All public APIs documented</li>
-    <li><strong>High test coverage</strong> - Unit tests and reference vector validation</li>
-    <li><strong>CLI tool</strong> - Command-line interface for compress/decompress operations</li>
-</ul>
-
-<h2>Quick Start</h2>
-<pre>
-import space.tanagra.pocketplus.PocketPlus;
-
-// Compress data
-byte[] compressed = PocketPlus.compress(
-    inputData,    // byte array of concatenated packets
-    90,           // packet size in bytes
-    2,            // robustness (0-7)
-    20,           // pt limit
-    50,           // ft limit
-    100           // rt limit
-);
-
-// Decompress data
-byte[] decompressed = PocketPlus.decompress(
-    compressed,   // compressed data
-    90,           // packet size in bytes
-    2             // robustness (0-7)
-);
-</pre>
-
-<h2>Citation</h2>
+<h1>Citation</h1>
 
 <p>If POCKET+ contributes to your research, please cite:</p>
 
@@ -53,7 +20,7 @@ Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1,"
 <a href="https://digitalcommons.usu.edu/smallsat/2022/all2022/133/">https://digitalcommons.usu.edu/smallsat/2022/all2022/133/</a>
 </blockquote>
 
-<h3>BibTeX</h3>
+<h2>BibTeX</h2>
 <pre>
 &#64;inproceedings{evans2022pocketplus,
   author    = {Evans, David and Labreche, Georges and Marszk, Dominik and
@@ -69,13 +36,13 @@ Data Compression Standard 124.0-B-1 (based on POCKET+) on OPS-SAT-1,"
 }
 </pre>
 
-<h2>References</h2>
+<h1>References</h1>
 <ul>
     <li><a href="https://ccsds.org/Pubs/124x0b1.pdf">CCSDS 124.0-B-1 Standard</a></li>
     <li><a href="https://digitalcommons.usu.edu/smallsat/2022/all2022/133/">POCKET+ on OPS-SAT-1</a></li>
 </ul>
 
-<h2>License</h2>
+<h1>License</h1>
 <p>MIT License - Copyright (c) 2025 Tanagra Space</p>
 
 </body>
