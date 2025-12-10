@@ -117,6 +117,57 @@ go test -cover ./...       # Coverage
 - CLI: `cmd/pocketplus/main.go`
 - Uses 32-bit word storage for bit vectors (optimized for performance)
 
+### Rust
+
+**Compatibility:**
+- Zero external runtime dependencies (standard library only)
+- Rust 2021 edition (1.56+)
+- Memory-safe with zero-copy where possible
+
+**Code Style:**
+- `cargo fmt` for formatting (enforced by CI)
+- `cargo clippy` for linting
+- Use `Result<T, E>` for error handling, avoid `unwrap()` in library code
+
+**Testing:**
+```bash
+cd implementations/rust
+cargo test                # Run tests
+cargo bench               # Run benchmarks
+cargo clippy              # Lint
+```
+
+**Structure:**
+- Core library: `src/lib.rs`
+- CLI: `src/bin/pocketplus.rs`
+- Uses 32-bit word storage for bit vectors
+
+### Java
+
+**Compatibility:**
+- Zero external runtime dependencies (JDK 11+ only)
+- Test-only dependencies (JUnit 5, JaCoCo)
+- Enterprise/ground systems target
+
+**Code Style:**
+- Google Java Style Guide via Spotless
+- Checkstyle for additional rules
+- SpotBugs for static analysis
+
+**Testing:**
+```bash
+cd implementations/java
+mvn test                  # Run tests
+mvn verify                # Full verification with coverage
+mvn spotless:apply        # Format code
+mvn checkstyle:check      # Check style
+```
+
+**Structure:**
+- Core library: `src/main/java/space/tanagra/pocketplus/`
+- CLI: `src/main/java/space/tanagra/pocketplus/cli/Main.java`
+- Uses 32-bit word storage for bit vectors (same as C)
+
 ### Other Languages
 - Port from C implementation
 - Validate against same test vectors

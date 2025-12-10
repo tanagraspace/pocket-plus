@@ -284,8 +284,9 @@ jobs:
         working-directory: implementations/java
         run: |
           mkdir -p build/docs/tests
-          mvn test 2>&1 | tee build/test-output.txt
-          ./scripts/generate-test-report.sh target/surefire-reports build/docs/tests/report.html
+          mvn test surefire-report:report-only site -DgenerateReports=false
+          cp target/site/surefire-report.html build/docs/tests/index.html
+          cp -r target/site/css build/docs/tests/ 2>/dev/null || true
 
       - name: Generate coverage HTML
         working-directory: implementations/java

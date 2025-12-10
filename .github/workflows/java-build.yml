@@ -24,7 +24,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        java: ['11', '17', '21']
+        java: ['11', '17', '21', '25']
 
     steps:
       - name: Checkout repository
@@ -59,9 +59,6 @@ jobs:
           cat build/test-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Generate HTML test report
-        run: ./scripts/generate-test-report.sh target/surefire-reports build/docs/tests/report.html
-
       - name: Run CLI round-trip tests
         run: |
           echo "## CLI Round-trip Tests (${{ matrix.os }} - Java ${{ matrix.java }})" >> $GITHUB_STEP_SUMMARY
@@ -77,7 +74,6 @@ jobs:
           name: test-results-${{ matrix.os }}-java${{ matrix.java }}
           path: |
             implementations/java/build/test-output.txt
-            implementations/java/build/docs/tests/report.html
             implementations/java/target/surefire-reports/
           retention-days: 7
 
@@ -196,8 +192,9 @@ jobs:
       - name: Run tests and generate HTML report
         run: |
           mkdir -p build/docs/tests
-          mvn test 2>&1 | tee build/test-output.txt
-          ./scripts/generate-test-report.sh target/surefire-reports build/docs/tests/report.html
+          mvn test surefire-report:report-only site -DgenerateReports=false
+          cp target/site/surefire-report.html build/docs/tests/index.html
+          cp -r target/site/css build/docs/tests/ 2>/dev/null || true
 
       - name: Generate API documentation
         run: |
@@ -210,7 +207,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Generated artifacts:" >> $GITHUB_STEP_SUMMARY
           echo "- **API docs**: \`build/docs/api/\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Test report**: \`build/docs/tests/report.html\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test report**: \`build/docs/tests/index.html\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Download the **docs** artifact to view all documentation." >> $GITHUB_STEP_SUMMARY
 
