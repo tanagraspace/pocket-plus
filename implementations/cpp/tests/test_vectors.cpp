@@ -21,8 +21,9 @@ static std::string get_test_vectors_dir() {
     if (env != nullptr && env[0] != '\0') {
         return env;
     }
-    // Default: relative path from build directory
-    return "../../test-vectors";
+    // Default: relative path from build directory (implementations/cpp/build/)
+    // Goes up to repo root: build/ -> cpp/ -> implementations/ -> pocket-plus/
+    return "../../../test-vectors";
 }
 
 /**
