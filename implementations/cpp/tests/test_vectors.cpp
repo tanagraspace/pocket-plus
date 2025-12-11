@@ -6,12 +6,14 @@
  * and interoperability with the C implementation.
  */
 
-#include <catch2/catch_test_macros.hpp>
 #include <pocketplus/pocketplus.hpp>
-#include <fstream>
-#include <vector>
+
+#include <catch2/catch_test_macros.hpp>
+
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
+#include <vector>
 
 using namespace pocketplus;
 
@@ -61,14 +63,8 @@ static std::uint32_t djb2_hash(const std::uint8_t* data, std::size_t len) {
  * @brief Compress and verify against expected output, then round-trip verify.
  */
 template <std::size_t N>
-static bool compress_and_verify(
-    const std::string& input_path,
-    const std::string& expected_path,
-    int pt_limit,
-    int ft_limit,
-    int rt_limit,
-    std::uint8_t robustness
-) {
+static bool compress_and_verify(const std::string& input_path, const std::string& expected_path,
+                                int pt_limit, int ft_limit, int rt_limit, std::uint8_t robustness) {
     // Read input file
     auto input_data = read_file(input_path);
     if (input_data.empty()) {
@@ -88,12 +84,9 @@ static bool compress_and_verify(
     std::size_t actual_size = 0;
 
     // Compress
-    auto result = compress<N>(
-        input_data.data(), input_data.size(),
-        actual_output.data(), actual_output.size(),
-        actual_size,
-        robustness, pt_limit, ft_limit, rt_limit
-    );
+    auto result =
+        compress<N>(input_data.data(), input_data.size(), actual_output.data(),
+                    actual_output.size(), actual_size, robustness, pt_limit, ft_limit, rt_limit);
 
     if (result != Error::Ok) {
         INFO("Compression failed with error " << static_cast<int>(result));
@@ -101,19 +94,21 @@ static bool compress_and_verify(
     }
 
     INFO("Input: " << input_data.size() << " bytes -> Compressed: " << actual_size
-         << " bytes (ratio: " << (static_cast<double>(input_data.size()) / actual_size) << "x)");
+                   << " bytes (ratio: " << (static_cast<double>(input_data.size()) / actual_size)
+                   << "x)");
 
     // Compare with expected output
     if (actual_size != expected_output.size()) {
-        INFO("Size mismatch - Expected: " << expected_output.size() << " bytes, Got: " << actual_size << " bytes");
+        INFO("Size mismatch - Expected: " << expected_output.size()
+                                          << " bytes, Got: " << actual_size << " bytes");
         return false;
     }
 
     for (std::size_t i = 0; i < actual_size; ++i) {
         if (actual_output[i] != expected_output[i]) {
-            INFO("Byte mismatch at offset " << i << " - Expected: 0x"
-                 << std::hex << static_cast<int>(expected_output[i])
-                 << ", Got: 0x" << static_cast<int>(actual_output[i]));
+            INFO("Byte mismatch at offset " << i << " - Expected: 0x" << std::hex
+                                            << static_cast<int>(expected_output[i]) << ", Got: 0x"
+                                            << static_cast<int>(actual_output[i]));
             return false;
         }
     }
@@ -122,12 +117,8 @@ static bool compress_and_verify(
     std::vector<std::uint8_t> decompressed(input_data.size() * 2);
     std::size_t decompressed_size = 0;
 
-    result = decompress<N>(
-        actual_output.data(), actual_size,
-        decompressed.data(), decompressed.size(),
-        decompressed_size,
-        robustness
-    );
+    result = decompress<N>(actual_output.data(), actual_size, decompressed.data(),
+                           decompressed.size(), decompressed_size, robustness);
 
     if (result != Error::Ok) {
         INFO("Decompression failed with error " << static_cast<int>(result));
@@ -135,8 +126,8 @@ static bool compress_and_verify(
     }
 
     if (decompressed_size != input_data.size()) {
-        INFO("Round-trip size mismatch - Original: " << input_data.size()
-             << " bytes, Decompressed: " << decompressed_size << " bytes");
+        INFO("Round-trip size mismatch - Original: "
+             << input_data.size() << " bytes, Decompressed: " << decompressed_size << " bytes");
         return false;
     }
 
@@ -145,8 +136,8 @@ static bool compress_and_verify(
     std::uint32_t decompressed_hash = djb2_hash(decompressed.data(), decompressed_size);
 
     if (original_hash != decompressed_hash) {
-        INFO("Round-trip hash mismatch - Original: 0x" << std::hex << original_hash
-             << ", Decompressed: 0x" << decompressed_hash);
+        INFO("Round-trip hash mismatch - Original: 0x"
+             << std::hex << original_hash << ", Decompressed: 0x" << decompressed_hash);
         return false;
     }
 
