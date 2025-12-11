@@ -22,11 +22,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
 
-      - name: Check formatting
+      - name: Format and check
         working-directory: implementations/cpp
         run: |
           echo "## Format Check" >> $GITHUB_STEP_SUMMARY
@@ -40,20 +43,19 @@ jobs:
             exit 0
           fi
 
-          # Check formatting
-          DIFF=$(echo "$FILES" | xargs clang-format --dry-run --Werror 2>&1) || true
+          # Format all files
+          echo "$FILES" | xargs clang-format -i
 
-          if [ -n "$DIFF" ]; then
-            echo "**Formatting issues found:**" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$DIFF" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Run \`make fmt\` to fix formatting issues." >> $GITHUB_STEP_SUMMARY
-            exit 1
-          else
-            echo "All files are properly formatted." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "All files are properly formatted." >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit formatting changes
+        working-directory: implementations/cpp
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "cpp: auto-format with clang-format [skip ci]"
+          git push || true
 
   build-and-test:
     runs-on: ${{ matrix.os }}

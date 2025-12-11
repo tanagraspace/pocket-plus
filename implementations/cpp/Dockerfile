@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install build tools
 RUN apt-get update && apt-get install -y \
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     valgrind \
     python3-pip \
     && rm -rf /var/lib/apt/lists/* \
-    && pip3 install junit2html
+    && pip3 install --break-system-packages junit2html
 
 # Set working directory
 WORKDIR /app/implementations/cpp
