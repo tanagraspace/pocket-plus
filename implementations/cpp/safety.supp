@@ -1,0 +1,91 @@
+// POCKET+ C++ Implementation - Safety Check Documentation
+// ========================================================
+//
+// This file documents design decisions related to safety-critical coding
+// guidelines (CERT C++, HIC++, C++ Core Guidelines).
+//
+// Standards Alignment:
+// - CERT C++ Secure Coding Standard
+// - High Integrity C++ (HIC++) Coding Standard
+// - C++ Core Guidelines
+// - Partial alignment with MISRA C++:2023 goals
+//
+// Note: Full MISRA C++:2023/2008 compliance requires commercial tools.
+//
+// CURRENT STATUS: No clang-tidy suppressions required
+// ===================================================
+// All safety checks pass without suppression. The code has been refactored
+// to satisfy static analysis tools while maintaining correctness.
+
+// -----------------------------------------------------------------------------
+// Bit Iteration Loops - Analyzable Termination
+// -----------------------------------------------------------------------------
+// The library uses bit iteration patterns that static analyzers can verify
+// for termination. All bit iteration loops use the pattern:
+//
+//   for (int bits_remaining = __builtin_popcount(word);
+//        bits_remaining > 0; --bits_remaining) {
+//       int pos = detail::extract_msb(word);  // or extract_lsb
+//       // ... process bit ...
+//   }
+//
+// This pattern:
+// - Uses popcount as an upper bound, guaranteeing termination
+// - Avoids the while(word != 0) pattern that triggers false positives
+// - Encapsulates bit extraction in helper functions for clarity
+//
+// Helper functions (in bitvector.hpp detail namespace):
+// - extract_msb(word) - Extracts and clears the most significant set bit
+// - extract_lsb(word) - Extracts and clears the least significant set bit
+
+// -----------------------------------------------------------------------------
+// Compiler Intrinsics: __builtin_popcount, __builtin_clz, __builtin_ctz
+// -----------------------------------------------------------------------------
+// Rationale: These GCC/Clang compiler intrinsics compile to single CPU
+// instructions (POPCNT, CLZ, CTZ) on supported architectures, providing
+// significant performance improvement over portable implementations.
+//
+// These are well-supported by all major embedded C++ compilers:
+// - GCC (all versions)
+// - Clang (all versions)
+// - ARM Compiler (armclang)
+// - Intel C++ Compiler
+//
+// Fallback implementations could be added for exotic compilers if needed.
+// This matches the C implementation approach (see implementations/c/misra.supp).
+
+// -----------------------------------------------------------------------------
+// Template Metaprogramming: Compile-time size calculations
+// -----------------------------------------------------------------------------
+// Rationale: The use of constexpr and template parameters for compile-time
+// size calculations is intentional to enable:
+// - Zero-cost abstractions
+// - Static allocation (no heap)
+// - Compile-time bounds verification
+//
+// This is a modern C++ best practice that aligns with embedded/safety goals.
+
+// -----------------------------------------------------------------------------
+// noexcept Specifications
+// -----------------------------------------------------------------------------
+// Rationale: Functions are marked noexcept where possible to:
+// - Enable compiler optimizations
+// - Document exception safety guarantees
+// - Support embedded builds with -fno-exceptions
+//
+// Functions that cannot throw are marked accordingly.
+
+// -----------------------------------------------------------------------------
+// Header-Only Design
+// -----------------------------------------------------------------------------
+// Rationale: The library is header-only because:
+// - Template classes/functions require implementation at instantiation
+// - Allows compiler to inline and optimize for specific parameters
+// - Standard approach for template-heavy C++ libraries
+// - Simplifies integration (no library linking required)
+//
+// The .cpp files exist only to:
+// - Verify headers compile in isolation
+// - Provide compilation units for the static library
+// - Document the design decision
+

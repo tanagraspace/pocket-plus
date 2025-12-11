@@ -1,0 +1,28 @@
+# Build directory
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.o
+*.a
+*.so
+*.dylib
+
+# Coverage
+*.gcov
+*.gcda
+*.gcno
+coverage.info
+
+# Documentation
+docs/html/
+docs/latex/
+
+# macOS
+.DS_Store

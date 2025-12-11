@@ -35,14 +35,15 @@ The algorithm has been standardized by CCSDS as **CCSDS 124.0-B-1** for compress
 | Language | Version | Status | Target | Location |
 |----------|---------|--------|--------|----------|
 | C | 1.0.0 | Complete | Embedded / Desktop / Server | [`implementations/c/`](implementations/c/) |
+| C++ | 1.0.0 | Complete | Embedded / Desktop / Server | [`implementations/cpp/`](implementations/cpp/) |
 | Python | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/python/`](implementations/python/) |
 | Go | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/go/`](implementations/go/) |
 | Rust | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/rust/`](implementations/rust/) |
-| Java | 1.0.0 | In Progress | Embedded Linux / Desktop / Server | [`implementations/java/`](implementations/java/) |
+| Java | 1.0.0 | In Progress | Desktop / Server | [`implementations/java/`](implementations/java/) |
 
 ### Which implementation should I use?
 
-**For bare-metal embedded systems**: Use the **C implementation**. It is the only implementation suitable for resource-constrained microcontrollers such as spacecraft on-board computers (e.g., GomSpace Nanomind 3200 / AVR32 MCU). The C implementation is optimized for 32-bit architectures and has no external dependencies.
+**For bare-metal embedded systems**: Use the **C** or **C++** implementation. Both are suitable for resource-constrained systems. The C++ implementation is header-only with template-based size optimization and works with `-fno-exceptions -fno-rtti`. The C implementation is optimized for 32-bit microcontrollers (e.g., GomSpace Nanomind 3200 / AVR32 MCU).
 
 **For payload computers**: Python, Go, Rust, and Java can run on embedded Linux systems such as payload processors (e.g., SEPP on OPS-SAT-1). Choose based on your runtime environment and preference.
 
@@ -54,6 +55,7 @@ The algorithm has been standardized by CCSDS as **CCSDS 124.0-B-1** for compress
 pocket-plus/
 ├── implementations/
 │   ├── c/              # C implementation
+│   ├── cpp/            # C++ implementation
 │   ├── python/         # Python implementation
 │   ├── go/             # Go implementation
 │   ├── rust/           # Rust implementation
@@ -72,6 +74,7 @@ Build, test, and generate coverage for any implementation:
 
 ```bash
 docker-compose run --rm c          # C implementation
+docker-compose run --rm cpp        # C++ implementation
 docker-compose run --rm python     # Python implementation
 docker-compose run --rm go         # Go implementation
 docker-compose run --rm rust       # Rust implementation
@@ -88,6 +91,15 @@ Artifacts are written to `implementations/<lang>/build/`.
 cd implementations/c
 make          # Build library and CLI
 make test     # Run tests
+make coverage # Run tests with coverage report
+```
+
+#### C++
+
+```bash
+cd implementations/cpp
+make build    # Build library, CLI, and tests
+make test     # Run unit tests
 make coverage # Run tests with coverage report
 ```
 
