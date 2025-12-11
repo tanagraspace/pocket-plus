@@ -3,8 +3,9 @@
  * @brief Unit tests for BitReader class.
  */
 
-#include <catch2/catch_test_macros.hpp>
 #include <pocketplus/bitreader.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 

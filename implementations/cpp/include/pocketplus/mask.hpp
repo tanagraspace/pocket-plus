@@ -27,9 +27,9 @@
 #ifndef POCKETPLUS_MASK_HPP
 #define POCKETPLUS_MASK_HPP
 
+#include "bitvector.hpp"
 #include "config.hpp"
 #include "error.hpp"
-#include "bitvector.hpp"
 
 namespace pocketplus {
 
@@ -50,13 +50,8 @@ namespace pocketplus {
  * @param[in] t Time index (0 = first packet)
  */
 template <std::size_t N>
-void update_build(
-    BitVector<N>& build,
-    const BitVector<N>& input,
-    const BitVector<N>& prev_input,
-    bool new_mask_flag,
-    std::size_t t
-) noexcept {
+void update_build(BitVector<N>& build, const BitVector<N>& input, const BitVector<N>& prev_input,
+                  bool new_mask_flag, std::size_t t) noexcept {
     if (t == 0 || new_mask_flag) {
         // Case 1: t=0 or new_mask_flag set -> reset build to 0
         build.zero();
@@ -86,13 +81,8 @@ void update_build(
  * @param[in] new_mask_flag p_t flag (true = update from build)
  */
 template <std::size_t N>
-void update_mask(
-    BitVector<N>& mask,
-    const BitVector<N>& input,
-    const BitVector<N>& prev_input,
-    const BitVector<N>& build_prev,
-    bool new_mask_flag
-) noexcept {
+void update_mask(BitVector<N>& mask, const BitVector<N>& input, const BitVector<N>& prev_input,
+                 const BitVector<N>& build_prev, bool new_mask_flag) noexcept {
     // Optimized: compute in-place without temporary allocation
     if (new_mask_flag) {
         // Case 1: new_mask_flag set -> M_t = (I_t XOR I_{t-1}) OR B_{t-1}
@@ -122,12 +112,8 @@ void update_mask(
  * @param[in] t Time index (0 = first packet)
  */
 template <std::size_t N>
-void compute_change(
-    BitVector<N>& change,
-    const BitVector<N>& mask,
-    const BitVector<N>& prev_mask,
-    std::size_t t
-) noexcept {
+void compute_change(BitVector<N>& change, const BitVector<N>& mask, const BitVector<N>& prev_mask,
+                    std::size_t t) noexcept {
     if (t == 0) {
         // At t=0, D_0 = M_0 (all initially predictable bits)
         change = mask;

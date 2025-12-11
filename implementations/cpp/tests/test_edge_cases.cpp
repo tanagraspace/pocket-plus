@@ -5,15 +5,16 @@
  * Tests boundary conditions, corner cases, and stress scenarios.
  */
 
-#include <catch2/catch_test_macros.hpp>
-#include <pocketplus/pocketplus.hpp>
-#include <pocketplus/compressor.hpp>
-#include <pocketplus/decompressor.hpp>
-#include <pocketplus/bitvector.hpp>
 #include <pocketplus/bitbuffer.hpp>
 #include <pocketplus/bitreader.hpp>
-#include <pocketplus/encoder.hpp>
+#include <pocketplus/bitvector.hpp>
+#include <pocketplus/compressor.hpp>
 #include <pocketplus/decoder.hpp>
+#include <pocketplus/decompressor.hpp>
+#include <pocketplus/encoder.hpp>
+#include <pocketplus/pocketplus.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 
@@ -77,7 +78,7 @@ TEST_CASE("BitVector edge cases", "[edge][bitvector]") {
 
     SECTION("left shift edge cases") {
         BitVector<8> bv;
-        bv.set_bit(7, 1);  // LSB
+        bv.set_bit(7, 1); // LSB
 
         // left_shift_of shifts left by 1 position
         BitVector<8> shifted;
@@ -107,7 +108,7 @@ TEST_CASE("BitVector edge cases", "[edge][bitvector]") {
     }
 
     SECTION("non-byte-aligned size") {
-        BitVector<13> bv;  // 13 bits, not byte-aligned
+        BitVector<13> bv; // 13 bits, not byte-aligned
         bv.set_bit(0, 1);
         bv.set_bit(12, 1);
 
@@ -161,11 +162,11 @@ TEST_CASE("BitBuffer edge cases", "[edge][bitbuffer]") {
 
     SECTION("to_bytes with padding") {
         BitBuffer<64> buf;
-        buf.append_value(0x1F, 5);  // 5 bits = needs padding
+        buf.append_value(0x1F, 5); // 5 bits = needs padding
 
         std::uint8_t bytes[8];
         std::size_t size = buf.to_bytes(bytes, 8);
-        REQUIRE(size == 1);  // 5 bits = 1 byte with padding
+        REQUIRE(size == 1); // 5 bits = 1 byte with padding
     }
 }
 
@@ -187,10 +188,10 @@ TEST_CASE("BitReader edge cases", "[edge][bitreader]") {
         std::uint8_t data[] = {0xFF, 0xAA};
         BitReader reader(data, 16);
 
-        reader.read_bits(3);  // Read 3 bits
+        reader.read_bits(3); // Read 3 bits
         REQUIRE(reader.position() == 3);
 
-        reader.align_byte();  // Should skip to bit 8
+        reader.align_byte(); // Should skip to bit 8
         REQUIRE(reader.position() == 8);
     }
 
@@ -238,7 +239,7 @@ TEST_CASE("COUNT encoding edge cases", "[edge][encoder]") {
 TEST_CASE("RLE encoding edge cases", "[edge][encoder]") {
     SECTION("all zeros (no runs)") {
         BitBuffer<64> buf;
-        BitVector<32> vec;  // All zeros
+        BitVector<32> vec; // All zeros
         rle_encode(buf, vec);
         // Should be just the terminator '10' (2 bits)
         REQUIRE(buf.size() == 2);
@@ -278,7 +279,7 @@ TEST_CASE("BE (bit extraction) edge cases", "[edge][encoder]") {
     SECTION("all bits masked out") {
         BitBuffer<64> buf;
         BitVector<8> input;
-        BitVector<8> mask;  // All zeros = all masked out
+        BitVector<8> mask; // All zeros = all masked out
 
         input.set_bit(0, 1);
         input.set_bit(7, 1);
@@ -303,7 +304,7 @@ TEST_CASE("BE (bit extraction) edge cases", "[edge][encoder]") {
         }
 
         bit_extract(buf, input, mask);
-        REQUIRE(buf.size() == 8);  // All 8 bits extracted
+        REQUIRE(buf.size() == 8); // All 8 bits extracted
     }
 }
 
@@ -313,7 +314,7 @@ TEST_CASE("BE (bit extraction) edge cases", "[edge][encoder]") {
 
 TEST_CASE("COUNT decode edge cases", "[edge][decoder]") {
     SECTION("COUNT(1) decode") {
-        std::uint8_t data[] = {0x00};  // 0 = COUNT(1)
+        std::uint8_t data[] = {0x00}; // 0 = COUNT(1)
         BitReader reader(data, 1);
         std::uint32_t value = 0;
         auto result = count_decode(reader, value);
@@ -322,7 +323,7 @@ TEST_CASE("COUNT decode edge cases", "[edge][decoder]") {
     }
 
     SECTION("Terminator decode") {
-        std::uint8_t data[] = {0x80};  // 10 = terminator (returns 0)
+        std::uint8_t data[] = {0x80}; // 10 = terminator (returns 0)
         BitReader reader(data, 2);
         std::uint32_t value = 99;
         auto result = count_decode(reader, value);
@@ -333,7 +334,7 @@ TEST_CASE("COUNT decode edge cases", "[edge][decoder]") {
 
 TEST_CASE("RLE decode edge cases", "[edge][decoder]") {
     SECTION("empty input (terminator only)") {
-        std::uint8_t data[] = {0x80};  // 10 = terminator
+        std::uint8_t data[] = {0x80}; // 10 = terminator
         BitReader reader(data, 2);
         BitVector<8> result;
         auto status = rle_decode(reader, result);
@@ -350,7 +351,7 @@ TEST_CASE("RLE decode edge cases", "[edge][decoder]") {
 TEST_CASE("Compressor edge cases", "[edge][compressor]") {
     SECTION("constant zero input") {
         Compressor<8> comp;
-        BitVector<8> input;  // All zeros
+        BitVector<8> input; // All zeros
         BitBuffer<64> output;
 
         // First packet
@@ -467,18 +468,14 @@ TEST_CASE("High-level API edge cases", "[edge][api]") {
         std::uint8_t output[180];
         std::size_t output_size = 0;
 
-        auto result = compress<720>(
-            input, 90, output, 180, output_size, 1, 10, 20, 50
-        );
+        auto result = compress<720>(input, 90, output, 180, output_size, 1, 10, 20, 50);
         REQUIRE(result == Error::Ok);
         REQUIRE(output_size > 0);
 
         // Decompress
         std::uint8_t decompressed[90];
         std::size_t decompressed_size = 0;
-        result = decompress<720>(
-            output, output_size, decompressed, 90, decompressed_size, 1
-        );
+        result = decompress<720>(output, output_size, decompressed, 90, decompressed_size, 1);
         REQUIRE(result == Error::Ok);
         REQUIRE(decompressed_size == 90);
         REQUIRE(decompressed[0] == input[0]);
@@ -488,21 +485,16 @@ TEST_CASE("High-level API edge cases", "[edge][api]") {
         std::uint8_t output[100];
         std::size_t output_size = 0;
 
-        auto result = compress<720>(
-            nullptr, 0, output, 100, output_size, 1, 10, 20, 50
-        );
+        auto result = compress<720>(nullptr, 0, output, 100, output_size, 1, 10, 20, 50);
         REQUIRE(result == Error::InvalidArg);
     }
 
     SECTION("input not multiple of packet size") {
-        std::uint8_t input[100];  // 100 bytes, not divisible by 90
+        std::uint8_t input[100]; // 100 bytes, not divisible by 90
         std::uint8_t output[200];
         std::size_t output_size = 0;
 
-        auto result = compress<720>(
-            input, 100, output, 200, output_size, 1, 10, 20, 50
-        );
+        auto result = compress<720>(input, 100, output, 200, output_size, 1, 10, 20, 50);
         REQUIRE(result == Error::InvalidArg);
     }
-
 }

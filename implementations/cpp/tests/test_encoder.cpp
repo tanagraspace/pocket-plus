@@ -3,10 +3,11 @@
  * @brief Unit tests for Encoder functions (COUNT, RLE, BE).
  */
 
-#include <catch2/catch_test_macros.hpp>
-#include <pocketplus/encoder.hpp>
 #include <pocketplus/bitbuffer.hpp>
 #include <pocketplus/bitvector.hpp>
+#include <pocketplus/encoder.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 

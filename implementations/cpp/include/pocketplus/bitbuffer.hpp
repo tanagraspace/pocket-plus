@@ -31,11 +31,12 @@
 #ifndef POCKETPLUS_BITBUFFER_HPP
 #define POCKETPLUS_BITBUFFER_HPP
 
-#include "config.hpp"
-#include "bitvector.hpp"
-#include "error.hpp"
 #include <array>
 #include <cstring>
+
+#include "bitvector.hpp"
+#include "config.hpp"
+#include "error.hpp"
 
 namespace pocketplus {
 
@@ -47,8 +48,7 @@ namespace pocketplus {
  * Uses static allocation only - no heap allocation. Suitable for
  * embedded systems with -fno-exceptions -fno-rtti.
  */
-template <std::size_t MaxBytes = MAX_OUTPUT_BYTES>
-class BitBuffer {
+template <std::size_t MaxBytes = MAX_OUTPUT_BYTES> class BitBuffer {
 public:
     /**
      * @brief Default constructor - initializes to empty state.
@@ -69,7 +69,9 @@ public:
      * @brief Get number of bits in buffer.
      * @return Number of bits currently stored
      */
-    [[nodiscard]] std::size_t size() const noexcept { return num_bits_; }
+    [[nodiscard]] std::size_t size() const noexcept {
+        return num_bits_;
+    }
 
     /**
      * @brief Append a single bit.
@@ -110,7 +112,7 @@ public:
         }
 
         // Process complete bytes efficiently
-        std::size_t full_bytes = num_bits >> 3;  // num_bits / 8
+        std::size_t full_bytes = num_bits >> 3; // num_bits / 8
         for (std::size_t i = 0; i < full_bytes; ++i) {
             auto result = append_value(bytes[i], 8);
             if (result != Error::Ok) {
@@ -119,7 +121,7 @@ public:
         }
 
         // Process remaining bits (0-7)
-        std::size_t remaining_bits = num_bits & 7;  // num_bits % 8
+        std::size_t remaining_bits = num_bits & 7; // num_bits % 8
         if (remaining_bits > 0) {
             // Extract MSB-aligned bits from last byte
             std::uint32_t value = bytes[full_bytes] >> (8 - remaining_bits);
@@ -183,8 +185,8 @@ public:
 
         // Process 24 bits at a time using direct word access
         while (bit_pos + 24 <= bits_to_append) {
-            std::size_t word_idx = bit_pos >> 5;      // bit_pos / 32
-            std::size_t bit_in_word = bit_pos & 31;   // bit_pos % 32
+            std::size_t word_idx = bit_pos >> 5;    // bit_pos / 32
+            std::size_t bit_in_word = bit_pos & 31; // bit_pos % 32
 
             std::uint32_t value;
             if (bit_in_word <= 8) {
@@ -233,8 +235,7 @@ public:
      * @param bv Source bit vector
      * @return Error::Ok on success
      */
-    template <std::size_t N>
-    Error append_bitvector(const BitVector<N>& bv) noexcept {
+    template <std::size_t N> Error append_bitvector(const BitVector<N>& bv) noexcept {
         return append_bitvector(bv, N);
     }
 

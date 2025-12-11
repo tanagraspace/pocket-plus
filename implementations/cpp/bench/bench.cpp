@@ -12,6 +12,7 @@
  */
 
 #include <pocketplus/pocketplus.hpp>
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -41,8 +42,8 @@ static bool load_file(const char* path, std::vector<std::uint8_t>& data) {
     return true;
 }
 
-static void bench_compress(const char* name, const char* path, int robustness,
-                           int pt, int ft, int rt, int iterations) {
+static void bench_compress(const char* name, const char* path, int robustness, int pt, int ft,
+                           int rt, int iterations) {
     std::vector<std::uint8_t> input;
 
     if (!load_file(path, input)) {
@@ -55,25 +56,15 @@ static void bench_compress(const char* name, const char* path, int robustness,
     std::size_t output_size = 0;
 
     // Warmup run
-    compress<PACKET_SIZE_BITS>(
-        input.data(), input.size(),
-        output.data(), output.size(),
-        output_size,
-        static_cast<std::uint8_t>(robustness),
-        pt, ft, rt
-    );
+    compress<PACKET_SIZE_BITS>(input.data(), input.size(), output.data(), output.size(),
+                               output_size, static_cast<std::uint8_t>(robustness), pt, ft, rt);
 
     // Benchmark
     auto start = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < iterations; i++) {
-        compress<PACKET_SIZE_BITS>(
-            input.data(), input.size(),
-            output.data(), output.size(),
-            output_size,
-            static_cast<std::uint8_t>(robustness),
-            pt, ft, rt
-        );
+        compress<PACKET_SIZE_BITS>(input.data(), input.size(), output.data(), output.size(),
+                                   output_size, static_cast<std::uint8_t>(robustness), pt, ft, rt);
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -83,12 +74,12 @@ static void bench_compress(const char* name, const char* path, int robustness,
     double per_packet_us = per_iter_us / static_cast<double>(num_packets);
     double throughput_kbps = (static_cast<double>(input.size()) * 8.0 * 1000.0) / per_iter_us;
 
-    std::printf("%-20s %8.2f µs/iter  %6.2f µs/pkt  %8.1f Kbps  (%zu pkts)\n",
-                name, per_iter_us, per_packet_us, throughput_kbps, num_packets);
+    std::printf("%-20s %8.2f µs/iter  %6.2f µs/pkt  %8.1f Kbps  (%zu pkts)\n", name, per_iter_us,
+                per_packet_us, throughput_kbps, num_packets);
 }
 
-static void bench_decompress(const char* name, const char* path, int robustness,
-                             int pt, int ft, int rt, int iterations) {
+static void bench_decompress(const char* name, const char* path, int robustness, int pt, int ft,
+                             int rt, int iterations) {
     std::vector<std::uint8_t> input;
 
     if (!load_file(path, input)) {
@@ -101,35 +92,23 @@ static void bench_decompress(const char* name, const char* path, int robustness,
     // First compress the data
     std::vector<std::uint8_t> compressed(input.size() * 2);
     std::size_t compressed_size = 0;
-    compress<PACKET_SIZE_BITS>(
-        input.data(), input.size(),
-        compressed.data(), compressed.size(),
-        compressed_size,
-        static_cast<std::uint8_t>(robustness),
-        pt, ft, rt
-    );
+    compress<PACKET_SIZE_BITS>(input.data(), input.size(), compressed.data(), compressed.size(),
+                               compressed_size, static_cast<std::uint8_t>(robustness), pt, ft, rt);
 
     std::vector<std::uint8_t> output(input.size());
     std::size_t output_size = 0;
 
     // Warmup run
-    decompress<PACKET_SIZE_BITS>(
-        compressed.data(), compressed_size,
-        output.data(), output.size(),
-        output_size,
-        static_cast<std::uint8_t>(robustness)
-    );
+    decompress<PACKET_SIZE_BITS>(compressed.data(), compressed_size, output.data(), output.size(),
+                                 output_size, static_cast<std::uint8_t>(robustness));
 
     // Benchmark
     auto start = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < iterations; i++) {
-        decompress<PACKET_SIZE_BITS>(
-            compressed.data(), compressed_size,
-            output.data(), output.size(),
-            output_size,
-            static_cast<std::uint8_t>(robustness)
-        );
+        decompress<PACKET_SIZE_BITS>(compressed.data(), compressed_size, output.data(),
+                                     output.size(), output_size,
+                                     static_cast<std::uint8_t>(robustness));
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -139,8 +118,8 @@ static void bench_decompress(const char* name, const char* path, int robustness,
     double per_packet_us = per_iter_us / static_cast<double>(num_packets);
     double throughput_kbps = (static_cast<double>(input.size()) * 8.0 * 1000.0) / per_iter_us;
 
-    std::printf("%-20s %8.2f µs/iter  %6.2f µs/pkt  %8.1f Kbps  (%zu pkts)\n",
-                name, per_iter_us, per_packet_us, throughput_kbps, num_packets);
+    std::printf("%-20s %8.2f µs/iter  %6.2f µs/pkt  %8.1f Kbps  (%zu pkts)\n", name, per_iter_us,
+                per_packet_us, throughput_kbps, num_packets);
 }
 
 int main(int argc, char* argv[]) {
@@ -156,20 +135,16 @@ int main(int argc, char* argv[]) {
     std::printf("POCKET+ Benchmarks (C++ Implementation)\n");
     std::printf("=======================================\n");
     std::printf("Iterations: %d\n", iterations);
-    std::printf("Packet size: %zu bits (%zu bytes)\n\n",
-                PACKET_SIZE_BITS, PACKET_SIZE_BYTES);
+    std::printf("Packet size: %zu bits (%zu bytes)\n\n", PACKET_SIZE_BITS, PACKET_SIZE_BYTES);
 
-    std::printf("%-20s %14s  %13s  %12s  %s\n",
-                "Test", "Time", "Per-Packet", "Throughput", "Packets");
-    std::printf("%-20s %14s  %13s  %12s  %s\n",
-                "----", "----", "----------", "----------", "-------");
+    std::printf("%-20s %14s  %13s  %12s  %s\n", "Test", "Time", "Per-Packet", "Throughput",
+                "Packets");
+    std::printf("%-20s %14s  %13s  %12s  %s\n", "----", "----", "----------", "----------",
+                "-------");
 
     // Try Docker path first, then local path
-    const char* base_paths[] = {
-        "/app/test-vectors/input/",
-        "../../test-vectors/input/",
-        "../../../test-vectors/input/"
-    };
+    const char* base_paths[] = {"/app/test-vectors/input/", "../../test-vectors/input/",
+                                "../../../test-vectors/input/"};
     const char* base_path = nullptr;
 
     // Find working base path

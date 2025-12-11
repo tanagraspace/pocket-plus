@@ -26,11 +26,11 @@
 #ifndef POCKETPLUS_DECOMPRESSOR_HPP
 #define POCKETPLUS_DECOMPRESSOR_HPP
 
-#include "config.hpp"
-#include "error.hpp"
-#include "bitvector.hpp"
 #include "bitreader.hpp"
+#include "bitvector.hpp"
+#include "config.hpp"
 #include "decoder.hpp"
+#include "error.hpp"
 
 namespace pocketplus {
 
@@ -42,8 +42,7 @@ namespace pocketplus {
  *
  * @tparam N Packet length in bits (F)
  */
-template <std::size_t N>
-class Decompressor {
+template <std::size_t N> class Decompressor {
 public:
     /**
      * @brief Construct decompressor with configuration.
@@ -51,8 +50,8 @@ public:
      * @param robustness Base robustness level R_t (0-7)
      */
     explicit Decompressor(std::uint8_t robustness = 0) noexcept
-        : robustness_(robustness > MAX_ROBUSTNESS ? static_cast<std::uint8_t>(MAX_ROBUSTNESS) : robustness)
-    {
+        : robustness_(robustness > MAX_ROBUSTNESS ? static_cast<std::uint8_t>(MAX_ROBUSTNESS)
+                                                  : robustness) {
         reset();
     }
 
@@ -120,8 +119,8 @@ public:
                 for (std::size_t word = 0; word < BitVector<N>::NUM_WORDS; ++word) {
                     std::uint32_t xt_word = Xt.data()[word];
                     // Loop bounded by popcount - guarantees termination
-                    for (int bits_remaining = __builtin_popcount(xt_word);
-                         bits_remaining > 0; --bits_remaining) {
+                    for (int bits_remaining = __builtin_popcount(xt_word); bits_remaining > 0;
+                         --bits_remaining) {
                         // Find MSB position (forward order)
                         int clz = detail::extract_msb(xt_word);
                         std::size_t global_pos = (word * 32) + static_cast<std::size_t>(clz);
@@ -132,7 +131,7 @@ public:
                             // kt=0 means negative update (mask becomes 1)
                             if (kt_bit > 0) {
                                 mask_.set_bit_unchecked(global_pos, 0);
-                                Xt_.set_bit_unchecked(global_pos, 1);  // Track positive change
+                                Xt_.set_bit_unchecked(global_pos, 1); // Track positive change
                             } else {
                                 mask_.set_bit_unchecked(global_pos, 1);
                             }
@@ -148,8 +147,8 @@ public:
                 for (std::size_t word = 0; word < BitVector<N>::NUM_WORDS; ++word) {
                     std::uint32_t xt_word = Xt.data()[word];
                     // Loop bounded by popcount - guarantees termination
-                    for (int bits_remaining = __builtin_popcount(xt_word);
-                         bits_remaining > 0; --bits_remaining) {
+                    for (int bits_remaining = __builtin_popcount(xt_word); bits_remaining > 0;
+                         --bits_remaining) {
                         int clz = detail::extract_msb(xt_word);
                         std::size_t global_pos = (word * 32) + static_cast<std::size_t>(clz);
                         if (global_pos < N) {
@@ -164,8 +163,8 @@ public:
             for (std::size_t word = 0; word < BitVector<N>::NUM_WORDS; ++word) {
                 std::uint32_t xt_word = Xt.data()[word];
                 // Loop bounded by popcount - guarantees termination
-                for (int bits_remaining = __builtin_popcount(xt_word);
-                     bits_remaining > 0; --bits_remaining) {
+                for (int bits_remaining = __builtin_popcount(xt_word); bits_remaining > 0;
+                     --bits_remaining) {
                     int clz = detail::extract_msb(xt_word);
                     std::size_t global_pos = (word * 32) + static_cast<std::size_t>(clz);
                     if (global_pos < N) {
@@ -269,17 +268,23 @@ public:
     /**
      * @brief Get current time index.
      */
-    std::size_t time_index() const noexcept { return t_; }
+    std::size_t time_index() const noexcept {
+        return t_;
+    }
 
     /**
      * @brief Get robustness level.
      */
-    std::uint8_t robustness() const noexcept { return robustness_; }
+    std::uint8_t robustness() const noexcept {
+        return robustness_;
+    }
 
     /**
      * @brief Get current mask.
      */
-    const BitVector<N>& mask() const noexcept { return mask_; }
+    const BitVector<N>& mask() const noexcept {
+        return mask_;
+    }
 
 private:
     // Configuration
@@ -289,7 +294,7 @@ private:
     BitVector<N> initial_mask_;
     BitVector<N> mask_;
     BitVector<N> prev_output_;
-    BitVector<N> Xt_;  // Positive changes tracker
+    BitVector<N> Xt_; // Positive changes tracker
 
     // Cycle counter
     std::size_t t_ = 0;

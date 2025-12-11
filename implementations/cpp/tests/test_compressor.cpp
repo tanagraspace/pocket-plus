@@ -3,10 +3,11 @@
  * @brief Unit tests for Compressor class.
  */
 
-#include <catch2/catch_test_macros.hpp>
-#include <pocketplus/compressor.hpp>
 #include <pocketplus/bitbuffer.hpp>
 #include <pocketplus/bitvector.hpp>
+#include <pocketplus/compressor.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 
@@ -23,7 +24,7 @@ TEST_CASE("Compressor construction", "[compressor]") {
     }
 
     SECTION("robustness capped at max") {
-        Compressor<8> comp(10);  // Should be capped to 7
+        Compressor<8> comp(10); // Should be capped to 7
         REQUIRE(comp.robustness() == 7);
     }
 
@@ -98,7 +99,7 @@ TEST_CASE("Compressor with initial mask", "[compressor]") {
     initial_mask.set_bit(7, 1);
 
     comp.set_initial_mask(initial_mask);
-    comp.reset();  // Apply the initial mask
+    comp.reset(); // Apply the initial mask
 
     BitVector<8> input;
     BitBuffer<64> output;
@@ -166,7 +167,7 @@ TEST_CASE("Compressor uncompressed mode", "[compressor]") {
 }
 
 TEST_CASE("Compressor with robustness", "[compressor]") {
-    Compressor<8> comp(3);  // Robustness = 3
+    Compressor<8> comp(3); // Robustness = 3
     BitVector<8> input;
     BitBuffer<128> output;
 
@@ -308,7 +309,7 @@ TEST_CASE("Compressor consistency", "[compressor]") {
 }
 
 TEST_CASE("Compressor larger packet size", "[compressor]") {
-    Compressor<720> comp(2);  // 90 bytes = 720 bits (test vector size)
+    Compressor<720> comp(2); // 90 bytes = 720 bits (test vector size)
     BitVector<720> input;
     BitBuffer<720 * 6> output;
 

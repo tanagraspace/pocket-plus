@@ -8,9 +8,10 @@
  * - Compute change vector (Equation 8)
  */
 
-#include <catch2/catch_test_macros.hpp>
-#include <pocketplus/mask.hpp>
 #include <pocketplus/bitvector.hpp>
+#include <pocketplus/mask.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 
@@ -76,7 +77,7 @@ TEST_CASE("Update build normal case", "[mask][build]") {
     input.set_bit(1, 1);
     input.set_bit(7, 1);
 
-    prev_input.set_bit(1, 1);  // Same as input at bit 1
+    prev_input.set_bit(1, 1); // Same as input at bit 1
 
     // Build starts with bit 3
     build.set_bit(3, 1);

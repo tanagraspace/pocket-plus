@@ -3,9 +3,10 @@
  * @brief Unit tests for BitBuffer class.
  */
 
-#include <catch2/catch_test_macros.hpp>
 #include <pocketplus/bitbuffer.hpp>
 #include <pocketplus/bitvector.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 
@@ -66,7 +67,7 @@ TEST_CASE("BitBuffer append_bits", "[bitbuffer]") {
 
     SECTION("append partial byte") {
         std::uint8_t data[] = {0xF0}; // 1111 0000
-        bb.append_bits(data, 4); // Only take 1111
+        bb.append_bits(data, 4);      // Only take 1111
 
         REQUIRE(bb.size() == 4);
 
@@ -153,9 +154,9 @@ TEST_CASE("BitBuffer multi-byte operations", "[bitbuffer]") {
     BitBuffer<256> bb;
 
     SECTION("cross byte boundary") {
-        bb.append_value(0x0F, 4);  // 0000 1111 -> 1111
-        bb.append_value(0xAB, 8);  // 1010 1011
-        bb.append_value(0x03, 4);  // 0000 0011 -> 0011
+        bb.append_value(0x0F, 4); // 0000 1111 -> 1111
+        bb.append_value(0xAB, 8); // 1010 1011
+        bb.append_value(0x03, 4); // 0000 0011 -> 0011
 
         // Total: 1111 1010 1011 0011 = 0xFA 0xB3
 

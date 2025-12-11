@@ -35,9 +35,10 @@
 #ifndef POCKETPLUS_BITVECTOR_HPP
 #define POCKETPLUS_BITVECTOR_HPP
 
-#include "config.hpp"
 #include <array>
 #include <cstring>
+
+#include "config.hpp"
 
 namespace pocketplus {
 
@@ -72,8 +73,8 @@ inline int extract_lsb(std::uint32_t& word) noexcept {
         return -1;
     }
     int ctz = __builtin_ctz(word);
-    word &= word - 1;  // Clear LSB (standard idiom)
-    return 31 - ctz;   // Convert to position from MSB
+    word &= word - 1; // Clear LSB (standard idiom)
+    return 31 - ctz;  // Convert to position from MSB
 }
 
 } // namespace detail
@@ -86,8 +87,7 @@ inline int extract_lsb(std::uint32_t& word) noexcept {
  * Uses static allocation only - no heap allocation. Suitable for
  * embedded systems with -fno-exceptions -fno-rtti.
  */
-template <std::size_t N>
-class BitVector {
+template <std::size_t N> class BitVector {
 public:
     /// Number of 32-bit words needed
     static constexpr std::size_t NUM_WORDS = (N + 31) / 32;
@@ -104,13 +104,17 @@ public:
      * @brief Get the number of bits.
      * @return Number of bits in the vector
      */
-    [[nodiscard]] constexpr std::size_t length() const noexcept { return N; }
+    [[nodiscard]] constexpr std::size_t length() const noexcept {
+        return N;
+    }
 
     /**
      * @brief Get the number of 32-bit words.
      * @return Number of words used for storage
      */
-    [[nodiscard]] constexpr std::size_t num_words() const noexcept { return NUM_WORDS; }
+    [[nodiscard]] constexpr std::size_t num_words() const noexcept {
+        return NUM_WORDS;
+    }
 
     /**
      * @brief Set all bits to zero.
@@ -126,7 +130,8 @@ public:
      * @return Bit value (0 or 1)
      */
     [[nodiscard]] inline int get_bit(std::size_t pos) const noexcept {
-        if (pos >= N) [[unlikely]] return 0;
+        if (pos >= N) [[unlikely]]
+            return 0;
         return get_bit_unchecked(pos);
     }
 
@@ -150,7 +155,8 @@ public:
      * @param value Bit value (0 or 1)
      */
     inline void set_bit(std::size_t pos, int value) noexcept {
-        if (pos >= N) [[unlikely]] return;
+        if (pos >= N) [[unlikely]]
+            return;
         set_bit_unchecked(pos, value);
     }
 
@@ -249,7 +255,7 @@ public:
             word = ((word & 0x55555555U) << 1) | ((word >> 1) & 0x55555555U);
             word = ((word & 0x33333333U) << 2) | ((word >> 2) & 0x33333333U);
             word = ((word & 0x0F0F0F0FU) << 4) | ((word >> 4) & 0x0F0F0F0FU);
-            word = __builtin_bswap32(word);  // Reverse bytes
+            word = __builtin_bswap32(word); // Reverse bytes
             data_[i] = word;
         }
 
@@ -445,13 +451,17 @@ public:
      * @brief Get raw data pointer (for advanced use).
      * @return Pointer to word array
      */
-    [[nodiscard]] word_t* data() noexcept { return data_.data(); }
+    [[nodiscard]] word_t* data() noexcept {
+        return data_.data();
+    }
 
     /**
      * @brief Get raw data pointer (const version).
      * @return Pointer to word array
      */
-    [[nodiscard]] const word_t* data() const noexcept { return data_.data(); }
+    [[nodiscard]] const word_t* data() const noexcept {
+        return data_.data();
+    }
 
 private:
     std::array<word_t, NUM_WORDS> data_;

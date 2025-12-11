@@ -24,8 +24,8 @@
 #ifndef POCKETPLUS_CONFIG_HPP
 #define POCKETPLUS_CONFIG_HPP
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 
 namespace pocketplus {
 

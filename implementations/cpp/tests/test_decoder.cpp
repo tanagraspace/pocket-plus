@@ -3,18 +3,19 @@
  * @brief Unit tests for Decoder functions (COUNT, RLE, bit insert).
  */
 
-#include <catch2/catch_test_macros.hpp>
-#include <pocketplus/decoder.hpp>
-#include <pocketplus/encoder.hpp>
 #include <pocketplus/bitbuffer.hpp>
 #include <pocketplus/bitreader.hpp>
 #include <pocketplus/bitvector.hpp>
+#include <pocketplus/decoder.hpp>
+#include <pocketplus/encoder.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 
 TEST_CASE("COUNT decode A=1", "[decoder]") {
     // '0' encodes A=1
-    std::uint8_t data[] = {0x00};  // '0' followed by padding
+    std::uint8_t data[] = {0x00}; // '0' followed by padding
     BitReader reader(data, 1);
 
     std::uint32_t value = 0;
@@ -26,7 +27,7 @@ TEST_CASE("COUNT decode A=1", "[decoder]") {
 
 TEST_CASE("COUNT decode terminator", "[decoder]") {
     // '10' encodes terminator (value=0)
-    std::uint8_t data[] = {0x80};  // '10' followed by padding
+    std::uint8_t data[] = {0x80}; // '10' followed by padding
     BitReader reader(data, 2);
 
     std::uint32_t value = 99;
@@ -105,7 +106,7 @@ TEST_CASE("COUNT decode large value", "[decoder]") {
 
 TEST_CASE("COUNT decode underflow", "[decoder]") {
     std::uint8_t data[] = {0xFF};
-    BitReader reader(data, 0);  // No bits available
+    BitReader reader(data, 0); // No bits available
 
     std::uint32_t value = 0;
     auto result = count_decode(reader, value);
@@ -114,7 +115,7 @@ TEST_CASE("COUNT decode underflow", "[decoder]") {
 
 TEST_CASE("RLE decode all zeros", "[decoder]") {
     // RLE of all zeros = just terminator '10'
-    std::uint8_t data[] = {0x80};  // '10'
+    std::uint8_t data[] = {0x80}; // '10'
     BitReader reader(data, 2);
 
     BitVector<8> result;
@@ -238,14 +239,15 @@ TEST_CASE("Bit insert reverse order", "[decoder]") {
     mask.set_bit(6, 1);
 
     // Bits to insert: '101' -> positions 6, 4, 1 (reverse order)
-    std::uint8_t bits[] = {0xA0};  // '101' followed by zeros
+    std::uint8_t bits[] = {0xA0}; // '101' followed by zeros
     BitReader reader(bits, 3);
 
     auto result = bit_insert(reader, data, mask);
     REQUIRE(result == Error::Ok);
 
     // Check that bits were inserted at correct positions
-    // Inserted in reverse: position 6 gets first bit (1), position 4 gets second (0), position 1 gets third (1)
+    // Inserted in reverse: position 6 gets first bit (1), position 4 gets second (0), position 1
+    // gets third (1)
     REQUIRE(data.get_bit(6) == 1);
     REQUIRE(data.get_bit(4) == 0);
     REQUIRE(data.get_bit(1) == 1);
@@ -259,7 +261,7 @@ TEST_CASE("Bit insert forward order", "[decoder]") {
     mask.set_bit(7, 1);
 
     // Bits to insert: '11' -> positions 0, 7 (forward order)
-    std::uint8_t bits[] = {0xC0};  // '11' followed by zeros
+    std::uint8_t bits[] = {0xC0}; // '11' followed by zeros
     BitReader reader(bits, 2);
 
     auto result = bit_insert_forward(reader, data, mask);
@@ -308,13 +310,13 @@ TEST_CASE("Bit extract/insert round trip", "[decoder]") {
 
 TEST_CASE("Bit insert with empty mask", "[decoder]") {
     BitVector<8> data;
-    BitVector<8> mask;  // All zeros
+    BitVector<8> mask; // All zeros
 
     std::uint8_t bits[] = {0xFF};
     BitReader reader(bits, 8);
 
     auto result = bit_insert(reader, data, mask);
     REQUIRE(result == Error::Ok);
-    REQUIRE(data.hamming_weight() == 0);  // No bits inserted
-    REQUIRE(reader.position() == 0);  // No bits consumed
+    REQUIRE(data.hamming_weight() == 0); // No bits inserted
+    REQUIRE(reader.position() == 0);     // No bits consumed
 }

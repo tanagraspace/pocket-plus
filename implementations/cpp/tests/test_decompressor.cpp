@@ -3,12 +3,13 @@
  * @brief Unit tests for Decompressor class.
  */
 
-#include <catch2/catch_test_macros.hpp>
-#include <pocketplus/decompressor.hpp>
-#include <pocketplus/compressor.hpp>
 #include <pocketplus/bitbuffer.hpp>
-#include <pocketplus/bitvector.hpp>
 #include <pocketplus/bitreader.hpp>
+#include <pocketplus/bitvector.hpp>
+#include <pocketplus/compressor.hpp>
+#include <pocketplus/decompressor.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 
@@ -25,7 +26,7 @@ TEST_CASE("Decompressor construction", "[decompressor]") {
     }
 
     SECTION("robustness capped at max") {
-        Decompressor<8> decomp(10);  // Should be capped to 7
+        Decompressor<8> decomp(10); // Should be capped to 7
         REQUIRE(decomp.robustness() == 7);
     }
 }
@@ -243,7 +244,7 @@ TEST_CASE("Compress/decompress round trip - all zeros", "[decompressor]") {
     Compressor<8> comp;
     Decompressor<8> decomp;
 
-    BitVector<8> input;  // All zeros
+    BitVector<8> input; // All zeros
 
     BitBuffer<64> compressed;
     comp.compress_packet(input, compressed);
@@ -285,7 +286,7 @@ TEST_CASE("Compress/decompress round trip - all ones", "[decompressor]") {
 }
 
 TEST_CASE("Compress/decompress round trip - larger packet", "[decompressor]") {
-    Compressor<720> comp(2);  // 90 bytes
+    Compressor<720> comp(2); // 90 bytes
     Decompressor<720> decomp(2);
 
     BitVector<720> input;

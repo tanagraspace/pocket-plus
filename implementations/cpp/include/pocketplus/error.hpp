@@ -27,11 +27,11 @@ namespace pocketplus {
  * Used when exceptions are disabled (POCKET_NO_EXCEPTIONS=1).
  */
 enum class Error {
-    Ok = 0,           ///< Success
-    InvalidArg = -1,  ///< Invalid argument
-    Overflow = -2,    ///< Buffer overflow
-    Underflow = -3,   ///< Buffer underflow (not enough data)
-    InvalidData = -4  ///< Invalid/corrupted data
+    Ok = 0,          ///< Success
+    InvalidArg = -1, ///< Invalid argument
+    Overflow = -2,   ///< Buffer overflow
+    Underflow = -3,  ///< Buffer underflow (not enough data)
+    InvalidData = -4 ///< Invalid/corrupted data
 };
 
 /**
@@ -41,12 +41,18 @@ enum class Error {
  */
 inline const char* error_string(Error error) noexcept {
     switch (error) {
-        case Error::Ok:          return "Success";
-        case Error::InvalidArg:  return "Invalid argument";
-        case Error::Overflow:    return "Buffer overflow";
-        case Error::Underflow:   return "Buffer underflow";
-        case Error::InvalidData: return "Invalid or corrupted data";
-        default:                 return "Unknown error";
+    case Error::Ok:
+        return "Success";
+    case Error::InvalidArg:
+        return "Invalid argument";
+    case Error::Overflow:
+        return "Buffer overflow";
+    case Error::Underflow:
+        return "Buffer underflow";
+    case Error::InvalidData:
+        return "Invalid or corrupted data";
+    default:
+        return "Unknown error";
     }
 }
 
@@ -60,7 +66,9 @@ public:
     explicit PocketException(const std::string& message, Error code = Error::InvalidArg)
         : std::runtime_error(message), error_code_(code) {}
 
-    Error code() const noexcept { return error_code_; }
+    Error code() const noexcept {
+        return error_code_;
+    }
 
 private:
     Error error_code_;

@@ -27,10 +27,10 @@
 #ifndef POCKETPLUS_DECODER_HPP
 #define POCKETPLUS_DECODER_HPP
 
-#include "config.hpp"
-#include "error.hpp"
 #include "bitreader.hpp"
 #include "bitvector.hpp"
+#include "config.hpp"
+#include "error.hpp"
 
 namespace pocketplus {
 
@@ -106,7 +106,7 @@ inline Error count_decode(BitReader& reader, std::uint32_t& value) noexcept {
 
     // The '1' bit we just read is part of the value, so we need to account for it
     // Read the remaining bits (value_bits - 1) and combine with the leading 1
-    std::uint32_t raw = 1;  // Start with the leading 1
+    std::uint32_t raw = 1; // Start with the leading 1
     for (std::size_t i = 0; i < value_bits - 1; ++i) {
         int bit = reader.read_bit();
         if (bit < 0) {
@@ -129,8 +129,7 @@ inline Error count_decode(BitReader& reader, std::uint32_t& value) noexcept {
  * @param[out] result Decoded bit vector
  * @return Error::Ok on success
  */
-template <std::size_t N>
-Error rle_decode(BitReader& reader, BitVector<N>& result) noexcept {
+template <std::size_t N> Error rle_decode(BitReader& reader, BitVector<N>& result) noexcept {
     // Initialize result to all zeros
     result.zero();
 
@@ -183,11 +182,12 @@ Error bit_insert(BitReader& reader, BitVector<N>& data, const BitVector<N>& mask
         std::uint32_t mask_word = mask.data()[word];
 
         // Loop bounded by popcount - guarantees termination
-        for (int bits_remaining = __builtin_popcount(mask_word);
-             bits_remaining > 0; --bits_remaining) {
+        for (int bits_remaining = __builtin_popcount(mask_word); bits_remaining > 0;
+             --bits_remaining) {
             // Find LSB position using extract_lsb helper
             int bit_pos_in_word = detail::extract_lsb(mask_word);
-            std::size_t global_pos = (static_cast<std::size_t>(word) * 32) + static_cast<std::size_t>(bit_pos_in_word);
+            std::size_t global_pos =
+                (static_cast<std::size_t>(word) * 32) + static_cast<std::size_t>(bit_pos_in_word);
 
             if (global_pos < N) {
                 int bit = reader.read_bit();
@@ -221,8 +221,8 @@ Error bit_insert_forward(BitReader& reader, BitVector<N>& data, const BitVector<
         std::uint32_t mask_word = mask.data()[word];
 
         // Loop bounded by popcount - guarantees termination
-        for (int bits_remaining = __builtin_popcount(mask_word);
-             bits_remaining > 0; --bits_remaining) {
+        for (int bits_remaining = __builtin_popcount(mask_word); bits_remaining > 0;
+             --bits_remaining) {
             // Find MSB position using extract_msb helper
             int clz = detail::extract_msb(mask_word);
             std::size_t global_pos = (word * 32) + static_cast<std::size_t>(clz);

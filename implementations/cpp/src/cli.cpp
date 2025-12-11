@@ -23,6 +23,7 @@
  */
 
 #include <pocketplus/pocketplus.hpp>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -31,15 +32,14 @@
 
 using namespace pocketplus;
 
-static constexpr const char* BANNER =
-"                                              \n"
-"  ____   ___   ____ _  _______ _____     _    \n"
-" |  _ \\ / _ \\ / ___| |/ / ____|_   _|  _| |_  \n"
-" | |_) | | | | |   | ' /|  _|   | |   |_   _| \n"
-" |  __/| |_| | |___| . \\| |___  | |     |_|   \n"
-" |_|    \\___/ \\____|_|\\_\\_____| |_|           \n"
-"                                              \n"
-"         by  T A N A G R A  S P A C E         \n";
+static constexpr const char* BANNER = "                                              \n"
+                                      "  ____   ___   ____ _  _______ _____     _    \n"
+                                      " |  _ \\ / _ \\ / ___| |/ / ____|_   _|  _| |_  \n"
+                                      " | |_) | | | | |   | ' /|  _|   | |   |_   _| \n"
+                                      " |  __/| |_| | |___| . \\| |___  | |     |_|   \n"
+                                      " |_|    \\___/ \\____|_|\\_\\_____| |_|           \n"
+                                      "                                              \n"
+                                      "         by  T A N A G R A  S P A C E         \n";
 
 static void print_version() {
     std::printf("pocketplus %s (C++)\n", version());
@@ -112,9 +112,8 @@ static bool write_file(const std::string& path, const std::uint8_t* data, std::s
     return file.good();
 }
 
-static int do_compress(const char* input_path, int packet_size,
-                       int pt_period, int ft_period, int rt_period,
-                       int robustness) {
+static int do_compress(const char* input_path, int packet_size, int pt_period, int ft_period,
+                       int rt_period, int robustness) {
     // Read input file
     auto input_data = read_file(input_path);
     if (input_data.empty()) {
@@ -141,12 +140,8 @@ static int do_compress(const char* input_path, int packet_size,
     Error result;
     if (packet_size == 90) {
         result = compress<720>(
-            input_data.data(), input_size,
-            output_data.data(), output_data.size(),
-            output_size,
-            static_cast<std::uint8_t>(robustness),
-            pt_period, ft_period, rt_period
-        );
+            input_data.data(), input_size, output_data.data(), output_data.size(), output_size,
+            static_cast<std::uint8_t>(robustness), pt_period, ft_period, rt_period);
     } else {
         std::fprintf(stderr, "Error: Only 90-byte packets supported in CLI\n");
         return 1;
@@ -169,8 +164,8 @@ static int do_compress(const char* input_path, int packet_size,
     std::printf("Input:       %s (%zu bytes, %zu packets)\n", input_path, input_size, num_packets);
     std::printf("Output:      %s (%zu bytes)\n", output_path.c_str(), output_size);
     std::printf("Ratio:       %.2fx\n", ratio);
-    std::printf("Parameters:  R=%d, pt=%d, ft=%d, rt=%d\n",
-                robustness, pt_period, ft_period, rt_period);
+    std::printf("Parameters:  R=%d, pt=%d, ft=%d, rt=%d\n", robustness, pt_period, ft_period,
+                rt_period);
 
     return 0;
 }
@@ -195,19 +190,17 @@ static int do_decompress(const char* input_path, int packet_size, int robustness
     // Decompress
     Error result;
     if (packet_size == 90) {
-        result = decompress<720>(
-            input_data.data(), input_size,
-            output_data.data(), output_data.size(),
-            output_size,
-            static_cast<std::uint8_t>(robustness)
-        );
+        result =
+            decompress<720>(input_data.data(), input_size, output_data.data(), output_data.size(),
+                            output_size, static_cast<std::uint8_t>(robustness));
     } else {
         std::fprintf(stderr, "Error: Only 90-byte packets supported in CLI\n");
         return 1;
     }
 
     if (result != Error::Ok) {
-        std::fprintf(stderr, "Error: Decompression failed with code %d\n", static_cast<int>(result));
+        std::fprintf(stderr, "Error: Decompression failed with code %d\n",
+                     static_cast<int>(result));
         return 1;
     }
 
@@ -221,7 +214,8 @@ static int do_decompress(const char* input_path, int packet_size, int robustness
     std::size_t num_packets = output_size / static_cast<std::size_t>(packet_size);
     double ratio = static_cast<double>(output_size) / static_cast<double>(input_size);
     std::printf("Input:       %s (%zu bytes)\n", input_path, input_size);
-    std::printf("Output:      %s (%zu bytes, %zu packets)\n", output_path.c_str(), output_size, num_packets);
+    std::printf("Output:      %s (%zu bytes, %zu packets)\n", output_path.c_str(), output_size,
+                num_packets);
     std::printf("Expansion:   %.2fx\n", ratio);
     std::printf("Parameters:  packet_size=%d, R=%d\n", packet_size, robustness);
 
@@ -233,16 +227,13 @@ int main(int argc, char** argv) {
     int arg_offset = 1;
 
     // Check for help flag
-    if (argc < 2 ||
-        std::strcmp(argv[1], "-h") == 0 ||
-        std::strcmp(argv[1], "--help") == 0) {
+    if (argc < 2 || std::strcmp(argv[1], "-h") == 0 || std::strcmp(argv[1], "--help") == 0) {
         print_help(argv[0]);
         return (argc < 2) ? 1 : 0;
     }
 
     // Check for version flag
-    if (std::strcmp(argv[1], "-v") == 0 ||
-        std::strcmp(argv[1], "--version") == 0) {
+    if (std::strcmp(argv[1], "-v") == 0 || std::strcmp(argv[1], "--version") == 0) {
         print_version();
         return 0;
     }
@@ -281,7 +272,8 @@ int main(int argc, char** argv) {
         // Compress mode: <input> <packet_size> <pt> <ft> <rt> <robustness>
         if (argc != 7) {
             std::fprintf(stderr, "Error: Compress requires 6 arguments\n");
-            std::fprintf(stderr, "Usage: %s <input> <packet_size> <pt> <ft> <rt> <robustness>\n", argv[0]);
+            std::fprintf(stderr, "Usage: %s <input> <packet_size> <pt> <ft> <rt> <robustness>\n",
+                         argv[0]);
             return 1;
         }
 

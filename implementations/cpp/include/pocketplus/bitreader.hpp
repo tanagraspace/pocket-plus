@@ -56,8 +56,8 @@ public:
             return -1;
         }
 
-        std::size_t byte_idx = bit_pos_ >> 3;        // bit_pos_ / 8
-        std::size_t bit_idx = bit_pos_ & 7;          // bit_pos_ % 8
+        std::size_t byte_idx = bit_pos_ >> 3; // bit_pos_ / 8
+        std::size_t bit_idx = bit_pos_ & 7;   // bit_pos_ % 8
 
         // MSB-first: bit 0 of byte is at position 7
         int bit = (data_[byte_idx] >> (7 - bit_idx)) & 1;
@@ -81,7 +81,7 @@ public:
         }
 
         if (bit_pos_ + num_bits > num_bits_) [[unlikely]] {
-            return 0;  // Underflow protection
+            return 0; // Underflow protection
         }
 
         // Fast path: byte-aligned reads (common case)
@@ -127,7 +127,9 @@ public:
      *
      * @return Number of bits already read
      */
-    [[nodiscard]] std::size_t position() const noexcept { return bit_pos_; }
+    [[nodiscard]] std::size_t position() const noexcept {
+        return bit_pos_;
+    }
 
     /**
      * @brief Get remaining bits.
@@ -144,7 +146,7 @@ public:
      * Advances position to start of next byte (for padding).
      */
     void align_byte() noexcept {
-        std::size_t bit_offset = bit_pos_ & 7;  // bit_pos_ % 8
+        std::size_t bit_offset = bit_pos_ & 7; // bit_pos_ % 8
         if (bit_offset != 0) {
             bit_pos_ += (8 - bit_offset);
         }

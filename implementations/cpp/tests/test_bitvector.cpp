@@ -3,8 +3,9 @@
  * @brief Unit tests for BitVector class.
  */
 
-#include <catch2/catch_test_macros.hpp>
 #include <pocketplus/bitvector.hpp>
+
+#include <catch2/catch_test_macros.hpp>
 
 using namespace pocketplus;
 
@@ -153,8 +154,8 @@ TEST_CASE("BitVector NOT", "[bitvector]") {
 
 TEST_CASE("BitVector left shift", "[bitvector]") {
     BitVector<8> a, result;
-    a.set_bit(0, 1);  // MSB
-    a.set_bit(7, 1);  // LSB
+    a.set_bit(0, 1); // MSB
+    a.set_bit(7, 1); // LSB
 
     result.left_shift_of(a);
 
@@ -167,7 +168,7 @@ TEST_CASE("BitVector left shift", "[bitvector]") {
 
 TEST_CASE("BitVector reverse", "[bitvector]") {
     BitVector<8> a, result;
-    a.set_bit(0, 1);  // MSB
+    a.set_bit(0, 1); // MSB
 
     result.reverse_of(a);
 

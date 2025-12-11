@@ -27,11 +27,11 @@
 #ifndef POCKETPLUS_COMPRESSOR_HPP
 #define POCKETPLUS_COMPRESSOR_HPP
 
-#include "config.hpp"
-#include "error.hpp"
-#include "bitvector.hpp"
 #include "bitbuffer.hpp"
+#include "bitvector.hpp"
+#include "config.hpp"
 #include "encoder.hpp"
+#include "error.hpp"
 #include "mask.hpp"
 
 namespace pocketplus {
@@ -40,10 +40,10 @@ namespace pocketplus {
  * @brief Compression parameters for a single packet.
  */
 struct CompressParams {
-    std::uint8_t min_robustness = 0;     ///< R_t: Minimum robustness level (0-7)
-    bool new_mask_flag = false;          ///< p_t: Update mask from build vector
-    bool send_mask_flag = false;         ///< f_t: Include mask in output
-    bool uncompressed_flag = false;      ///< r_t: Send uncompressed
+    std::uint8_t min_robustness = 0; ///< R_t: Minimum robustness level (0-7)
+    bool new_mask_flag = false;      ///< p_t: Update mask from build vector
+    bool send_mask_flag = false;     ///< f_t: Include mask in output
+    bool uncompressed_flag = false;  ///< r_t: Send uncompressed
 };
 
 /**
@@ -55,8 +55,7 @@ struct CompressParams {
  * @tparam N Packet length in bits (F)
  * @tparam MaxOutputBytes Maximum output buffer size
  */
-template <std::size_t N, std::size_t MaxOutputBytes = N * 6>
-class Compressor {
+template <std::size_t N, std::size_t MaxOutputBytes = N * 6> class Compressor {
 public:
     /**
      * @brief Construct compressor with configuration.
@@ -66,20 +65,15 @@ public:
      * @param ft_limit Send mask period (0 = manual control)
      * @param rt_limit Uncompressed period (0 = manual control)
      */
-    explicit Compressor(
-        std::uint8_t robustness = 0,
-        int pt_limit = 0,
-        int ft_limit = 0,
-        int rt_limit = 0
-    ) noexcept
-        : robustness_(robustness > MAX_ROBUSTNESS ? MAX_ROBUSTNESS : robustness)
-        , pt_limit_(pt_limit)
-        , ft_limit_(ft_limit)
-        , rt_limit_(rt_limit)
-        , pt_counter_(pt_limit)
-        , ft_counter_(ft_limit)
-        , rt_counter_(rt_limit)
-    {
+    explicit Compressor(std::uint8_t robustness = 0, int pt_limit = 0, int ft_limit = 0,
+                        int rt_limit = 0) noexcept
+        : robustness_(robustness > MAX_ROBUSTNESS ? MAX_ROBUSTNESS : robustness),
+          pt_limit_(pt_limit),
+          ft_limit_(ft_limit),
+          rt_limit_(rt_limit),
+          pt_counter_(pt_limit),
+          ft_counter_(ft_limit),
+          rt_counter_(rt_limit) {
         reset();
     }
 
@@ -137,11 +131,8 @@ public:
      * @return Error::Ok on success
      */
     template <std::size_t OutputSize>
-    Error compress_packet(
-        const BitVector<N>& input,
-        BitBuffer<OutputSize>& output,
-        const CompressParams* params = nullptr
-    ) noexcept {
+    Error compress_packet(const BitVector<N>& input, BitBuffer<OutputSize>& output,
+                          const CompressParams* params = nullptr) noexcept {
         // Get parameters (use defaults if nullptr)
         CompressParams effective_params;
         if (params != nullptr) {
@@ -169,7 +160,8 @@ public:
             update_build(build_, input, prev_input_, effective_params.new_mask_flag, t_);
 
             // Update mask vector (Equation 7)
-            update_mask(mask_, input, prev_input_, work_prev_build_, effective_params.new_mask_flag);
+            update_mask(mask_, input, prev_input_, work_prev_build_,
+                        effective_params.new_mask_flag);
         }
 
         // Compute change vector (Equation 8)
@@ -203,11 +195,13 @@ public:
 
         // 1. RLE(X_t) - Run-length encode the robustness window
         auto rle_result = rle_encode(output, work_Xt_);
-        if (rle_result != Error::Ok) return rle_result;
+        if (rle_result != Error::Ok)
+            return rle_result;
 
         // 2. BIT_4(V_t) - 4-bit effective robustness level (optimized: single append)
         auto vt_result = output.append_value(Vt & 0x0FU, 4);
-        if (vt_result != Error::Ok) return vt_result;
+        if (vt_result != Error::Ok)
+            return vt_result;
 
         // Cache hamming weight (avoid recomputing)
         std::size_t xt_weight = work_Xt_.hamming_weight();
@@ -218,7 +212,8 @@ public:
             bool et = has_positive_updates(work_Xt_, mask_);
 
             auto result = output.append_bit(et ? 1 : 0);
-            if (result != Error::Ok) return result;
+            if (result != Error::Ok)
+                return result;
 
             if (et) {
                 // k_t - Output '1' for positive updates (mask=0), '0' for negative (mask=1)
@@ -226,37 +221,43 @@ public:
                 work_inverted_.not_of(mask_);
 
                 auto kt_result = bit_extract_forward(output, work_inverted_, work_Xt_);
-                if (kt_result != Error::Ok) return kt_result;
+                if (kt_result != Error::Ok)
+                    return kt_result;
 
                 // Encode c_t (already computed above)
                 result = output.append_bit(ct ? 1 : 0);
-                if (result != Error::Ok) return result;
+                if (result != Error::Ok)
+                    return result;
             }
         }
 
         // 4. d_t - Flag indicating if both f_t and r_t are zero
         auto dt_result = output.append_bit(dt ? 1 : 0);
-        if (dt_result != Error::Ok) return dt_result;
+        if (dt_result != Error::Ok)
+            return dt_result;
 
         // ====================================================================
         // Component q_t: Optional full mask
         // q_t = empty if d_t=1, '1' || RLE(<(M_t XOR (M_t<<))>) if f_t=1, '0' otherwise
         // ====================================================================
 
-        if (!dt) {  // Only if d_t = 0
+        if (!dt) { // Only if d_t = 0
             if (effective_params.send_mask_flag) {
-                auto result = output.append_bit(1);  // Flag: mask follows
-                if (result != Error::Ok) return result;
+                auto result = output.append_bit(1); // Flag: mask follows
+                if (result != Error::Ok)
+                    return result;
 
                 // Encode mask as RLE(M XOR (M<<))
                 work_shifted_.left_shift(mask_);
                 work_diff_.xor_with(mask_, work_shifted_);
 
                 auto rle_mask_result = rle_encode(output, work_diff_);
-                if (rle_mask_result != Error::Ok) return rle_mask_result;
+                if (rle_mask_result != Error::Ok)
+                    return rle_mask_result;
             } else {
-                auto result = output.append_bit(0);  // Flag: no mask
-                if (result != Error::Ok) return result;
+                auto result = output.append_bit(0); // Flag: no mask
+                if (result != Error::Ok)
+                    return result;
             }
         }
 
@@ -266,31 +267,37 @@ public:
 
         if (effective_params.uncompressed_flag) {
             // '1' || COUNT(F) || I_t
-            auto result = output.append_bit(1);  // Flag: full input follows
-            if (result != Error::Ok) return result;
+            auto result = output.append_bit(1); // Flag: full input follows
+            if (result != Error::Ok)
+                return result;
 
             auto count_result = count_encode(output, static_cast<std::uint32_t>(N));
-            if (count_result != Error::Ok) return count_result;
+            if (count_result != Error::Ok)
+                return count_result;
 
             auto append_result = output.append_bitvector(input);
-            if (append_result != Error::Ok) return append_result;
+            if (append_result != Error::Ok)
+                return append_result;
         } else {
             if (!dt) {
                 // '0' || BE(...)
-                auto result = output.append_bit(0);  // Flag: compressed
-                if (result != Error::Ok) return result;
+                auto result = output.append_bit(0); // Flag: compressed
+                if (result != Error::Ok)
+                    return result;
             }
 
             // Use extraction mask based on c_t (already computed above)
             if (ct && Vt > 0) {
                 // BE(I_t, (X_t OR M_t)) - extract bits where mask OR changes are set
-                work_diff_.or_with(mask_, work_Xt_);  // M_t OR X_t
+                work_diff_.or_with(mask_, work_Xt_); // M_t OR X_t
                 auto be_result = bit_extract(output, input, work_diff_);
-                if (be_result != Error::Ok) return be_result;
+                if (be_result != Error::Ok)
+                    return be_result;
             } else {
                 // BE(I_t, M_t) - extract only unpredictable bits
                 auto be_result = bit_extract(output, input, mask_);
-                if (be_result != Error::Ok) return be_result;
+                if (be_result != Error::Ok)
+                    return be_result;
             }
         }
 
@@ -317,17 +324,23 @@ public:
     /**
      * @brief Get current time index.
      */
-    std::size_t time_index() const noexcept { return t_; }
+    std::size_t time_index() const noexcept {
+        return t_;
+    }
 
     /**
      * @brief Get robustness level.
      */
-    std::uint8_t robustness() const noexcept { return robustness_; }
+    std::uint8_t robustness() const noexcept {
+        return robustness_;
+    }
 
     /**
      * @brief Get current mask.
      */
-    const BitVector<N>& mask() const noexcept { return mask_; }
+    const BitVector<N>& mask() const noexcept {
+        return mask_;
+    }
 
     /**
      * @brief Compute parameters for automatic mode.
@@ -393,10 +406,7 @@ private:
      *
      * X_t = <(D_{t-R_t} OR D_{t-R_t+1} OR ... OR D_t)>
      */
-    void compute_robustness_window(
-        BitVector<N>& Xt,
-        const BitVector<N>& current_change
-    ) noexcept {
+    void compute_robustness_window(BitVector<N>& Xt, const BitVector<N>& current_change) noexcept {
         if (robustness_ == 0 || t_ == 0) {
             // X_t = D_t
             Xt = current_change;
@@ -406,7 +416,7 @@ private:
 
             // Determine how many historical changes to include
             std::size_t num_changes = (t_ < robustness_) ? t_ : robustness_;
-            constexpr std::size_t history_mask = MAX_HISTORY - 1;  // For bitwise AND
+            constexpr std::size_t history_mask = MAX_HISTORY - 1; // For bitwise AND
 
             // OR with historical changes (going backwards from current)
             for (std::size_t i = 1; i <= num_changes; ++i) {
@@ -430,18 +440,18 @@ private:
         // For t > R_t, compute C_t (consecutive iterations without changes)
         std::uint8_t Vt = robustness_;
         constexpr std::uint8_t max_Vt = 15;
-        constexpr std::size_t history_mask = MAX_HISTORY - 1;  // For bitwise AND (16 -> 15)
+        constexpr std::size_t history_mask = MAX_HISTORY - 1; // For bitwise AND (16 -> 15)
         const std::size_t max_check = (t_ < 15) ? t_ : 15;
 
         for (std::size_t i = robustness_ + 1; i <= max_check; ++i) {
             std::size_t hist_idx = (history_index_ + MAX_HISTORY - i) & history_mask;
             // Use cached weight instead of computing hamming_weight()
             if (change_weight_history_[hist_idx] > 0) {
-                break;  // Found a change, stop counting
+                break; // Found a change, stop counting
             }
             ++Vt;
             if (Vt >= max_Vt) {
-                break;  // Cap at 15
+                break; // Cap at 15
             }
         }
 
@@ -453,10 +463,7 @@ private:
      *
      * e_t = 1 if any changed bits (in X_t) are predictable (mask bit = 0)
      */
-    static bool has_positive_updates(
-        const BitVector<N>& Xt,
-        const BitVector<N>& mask
-    ) noexcept {
+    static bool has_positive_updates(const BitVector<N>& Xt, const BitVector<N>& mask) noexcept {
         // e_t = 1 if (Xt AND (NOT mask)) != 0
         for (std::size_t w = 0; w < BitVector<N>::NUM_WORDS; ++w) {
             if ((Xt.data()[w] & ~mask.data()[w]) != 0) {
@@ -485,7 +492,7 @@ private:
 
         // Check history for V_t previous entries
         std::size_t iterations_to_check = (Vt <= t_) ? Vt : t_;
-        constexpr std::size_t vt_history_mask = MAX_VT_HISTORY - 1;  // For bitwise AND
+        constexpr std::size_t vt_history_mask = MAX_VT_HISTORY - 1; // For bitwise AND
 
         for (std::size_t i = 0; i < iterations_to_check; ++i) {
             std::size_t hist_idx = (flag_history_index_ + MAX_VT_HISTORY - 1 - i) & vt_history_mask;
@@ -516,7 +523,8 @@ private:
     std::uint8_t new_mask_flag_history_[MAX_VT_HISTORY] = {0};
     std::size_t flag_history_index_ = 0;
 
-    // Cached hamming weights for change history (avoids recomputing in compute_effective_robustness)
+    // Cached hamming weights for change history (avoids recomputing in
+    // compute_effective_robustness)
     std::size_t change_weight_history_[MAX_HISTORY] = {0};
 
     // Cycle counter

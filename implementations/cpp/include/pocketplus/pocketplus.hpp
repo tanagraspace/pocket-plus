@@ -25,14 +25,15 @@
 #ifndef POCKETPLUS_HPP
 #define POCKETPLUS_HPP
 
-#include "config.hpp"
-#include "error.hpp"
-#include "bitvector.hpp"
+#include <cstring>
+
 #include "bitbuffer.hpp"
 #include "bitreader.hpp"
+#include "bitvector.hpp"
 #include "compressor.hpp"
+#include "config.hpp"
 #include "decompressor.hpp"
-#include <cstring>
+#include "error.hpp"
 
 namespace pocketplus {
 
@@ -55,17 +56,10 @@ namespace pocketplus {
  * @return Error::Ok on success
  */
 template <std::size_t N>
-Error compress(
-    const std::uint8_t* input_data,
-    std::size_t input_size,
-    std::uint8_t* output_buffer,
-    std::size_t output_buffer_size,
-    std::size_t& output_size,
-    std::uint8_t robustness = 0,
-    int pt_limit = 0,
-    int ft_limit = 0,
-    int rt_limit = 0
-) noexcept {
+Error compress(const std::uint8_t* input_data, std::size_t input_size, std::uint8_t* output_buffer,
+               std::size_t output_buffer_size, std::size_t& output_size,
+               std::uint8_t robustness = 0, int pt_limit = 0, int ft_limit = 0,
+               int rt_limit = 0) noexcept {
     // Calculate packet size in bytes
     constexpr std::size_t packet_bytes = (N + 7) / 8;
 
@@ -155,7 +149,8 @@ Error compress(
 
         // Convert to bytes with padding
         std::uint8_t packet_bytes_out[N * 6 / 8 + 1];
-        std::size_t packet_size = packet_output.to_bytes(packet_bytes_out, sizeof(packet_bytes_out));
+        std::size_t packet_size =
+            packet_output.to_bytes(packet_bytes_out, sizeof(packet_bytes_out));
 
         // Check buffer space
         if (total_output + packet_size > output_buffer_size) {
@@ -186,14 +181,9 @@ Error compress(
  * @return Error::Ok on success
  */
 template <std::size_t N>
-Error decompress(
-    const std::uint8_t* input_data,
-    std::size_t input_size,
-    std::uint8_t* output_buffer,
-    std::size_t output_buffer_size,
-    std::size_t& output_size,
-    std::uint8_t robustness = 0
-) noexcept {
+Error decompress(const std::uint8_t* input_data, std::size_t input_size,
+                 std::uint8_t* output_buffer, std::size_t output_buffer_size,
+                 std::size_t& output_size, std::uint8_t robustness = 0) noexcept {
     // Calculate packet size in bytes
     constexpr std::size_t packet_bytes = (N + 7) / 8;
 
