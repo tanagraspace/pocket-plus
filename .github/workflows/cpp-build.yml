@@ -205,29 +205,18 @@ jobs:
 
             # Generate coverage badge SVG
             mkdir -p assets
-            cat > assets/coverage.svg << SVGEOF
-<svg xmlns="http://www.w3.org/2000/svg" width="106" height="20" role="img" aria-label="coverage: ${COVERAGE_PCT}%">
-  <title>coverage: ${COVERAGE_PCT}%</title>
-  <linearGradient id="s" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="r">
-    <rect width="106" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#r)">
-    <rect width="63" height="20" fill="#555"/>
-    <rect x="63" width="43" height="20" fill="${COLOR}"/>
-    <rect width="106" height="20" fill="url(#s)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110">
-    <text aria-hidden="true" x="325" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="530">coverage</text>
-    <text x="325" y="140" transform="scale(.1)" fill="#fff" textLength="530">coverage</text>
-    <text aria-hidden="true" x="835" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="330">${COVERAGE_PCT}%</text>
-    <text x="835" y="140" transform="scale(.1)" fill="#fff" textLength="330">${COVERAGE_PCT}%</text>
-  </g>
-</svg>
-SVGEOF
+            cat > assets/coverage.svg << 'SVGEOF'
+            <svg xmlns="http://www.w3.org/2000/svg" width="106" height="20" role="img">
+              <rect width="63" height="20" fill="#555"/>
+              <rect x="63" width="43" height="20" fill="brightgreen"/>
+              <g fill="#fff" text-anchor="middle" font-family="Verdana,sans-serif" font-size="11">
+                <text x="31" y="14">coverage</text>
+                <text x="84" y="14">90%</text>
+              </g>
+            </svg>
+            SVGEOF
+            # Update badge with actual values using sed
+            sed -i "s/brightgreen/${COLOR}/g; s/>90%</>$(printf '%.0f' ${COVERAGE_PCT})%</g" assets/coverage.svg
           else
             echo "Coverage report not available." >> $GITHUB_STEP_SUMMARY
           fi
