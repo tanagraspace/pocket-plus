@@ -96,9 +96,9 @@ jobs:
       - name: Parse test results
         working-directory: implementations/cpp
         run: |
-          # Extract test counts from CTest output
-          PASSED=$(grep -oE "[0-9]+ tests passed" test-output.txt | head -1 | grep -oE "[0-9]+")
-          TOTAL=$(grep -oE "out of [0-9]+" test-output.txt | head -1 | grep -oE "[0-9]+")
+          # Extract test counts from CTest output (with error handling for grep)
+          PASSED=$(grep -oE "[0-9]+ tests passed" test-output.txt 2>/dev/null | head -1 | grep -oE "[0-9]+" || echo "N/A")
+          TOTAL=$(grep -oE "out of [0-9]+" test-output.txt 2>/dev/null | head -1 | grep -oE "[0-9]+" || echo "N/A")
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Summary" >> $GITHUB_STEP_SUMMARY
