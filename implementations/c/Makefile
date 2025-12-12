@@ -120,6 +120,8 @@ coverage-badge:
 	@mkdir -p assets
 	@# Generate coverage.info first for accurate stats
 	@lcov --capture --directory $(COV_DIR) --output-file $(COV_DIR)/coverage.info --include "*/src/*" 2>/dev/null || true
+	@# Exclude CLI from coverage (tested via integration tests, not unit tests)
+	@lcov --remove $(COV_DIR)/coverage.info '*/src/cli.c' --output-file $(COV_DIR)/coverage.info 2>/dev/null || true
 	@# Extract line and function coverage from lcov summary
 	@lcov --summary $(COV_DIR)/coverage.info 2>&1 | grep "lines" | sed 's/.*: //' | sed 's/%.*//' > $(COV_DIR)/.lines_pct
 	@lcov --summary $(COV_DIR)/coverage.info 2>&1 | grep "functions" | sed 's/.*: //' | sed 's/%.*//' > $(COV_DIR)/.funcs_pct
@@ -163,6 +165,7 @@ coverage-html:
 	@mkdir -p $(DOCS_DIR)/coverage/html
 	@if [ ! -f $(COV_DIR)/coverage.info ]; then \
 		lcov --capture --directory $(COV_DIR) --output-file $(COV_DIR)/coverage.info --include "*/src/*"; \
+		lcov --remove $(COV_DIR)/coverage.info '*/src/cli.c' --output-file $(COV_DIR)/coverage.info; \
 	fi
 	@cp $(COV_DIR)/coverage.info $(DOCS_DIR)/coverage/coverage.info
 	genhtml $(COV_DIR)/coverage.info --output-directory $(DOCS_DIR)/coverage/html --ignore-errors inconsistent
