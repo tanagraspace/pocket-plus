@@ -27,12 +27,12 @@ test-report:
 
 coverage:
 	mkdir -p $(BUILD_DIR)
-	go test -coverprofile=$(BUILD_DIR)/coverage.out ./...
+	go test -coverprofile=$(BUILD_DIR)/coverage.out ./pocketplus/...
 	go tool cover -func=$(BUILD_DIR)/coverage.out
 
 coverage-html:
 	mkdir -p $(DOCS_DIR)/coverage
-	go test -coverprofile=$(BUILD_DIR)/coverage.out ./...
+	go test -coverprofile=$(BUILD_DIR)/coverage.out ./pocketplus/...
 	go tool cover -html=$(BUILD_DIR)/coverage.out -o $(DOCS_DIR)/coverage/index.html
 
 docs: coverage-html test-report api-docs

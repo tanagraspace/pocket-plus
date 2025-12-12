@@ -47,7 +47,7 @@ coverage:
 	@cmake --build $(BUILD_DIR) -- -j1
 	@cd $(BUILD_DIR) && ctest --output-on-failure
 	@lcov --capture --directory $(BUILD_DIR) --output-file $(BUILD_DIR)/coverage.info --ignore-errors source,gcov
-	@lcov --remove $(BUILD_DIR)/coverage.info '/usr/*' '*/Catch2/*' '*/_deps/*' '*/tests/*' --output-file $(BUILD_DIR)/coverage.info --ignore-errors unused
+	@lcov --remove $(BUILD_DIR)/coverage.info '/usr/*' '*/Catch2/*' '*/_deps/*' '*/tests/*' '*/src/cli.cpp' '*/bench/*' --output-file $(BUILD_DIR)/coverage.info --ignore-errors unused
 	@echo ""
 	@echo "Coverage Summary:"
 	@echo "================="

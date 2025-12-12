@@ -62,3 +62,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[tool.coverage.run]
+omit = [
+    "pocketplus/__main__.py",
+    "pocketplus/cli.py",
+]
