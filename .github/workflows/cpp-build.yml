@@ -110,7 +110,7 @@ jobs:
           echo "| Platform | ${{ matrix.os }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Test vector validation
-        working-directory: implementations/cpp
+        working-directory: implementations/cpp/build
         shell: bash
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -119,8 +119,8 @@ jobs:
           echo "| Vector | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
 
-          # Run vector tests specifically
-          ./build/tests "[vectors]" 2>&1 | tee vector-output.txt
+          # Run vector tests specifically (from build dir so relative paths work)
+          ./tests "[vectors]" 2>&1 | tee vector-output.txt
 
           # Check for passing vectors
           for vector in simple housekeeping edge-cases hiro venus-express; do
@@ -133,17 +133,17 @@ jobs:
 
       - name: Run valgrind memory check
         if: matrix.os == 'ubuntu-latest'
-        working-directory: implementations/cpp
+        working-directory: implementations/cpp/build
         run: |
           sudo apt-get install -y valgrind
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Valgrind Memory Check" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          mkdir -p build/docs/valgrind
+          mkdir -p docs/valgrind
           valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 \
-            ./build/tests 2>&1 | tee build/docs/valgrind/report.txt
+            ./tests 2>&1 | tee docs/valgrind/report.txt
           echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -E "ERROR SUMMARY|definitely lost|indirectly lost|possibly lost" build/docs/valgrind/report.txt >> $GITHUB_STEP_SUMMARY
+          grep -E "ERROR SUMMARY|definitely lost|indirectly lost|possibly lost" docs/valgrind/report.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test artifacts
@@ -153,7 +153,7 @@ jobs:
           name: test-results-cpp-${{ matrix.os }}
           path: |
             implementations/cpp/test-output.txt
-            implementations/cpp/vector-output.txt
+            implementations/cpp/build/vector-output.txt
             implementations/cpp/build/docs/tests/report.xml
             implementations/cpp/build/docs/tests/html/
             implementations/cpp/build/docs/valgrind/report.txt
