@@ -259,3 +259,58 @@ class TestRoundTripPacketSizes:
         )
 
         assert decompressed == original
+
+
+class TestVtZeroMaskToggle:
+    """Test Vt=0 mask toggle behavior in decompression.
+
+    This tests decompress.py lines 137-140 which handle the case
+    where Vt=0 and change_count > 0, causing mask bits to toggle.
+    """
+
+    def test_round_trip_r0_alternating_changes(self) -> None:
+        """Test round-trip with R=0 and alternating data patterns.
+
+        With robustness=0, Vt can be 0, which triggers the mask toggle path.
+        """
+        # Alternating patterns to create predictable changes
+        original = bytes([0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55])
+
+        compressed = compress(
+            original,
+            packet_size=16,
+            robustness=0,
+            pt_limit=1,
+            ft_limit=2,
+            rt_limit=5,
+        )
+
+        decompressed = decompress(
+            compressed,
+            packet_size=16,
+            robustness=0,
+        )
+
+        assert decompressed == original
+
+    def test_round_trip_r0_with_many_packets(self) -> None:
+        """Test R=0 with many packets to ensure Vt=0 paths are exercised."""
+        # Create data with enough variation to trigger different code paths
+        original = bytes([i % 256 for i in range(32)])  # 16 packets of 16 bits
+
+        compressed = compress(
+            original,
+            packet_size=16,
+            robustness=0,
+            pt_limit=1,
+            ft_limit=2,
+            rt_limit=5,
+        )
+
+        decompressed = decompress(
+            compressed,
+            packet_size=16,
+            robustness=0,
+        )
+
+        assert decompressed == original

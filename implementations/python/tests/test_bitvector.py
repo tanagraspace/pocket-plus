@@ -177,6 +177,38 @@ class TestBitVectorBitwiseOps:
         for i in range(4):
             assert result.get_bit(i) == 0
 
+    def test_not_multi_byte_partial(self) -> None:
+        """Test NOT with multiple bytes where last byte is partial.
+
+        This tests the edge case in line 284 where we have multiple
+        bytes in the last word and need to mask properly.
+        """
+        # 12 bits = 1.5 bytes, spans into 2nd byte of a 32-bit word
+        a = BitVector(12)
+        a.from_bytes(bytes([0xFF, 0xF0]))  # All 1s in first 12 bits
+
+        result = a.not_()
+        # All 12 bits should be inverted to 0
+        for i in range(12):
+            assert result.get_bit(i) == 0
+
+    def test_not_exactly_two_bytes(self) -> None:
+        """Test NOT with exactly 16 bits (2 bytes)."""
+        a = BitVector(16)
+        a.from_bytes(bytes([0xFF, 0xFF]))
+
+        result = a.not_()
+        assert result.to_bytes() == bytes([0x00, 0x00])
+
+    def test_not_three_bytes_partial(self) -> None:
+        """Test NOT with 20 bits (2.5 bytes) to exercise middle byte path."""
+        a = BitVector(20)
+        a.from_bytes(bytes([0xFF, 0xFF, 0xF0]))  # All 1s in first 20 bits
+
+        result = a.not_()
+        for i in range(20):
+            assert result.get_bit(i) == 0
+
 
 class TestBitVectorLeftShift:
     """Test left shift operation."""

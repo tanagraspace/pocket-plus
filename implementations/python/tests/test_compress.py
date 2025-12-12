@@ -1,5 +1,7 @@
 """Tests for POCKET+ compression."""
 
+import pytest
+
 from pocketplus.bitvector import BitVector
 from pocketplus.compress import (
     Compressor,
@@ -295,3 +297,55 @@ class TestCompressEdgeCases:
             rt_limit=25,
         )
         assert len(output) > 0
+
+    def test_compress_invalid_input_size_raises(self) -> None:
+        """Test that input size not multiple of packet size raises ValueError."""
+        input_data = bytes([0xAA] * 7)  # 7 bytes, not divisible by 8-bit packet
+        with pytest.raises(ValueError, match="not a multiple"):
+            compress(
+                input_data,
+                packet_size=16,  # 16 bits = 2 bytes per packet
+                robustness=1,
+            )
+
+    def test_compress_packet_no_params_uses_defaults(self) -> None:
+        """Test compress_packet with params=None uses default params."""
+        comp = Compressor(
+            packet_length=8,
+            robustness=1,
+            pt_limit=10,
+            ft_limit=20,
+            rt_limit=50,
+        )
+
+        input_data = BitVector(8)
+        input_data.from_bytes(bytes([0xAA]))
+
+        # Call with params=None to trigger default param creation
+        output = comp.compress_packet(input_data, params=None)
+        assert len(output) > 0
+        assert comp.t == 1
+
+
+class TestEffectiveRobustnessCap:
+    """Test Vt capping at 15."""
+
+    def test_vt_capped_at_15(self) -> None:
+        """Test that Vt is capped at 15 (4 bits max).
+
+        This tests compress.py line 383: Vt = 15 when Vt > 15.
+        """
+        comp = Compressor(packet_length=8, robustness=7)
+        # Set t large enough and ensure Ct accumulates to push Vt > 15
+        comp.t = 50
+
+        # All zeros in history = Ct accumulates to maximum
+        for i in range(16):
+            comp.change_history[i].zero()
+        comp.history_index = 16
+
+        change = BitVector(8)
+        Vt = compute_effective_robustness(comp, change)
+        # Rt=7, Ct can be up to (15-Rt)=8
+        # So Vt = Rt + Ct = 7 + 8 = 15 (capped)
+        assert Vt == 15
