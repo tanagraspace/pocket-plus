@@ -1,0 +1,69 @@
+# Multi-language benchmark container for POCKET+ implementations
+# Builds and benchmarks C, C++, Go, Rust, and Java implementations
+
+FROM alpine:3.20
+
+# Install all build tools for all languages
+RUN apk add --no-cache \
+    # C/C++ tools
+    build-base \
+    cmake \
+    # Go
+    go \
+    # Rust
+    rust \
+    cargo \
+    # Java
+    openjdk21 \
+    maven \
+    # Common tools
+    bash \
+    bc \
+    make \
+    git
+
+# Set JAVA_HOME
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Set working directory
+WORKDIR /app
+
+# Copy all implementations
+COPY implementations/c /app/implementations/c
+COPY implementations/cpp /app/implementations/cpp
+COPY implementations/go /app/implementations/go
+COPY implementations/rust /app/implementations/rust
+COPY implementations/java /app/implementations/java
+
+# Copy test vectors
+COPY test-vectors /app/test-vectors
+
+# Copy benchmark script
+COPY scripts/benchmark.sh /app/scripts/benchmark.sh
+RUN chmod +x /app/scripts/benchmark.sh
+
+# Set test vectors path for implementations that need it
+ENV TEST_VECTORS_DIR=/app/test-vectors
+
+# Build all implementations
+WORKDIR /app/implementations/c
+RUN make clean 2>/dev/null || true && make && make build/test_bench
+
+WORKDIR /app/implementations/cpp
+RUN rm -rf build && make build && (make bench-build 2>/dev/null || true)
+
+WORKDIR /app/implementations/go
+RUN go build ./...
+
+WORKDIR /app/implementations/rust
+RUN cargo build --release && (cargo build --release --bin bench 2>/dev/null || true)
+
+WORKDIR /app/implementations/java
+RUN mvn -q compile
+
+# Back to app root
+WORKDIR /app
+
+# Run benchmark script
+CMD ["/app/scripts/benchmark.sh"]

@@ -55,6 +55,18 @@ services:
           create_host_path: true
       - ./test-vectors:/app/test-vectors:ro
 
+  benchmark:
+    build:
+      context: .
+      dockerfile: Dockerfile.benchmark
+    volumes:
+      - type: bind
+        source: ./docs
+        target: /app/docs
+        bind:
+          create_host_path: true
+      - ./test-vectors:/app/test-vectors:ro
+
   java:
     build:
       context: .

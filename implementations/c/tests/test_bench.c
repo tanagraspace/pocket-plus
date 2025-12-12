@@ -11,6 +11,9 @@
  *   ./build/test_bench 1000 # Run with custom iteration count
  */
 
+/* Enable POSIX features for clock_gettime */
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
