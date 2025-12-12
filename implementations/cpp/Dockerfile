@@ -1,19 +1,17 @@
-FROM ubuntu:24.04
+FROM alpine:3.20
 
 # Install build tools
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apk add --no-cache \
+    build-base \
     cmake \
     git \
     lcov \
     doxygen \
     graphviz \
-    clang-format \
-    clang-tidy \
+    clang-extra-tools \
     cppcheck \
     valgrind \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/* \
+    py3-pip \
     && pip3 install --break-system-packages junit2html
 
 # Set working directory
