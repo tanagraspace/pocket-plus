@@ -141,6 +141,40 @@ mvn test               # Run tests
 mvn javadoc:javadoc    # Generate documentation
 ```
 
+## Performance
+
+**Key findings** (venus-express dataset, 151K packets, 13.6 MB):
+- **C++** is the fastest implementation (~140 MB/s compression, ~146 MB/s decompression), also suitable for embedded systems
+- **Java** offers strong performance (~86 MB/s) with JVM convenience
+- **Rust** provides good performance (~65 MB/s)
+- **C** delivers reliable embedded-friendly performance (~58 MB/s)
+- **Go** trades some speed (~49 MB/s) for simplicity and fast compilation
+
+All implementations produce identical compression output. Choose based on your deployment constraints and language ecosystem.
+
+See [Benchmark Results](docs/BENCHMARK.md) for detailed comparison.
+
+### Test Vectors
+
+All vectors are synthetic test data except for venus-express, which contains real housekeeping telemetry from ESA's [Venus Express](https://www.esa.int/Science_Exploration/Space_Science/Venus_Express) mission.
+
+| Vector | Packets | Size | R | pt | ft | rt |
+|--------|---------|------|---|----|----|-----|
+| simple | 100 | 9 KB | 1 | 10 | 20 | 50 |
+| hiro | 100 | 9 KB | 7 | 10 | 20 | 50 |
+| housekeeping | 10,000 | 900 KB | 2 | 20 | 50 | 100 |
+| venus-express | 151,200 | 13.6 MB | 2 | 20 | 50 | 100 |
+
+### Run Benchmarks
+
+```bash
+docker-compose run --rm benchmark
+```
+
+Results are written to `docs/BENCHMARK.md`.
+
+**Note**: Python is excluded from benchmarks as it prioritizes readability over performance.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for versioning strategy, release process, and contribution guidelines.
