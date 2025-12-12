@@ -36,7 +36,7 @@ jobs:
           make test 2>&1 | tee build/test-output.txt
 
           # Generate HTML test report
-          cat > build/docs/tests/report.html << 'HTMLEOF'
+          cat > build/docs/tests/index.html << 'HTMLEOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
@@ -70,12 +70,12 @@ jobs:
             # Check for suite header (line followed by ===)
             if [[ "$line" =~ ^[A-Z] ]] && [[ ! "$line" =~ "Running" ]] && [[ ! "$line" =~ "tests passed" ]]; then
               if [[ "$current_suite" != "" ]]; then
-                echo '</div>' >> build/docs/tests/report.html
+                echo '</div>' >> build/docs/tests/index.html
               fi
               suite_name=$(echo "$line" | sed 's/Tests$//' | sed 's/:$//')
               if [[ "$suite_name" != "" ]] && [[ ! "$suite_name" =~ "=" ]]; then
                 current_suite="$suite_name"
-                echo "<div class=\"suite\"><h2>$suite_name</h2>" >> build/docs/tests/report.html
+                echo "<div class=\"suite\"><h2>$suite_name</h2>" >> build/docs/tests/index.html
               fi
             fi
 
@@ -83,9 +83,9 @@ jobs:
             if [[ "$line" =~ "test_" ]]; then
               test_name=$(echo "$line" | sed 's/^[[:space:]]*//' | sed 's/\.\.\..*//')
               if [[ "$line" =~ "✓" ]]; then
-                echo "<div class=\"test pass\">$test_name</div>" >> build/docs/tests/report.html
+                echo "<div class=\"test pass\">$test_name</div>" >> build/docs/tests/index.html
               elif [[ "$line" =~ "✗" ]]; then
-                echo "<div class=\"test fail\">$test_name</div>" >> build/docs/tests/report.html
+                echo "<div class=\"test fail\">$test_name</div>" >> build/docs/tests/index.html
               fi
             fi
 
@@ -95,13 +95,13 @@ jobs:
               tests="${BASH_REMATCH[2]}"
               total_passed=$((total_passed + passed))
               total_tests=$((total_tests + tests))
-              echo "<div class=\"stats\">$passed/$tests tests passed</div>" >> build/docs/tests/report.html
+              echo "<div class=\"stats\">$passed/$tests tests passed</div>" >> build/docs/tests/index.html
             fi
           done < build/test-output.txt
 
           # Close last suite
           if [[ "$current_suite" != "" ]]; then
-            echo '</div>' >> build/docs/tests/report.html
+            echo '</div>' >> build/docs/tests/index.html
           fi
 
           # Add summary
@@ -111,7 +111,7 @@ jobs:
             summary_class="summary fail"
           fi
 
-          cat >> build/docs/tests/report.html << HTMLEOF
+          cat >> build/docs/tests/index.html << HTMLEOF
             <div class="$summary_class">
               <strong>Total: $total_passed/$total_tests tests passed</strong>
             </div>
@@ -160,7 +160,7 @@ jobs:
           ./build/tests 2>&1 | tee build/test-output.txt
 
           # Generate HTML test report
-          cat > build/docs/tests/report.html << 'HTMLEOF'
+          cat > build/docs/tests/index.html << 'HTMLEOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
@@ -183,16 +183,16 @@ jobs:
           if grep -q "All tests passed" build/test-output.txt; then
             PASSED=$(grep -oE "[0-9]+ assertions" build/test-output.txt | head -1 | grep -oE "[0-9]+")
             TESTS=$(grep -oE "[0-9]+ test cases" build/test-output.txt | head -1 | grep -oE "[0-9]+")
-            echo "<div class=\"summary\"><strong>All $TESTS test cases passed ($PASSED assertions)</strong></div>" >> build/docs/tests/report.html
+            echo "<div class=\"summary\"><strong>All $TESTS test cases passed ($PASSED assertions)</strong></div>" >> build/docs/tests/index.html
           else
-            echo "<div class=\"summary fail\"><strong>Some tests failed</strong></div>" >> build/docs/tests/report.html
+            echo "<div class=\"summary fail\"><strong>Some tests failed</strong></div>" >> build/docs/tests/index.html
           fi
 
-          echo "<h2>Full Output</h2><pre>" >> build/docs/tests/report.html
-          cat build/test-output.txt >> build/docs/tests/report.html
-          echo "</pre>" >> build/docs/tests/report.html
-          echo "<p style=\"color: #666; font-size: 0.8rem;\">Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')</p>" >> build/docs/tests/report.html
-          echo "</body></html>" >> build/docs/tests/report.html
+          echo "<h2>Full Output</h2><pre>" >> build/docs/tests/index.html
+          cat build/test-output.txt >> build/docs/tests/index.html
+          echo "</pre>" >> build/docs/tests/index.html
+          echo "<p style=\"color: #666; font-size: 0.8rem;\">Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')</p>" >> build/docs/tests/index.html
+          echo "</body></html>" >> build/docs/tests/index.html
 
       - name: Generate coverage HTML
         working-directory: implementations/cpp
@@ -254,7 +254,7 @@ jobs:
           mkdir -p build/docs
           pytest -v --fast --cov=pocketplus \
             --cov-report=html:build/docs/coverage \
-            --html=build/docs/tests/report.html --self-contained-html
+            --html=build/docs/tests/index.html --self-contained-html
 
       - name: Generate API docs
         working-directory: implementations/python
@@ -288,7 +288,7 @@ jobs:
         run: |
           mkdir -p build/docs/tests
           go test -v ./pocketplus/ 2>&1 | tee build/test-output.txt
-          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
+          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html
 
       - name: Generate coverage HTML
         working-directory: implementations/go
@@ -332,13 +332,14 @@ jobs:
         run: |
           mkdir -p build/docs/tests
           cargo test --release 2>&1 | tee build/test-output.txt
-          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
+          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html
 
       - name: Generate coverage HTML
         working-directory: implementations/rust
         run: |
           mkdir -p build/docs/coverage
           cargo tarpaulin --out Html --output-dir build/docs/coverage
+          mv build/docs/coverage/tarpaulin-report.html build/docs/coverage/index.html
 
       - name: Generate API docs
         working-directory: implementations/rust

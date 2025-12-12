@@ -23,7 +23,7 @@ test-report:
 	@echo "Running tests and generating report..."
 	@go test -v ./pocketplus/ 2>&1 | tee $(BUILD_DIR)/test-output.txt
 	@echo "Generating HTML report..."
-	@./scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/report.html
+	@./scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/index.html
 
 coverage:
 	mkdir -p $(BUILD_DIR)

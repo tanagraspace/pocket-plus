@@ -22,7 +22,7 @@ test-report:
 	@echo "Running tests and generating report..."
 	@cargo test --release 2>&1 | tee $(BUILD_DIR)/test-output.txt
 	@echo "Generating HTML report..."
-	@./scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/report.html
+	@./scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/index.html
 
 bench:
 	cargo build --release --bin bench
@@ -31,6 +31,7 @@ bench:
 coverage:
 	mkdir -p $(BUILD_DIR)/coverage
 	cargo tarpaulin --out Html --output-dir $(BUILD_DIR)/coverage
+	@mv $(BUILD_DIR)/coverage/tarpaulin-report.html $(BUILD_DIR)/coverage/index.html 2>/dev/null || true
 
 fmt:
 	cargo fmt
