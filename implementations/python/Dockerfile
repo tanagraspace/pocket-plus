@@ -16,6 +16,6 @@ CMD ["sh", "-c", "\
     pytest -v --cov=pocketplus \
         --cov-report=html:build/docs/coverage \
         --cov-report=xml:build/docs/coverage.xml \
-        --html=build/docs/tests/report.html --self-contained-html && \
+        --html=build/docs/tests/index.html --self-contained-html && \
     pdoc -d google pocketplus -o build/docs/api \
 "]
