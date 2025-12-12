@@ -1,7 +1,8 @@
 # POCKET+ C++ Implementation
 
 [![C++ Build](https://github.com/georges-labreche/pocket-plus/actions/workflows/cpp-build.yml/badge.svg)](https://github.com/georges-labreche/pocket-plus/actions/workflows/cpp-build.yml)
-![Coverage](assets/coverage.svg)
+![Lines](assets/coverage-lines.svg)
+![Functions](assets/coverage-functions.svg)
 
 Header-only C++17 implementation of CCSDS 124.0-B-1 POCKET+ lossless compression algorithm.
 
