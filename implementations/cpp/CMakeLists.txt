@@ -52,15 +52,15 @@ set(POCKET_SOURCES
     src/decompressor.cpp
 )
 
-# Static library
-add_library(pocketplus STATIC ${POCKET_SOURCES})
-target_include_directories(pocketplus PUBLIC include)
-target_compile_features(pocketplus PUBLIC cxx_std_17)
+# Static library (named pocketplus_cxx to avoid conflict with C library)
+add_library(pocketplus_cxx STATIC ${POCKET_SOURCES})
+target_include_directories(pocketplus_cxx PUBLIC include)
+target_compile_features(pocketplus_cxx PUBLIC cxx_std_17)
 
 # CLI executable
 if(POCKET_BUILD_CLI)
     add_executable(pocketplus_cli src/cli.cpp)
-    target_link_libraries(pocketplus_cli PRIVATE pocketplus)
+    target_link_libraries(pocketplus_cli PRIVATE pocketplus_cxx)
     set_target_properties(pocketplus_cli PROPERTIES OUTPUT_NAME pocketplus)
 endif()
 
@@ -90,7 +90,7 @@ if(POCKET_BUILD_TESTS)
         tests/test_vectors.cpp
         tests/test_edge_cases.cpp
     )
-    target_link_libraries(tests PRIVATE pocketplus Catch2::Catch2WithMain)
+    target_link_libraries(tests PRIVATE pocketplus_cxx Catch2::Catch2WithMain)
 
     # Register tests
     include(CTest)
@@ -101,11 +101,11 @@ endif()
 # Benchmarks
 if(POCKET_BUILD_BENCH)
     add_executable(bench bench/bench.cpp)
-    target_link_libraries(bench PRIVATE pocketplus)
+    target_link_libraries(bench PRIVATE pocketplus_cxx)
 endif()
 
 # Install
-install(TARGETS pocketplus
+install(TARGETS pocketplus_cxx
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
 )
