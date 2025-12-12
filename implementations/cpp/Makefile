@@ -46,8 +46,8 @@ coverage:
 	@cd $(BUILD_DIR) && cmake -DCMAKE_BUILD_TYPE=Debug -DPOCKET_COVERAGE=ON ..
 	@cmake --build $(BUILD_DIR) -- -j1
 	@cd $(BUILD_DIR) && ctest --output-on-failure
-	@lcov --capture --directory $(BUILD_DIR) --output-file $(BUILD_DIR)/coverage.info --ignore-errors source
-	@lcov --remove $(BUILD_DIR)/coverage.info '/usr/*' '*/Catch2/*' '*/_deps/*' '*/tests/*' --output-file $(BUILD_DIR)/coverage.info
+	@lcov --capture --directory $(BUILD_DIR) --output-file $(BUILD_DIR)/coverage.info --ignore-errors source,gcov
+	@lcov --remove $(BUILD_DIR)/coverage.info '/usr/*' '*/Catch2/*' '*/_deps/*' '*/tests/*' --output-file $(BUILD_DIR)/coverage.info --ignore-errors unused
 	@echo ""
 	@echo "Coverage Summary:"
 	@echo "================="
