@@ -1,5 +1,7 @@
 """Tests for encoding functions (COUNT, RLE, BE)."""
 
+import pytest
+
 from pocketplus.bitbuffer import BitBuffer
 from pocketplus.bitvector import BitVector
 from pocketplus.encode import bit_extract, bit_extract_forward, count_encode, rle_encode
@@ -60,6 +62,24 @@ class TestCountEncode:
         count_encode(bb, 1)  # 1 bit
         count_encode(bb, 1)  # 1 bit
         assert bb.num_bits == 3
+
+    def test_count_encode_zero_raises(self) -> None:
+        """Test that COUNT(0) raises ValueError."""
+        bb = BitBuffer()
+        with pytest.raises(ValueError, match="out of range"):
+            count_encode(bb, 0)
+
+    def test_count_encode_negative_raises(self) -> None:
+        """Test that negative value raises ValueError."""
+        bb = BitBuffer()
+        with pytest.raises(ValueError, match="out of range"):
+            count_encode(bb, -1)
+
+    def test_count_encode_too_large_raises(self) -> None:
+        """Test that value > 65535 raises ValueError."""
+        bb = BitBuffer()
+        with pytest.raises(ValueError, match="out of range"):
+            count_encode(bb, 65536)
 
 
 class TestRleEncode:
@@ -183,6 +203,15 @@ class TestBitExtract:
         # Reverse order: bit[6], bit[4], bit[1] = 1, 0, 0
         assert bb.to_bytes() == bytes([0b10000000])
 
+    def test_bit_extract_mismatched_lengths_raises(self) -> None:
+        """Test that mismatched data/mask lengths raises ValueError."""
+        data = BitVector(8)
+        mask = BitVector(16)
+
+        bb = BitBuffer()
+        with pytest.raises(ValueError, match="same length"):
+            bit_extract(bb, data, mask)
+
 
 class TestBitExtractForward:
     """Test forward bit extraction (for kt component)."""
@@ -214,3 +243,12 @@ class TestBitExtractForward:
         # Extract in forward: bit[0]=1, bit[2]=1
         # Result: 11
         assert bb.to_bytes() == bytes([0b11000000])
+
+    def test_bit_extract_forward_mismatched_lengths_raises(self) -> None:
+        """Test that mismatched data/mask lengths raises ValueError."""
+        data = BitVector(8)
+        mask = BitVector(16)
+
+        bb = BitBuffer()
+        with pytest.raises(ValueError, match="same length"):
+            bit_extract_forward(bb, data, mask)
