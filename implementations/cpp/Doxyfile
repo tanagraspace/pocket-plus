@@ -177,8 +177,7 @@ HTML_FILE_EXTENSION    = .html
 HTML_HEADER            =
 HTML_FOOTER            =
 HTML_STYLESHEET        =
-HTML_EXTRA_STYLESHEET  = assets/doxygen-awesome-css/doxygen-awesome.css \
-                         assets/doxygen-awesome-css/doxygen-awesome-sidebar-only.css
+HTML_EXTRA_STYLESHEET  =
 HTML_EXTRA_FILES       =
 HTML_COLORSTYLE        = LIGHT
 HTML_DYNAMIC_MENUS     = YES
