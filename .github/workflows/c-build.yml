@@ -29,6 +29,9 @@ jobs:
         working-directory: implementations/c
         run: make
 
+      - name: Install junit2html
+        run: pip3 install --break-system-packages junit2html || pip3 install junit2html
+
       - name: Run unit tests
         working-directory: implementations/c
         run: |
@@ -38,6 +41,10 @@ jobs:
           make test 2>&1 | tee test-output.txt
           cat test-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate test report
+        working-directory: implementations/c
+        run: make test-report
 
       - name: Run CLI round-trip tests
         working-directory: implementations/c
@@ -112,6 +119,8 @@ jobs:
             implementations/c/cli-test-output.txt
             implementations/c/vector-output.txt
             implementations/c/valgrind-output.txt
+            implementations/c/build/docs/tests/report.xml
+            implementations/c/build/docs/tests/html/
           retention-days: 7
 
   coverage:
@@ -131,10 +140,7 @@ jobs:
 
       - name: Generate coverage report
         working-directory: implementations/c
-        run: |
-          mkdir -p build/coverage/html
-          lcov --capture --directory build/coverage --output-file build/coverage/coverage.info --include "*/src/*" 2>/dev/null
-          genhtml build/coverage/coverage.info --output-directory build/coverage/html 2>/dev/null
+        run: make coverage-html
 
       - name: Parse coverage summary
         working-directory: implementations/c
@@ -162,7 +168,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: implementations/c/build/coverage/html
+          path: implementations/c/build/docs/coverage/html
           retention-days: 7
 
       - name: Update coverage badges
@@ -268,5 +274,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: docs-api
-          path: implementations/c/build/docs/html
+          path: implementations/c/build/docs/api/html
           retention-days: 7

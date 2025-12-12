@@ -15,6 +15,7 @@ SRC_DIR = src
 INCLUDE_DIR = include
 TEST_DIR = tests
 BUILD_DIR = build
+DOCS_DIR = $(BUILD_DIR)/docs
 COV_DIR = $(BUILD_DIR)/coverage
 
 # Source files (exclude CLI which has main())
@@ -36,7 +37,7 @@ COV_LIB = $(COV_DIR)/libpocketplus.a
 MISRA_SRCS = $(SRC_DIR)/bitvector.c $(SRC_DIR)/bitbuffer.c $(SRC_DIR)/compress.c \
              $(SRC_DIR)/decompress.c $(SRC_DIR)/encode.c $(SRC_DIR)/mask.c
 
-.PHONY: all clean test test-cli cli coverage coverage-html docs misra valgrind bench
+.PHONY: all clean test test-report test-cli cli coverage coverage-html docs misra valgrind bench
 
 all: $(LIB) $(CLI)
 
@@ -68,6 +69,29 @@ test: $(TEST_BINS)
 		echo "Running $$test..."; \
 		$$test || exit 1; \
 	done
+
+test-report: $(TEST_BINS)
+	@mkdir -p $(DOCS_DIR)/tests
+	@echo '<?xml version="1.0" encoding="UTF-8"?>' > $(DOCS_DIR)/tests/report.xml
+	@echo '<testsuites>' >> $(DOCS_DIR)/tests/report.xml
+	@for test in $(TEST_BINS); do \
+		name=$$(basename $$test); \
+		echo "Running $$name..."; \
+		if $$test > /dev/null 2>&1; then \
+			echo "  <testsuite name=\"$$name\" tests=\"1\" failures=\"0\">" >> $(DOCS_DIR)/tests/report.xml; \
+			echo "    <testcase name=\"$$name\"/>" >> $(DOCS_DIR)/tests/report.xml; \
+			echo "  </testsuite>" >> $(DOCS_DIR)/tests/report.xml; \
+		else \
+			echo "  <testsuite name=\"$$name\" tests=\"1\" failures=\"1\">" >> $(DOCS_DIR)/tests/report.xml; \
+			echo "    <testcase name=\"$$name\"><failure message=\"Test failed\"/></testcase>" >> $(DOCS_DIR)/tests/report.xml; \
+			echo "  </testsuite>" >> $(DOCS_DIR)/tests/report.xml; \
+		fi; \
+	done
+	@echo '</testsuites>' >> $(DOCS_DIR)/tests/report.xml
+	@mkdir -p $(DOCS_DIR)/tests/html
+	@junit2html $(DOCS_DIR)/tests/report.xml $(DOCS_DIR)/tests/html/index.html
+	@echo "Test report XML: $(DOCS_DIR)/tests/report.xml"
+	@echo "Test report HTML: $(DOCS_DIR)/tests/html/index.html"
 
 test-cli: $(CLI)
 	@$(TEST_DIR)/test_cli.sh
@@ -136,16 +160,18 @@ coverage-badge:
 
 coverage-html:
 	@command -v lcov >/dev/null 2>&1 || { echo "Error: lcov not installed. Install with: brew install lcov"; exit 1; }
-	@mkdir -p $(COV_DIR)/html
+	@mkdir -p $(DOCS_DIR)/coverage/html
 	@if [ ! -f $(COV_DIR)/coverage.info ]; then \
 		lcov --capture --directory $(COV_DIR) --output-file $(COV_DIR)/coverage.info --include "*/src/*"; \
 	fi
-	genhtml $(COV_DIR)/coverage.info --output-directory $(COV_DIR)/html
-	@echo "HTML report: $(COV_DIR)/html/index.html"
+	@cp $(COV_DIR)/coverage.info $(DOCS_DIR)/coverage/coverage.info
+	genhtml $(COV_DIR)/coverage.info --output-directory $(DOCS_DIR)/coverage/html --ignore-errors inconsistent
+	@echo "Coverage data: $(DOCS_DIR)/coverage/coverage.info"
+	@echo "Coverage HTML: $(DOCS_DIR)/coverage/html/index.html"
 
 docs:
 	@command -v doxygen >/dev/null 2>&1 || { echo "Error: doxygen not installed. Install with: brew install doxygen"; exit 1; }
-	@mkdir -p $(BUILD_DIR)/docs
+	@mkdir -p $(DOCS_DIR)/api
 	@# Download Doxygen Awesome CSS if not present
 	@if [ ! -f doxygen-awesome-css/doxygen-awesome.css ]; then \
 		echo "Downloading Doxygen Awesome CSS theme..."; \
@@ -154,7 +180,7 @@ docs:
 		curl -sL https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/v2.3.4/doxygen-awesome-sidebar-only.css -o doxygen-awesome-css/doxygen-awesome-sidebar-only.css; \
 	fi
 	doxygen Doxyfile
-	@echo "Documentation: $(BUILD_DIR)/docs/html/index.html"
+	@echo "API documentation: $(DOCS_DIR)/api/index.html"
 
 misra:
 	@command -v cppcheck >/dev/null 2>&1 || { echo "Error: cppcheck not installed. Install with: brew install cppcheck"; exit 1; }

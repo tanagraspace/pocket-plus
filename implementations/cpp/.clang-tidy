@@ -1,0 +1,54 @@
+# POCKET+ C++ Implementation - clang-tidy Configuration
+# =====================================================
+#
+# Safety-Critical Code Checks
+# ---------------------------
+# This configuration enables checks that align with safety-critical
+# coding standards (CERT C++, HIC++, C++ Core Guidelines) which
+# overlap significantly with MISRA C++ guidelines.
+#
+# Note: Full MISRA C++:2023/2008 compliance checking requires
+# commercial tools (e.g., Cppcheck Premium, Polyspace).
+# This configuration provides comparable coverage using free tools.
+
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  cppcoreguidelines-*,
+  hicpp-*,
+  performance-*,
+  readability-braces-around-statements,
+  readability-implicit-bool-conversion,
+  readability-misleading-indentation,
+  readability-redundant-*,
+  misc-redundant-expression,
+  misc-unused-*
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: 'include/pocketplus/.*\.hpp$'
+
+CheckOptions:
+  # Naming conventions
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+
+  # Function complexity limits (aligned with MISRA)
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'
+  - key: readability-function-size.LineThreshold
+    value: '100'
+
+  # Bracing style
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: '0'

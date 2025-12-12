@@ -1,0 +1,366 @@
+name: C++ Build & Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'implementations/cpp/**'
+      - '.github/workflows/cpp-build.yml'
+  pull_request:
+    paths:
+      - 'implementations/cpp/**'
+      - '.github/workflows/cpp-build.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    name: Format Check (clang-format)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Format and check
+        working-directory: implementations/cpp
+        run: |
+          echo "## Format Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Find all source files
+          FILES=$(find include src tests bench -name '*.hpp' -o -name '*.cpp' 2>/dev/null || true)
+
+          if [ -z "$FILES" ]; then
+            echo "No source files found." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          # Format all files
+          echo "$FILES" | xargs clang-format -i
+
+          echo "All files are properly formatted." >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit formatting changes
+        working-directory: implementations/cpp
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "cpp: auto-format with clang-format [skip ci]"
+          git push || true
+
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    needs: format-check
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install CMake (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Install junit2html
+        run: pip3 install --break-system-packages junit2html || pip3 install junit2html
+
+      - name: Build library and tests
+        working-directory: implementations/cpp
+        run: make build
+
+      - name: Run unit tests
+        working-directory: implementations/cpp
+        run: |
+          echo "## Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          make test 2>&1 | tee test-output.txt
+          cat test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate test report
+        working-directory: implementations/cpp
+        run: make test-report
+
+      - name: Parse test results
+        working-directory: implementations/cpp
+        run: |
+          # Extract test counts from CTest output (with error handling for grep)
+          PASSED=$(grep -oE "[0-9]+ tests passed" test-output.txt 2>/dev/null | head -1 | grep -oE "[0-9]+" || echo "N/A")
+          TOTAL=$(grep -oE "out of [0-9]+" test-output.txt 2>/dev/null | head -1 | grep -oE "[0-9]+" || echo "N/A")
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Tests | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | ${{ matrix.os }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Test vector validation
+        working-directory: implementations/cpp/build
+        shell: bash
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Vector Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Vector | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Run vector tests specifically (from build dir so relative paths work)
+          ./tests "[vectors]" 2>&1 | tee vector-output.txt
+
+          # Check for passing vectors
+          for vector in simple housekeeping edge-cases hiro venus-express; do
+            if grep -q "Test vector: $vector.*Passed" vector-output.txt; then
+              echo "| $vector | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $vector | :x: |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Run valgrind memory check
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: implementations/cpp/build
+        run: |
+          sudo apt-get install -y valgrind
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Valgrind Memory Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          mkdir -p docs/valgrind
+          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=1 \
+            ./tests 2>&1 | tee docs/valgrind/report.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E "ERROR SUMMARY|definitely lost|indirectly lost|possibly lost" docs/valgrind/report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-cpp-${{ matrix.os }}
+          path: |
+            implementations/cpp/test-output.txt
+            implementations/cpp/build/vector-output.txt
+            implementations/cpp/build/docs/tests/report.xml
+            implementations/cpp/build/docs/tests/html/
+            implementations/cpp/build/docs/valgrind/report.txt
+          retention-days: 7
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake lcov
+
+      - name: Build with coverage
+        working-directory: implementations/cpp
+        run: make coverage
+
+      - name: Generate coverage report
+        working-directory: implementations/cpp
+        run: |
+          mkdir -p build/coverage/html
+          lcov --capture --directory build --output-file build/coverage.info --include "*/include/pocketplus/*" 2>/dev/null || true
+          genhtml build/coverage.info --output-directory build/coverage/html 2>/dev/null || true
+
+      - name: Parse coverage summary and update badges
+        working-directory: implementations/cpp
+        run: |
+          echo "## Code Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get line and function coverage
+          if [ -f build/coverage.info ]; then
+            LINES=$(lcov --summary build/coverage.info 2>&1 | grep "lines" | sed 's/.*: //' | sed 's/%.*//' || echo "0")
+            FUNCS=$(lcov --summary build/coverage.info 2>&1 | grep "functions" | sed 's/.*: //' | sed 's/%.*//' || echo "0")
+
+            echo "**Line Coverage: ${LINES}%**" >> $GITHUB_STEP_SUMMARY
+            echo "**Function Coverage: ${FUNCS}%**" >> $GITHUB_STEP_SUMMARY
+
+            echo "Line coverage: ${LINES}%"
+            echo "Function coverage: ${FUNCS}%"
+
+            # Determine badge color based on coverage
+            get_color() {
+              local cov=$1
+              if (( $(echo "$cov >= 90" | bc -l) )); then
+                echo "#97ca00"
+              elif (( $(echo "$cov >= 80" | bc -l) )); then
+                echo "#a4a61d"
+              elif (( $(echo "$cov >= 70" | bc -l) )); then
+                echo "#dfb317"
+              else
+                echo "#e05d44"
+              fi
+            }
+
+            LINES_COLOR=$(get_color $LINES)
+            FUNCS_COLOR=$(get_color $FUNCS)
+
+            # Generate coverage badges (using printf to avoid YAML parsing issues)
+            mkdir -p assets
+
+            # Line coverage badge
+            printf '<svg xmlns="http://www.w3.org/2000/svg" width="90" height="20">
+            <linearGradient id="b" x2="0" y2="100%%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+            <mask id="a"><rect width="90" height="20" rx="3" fill="#fff"/></mask>
+            <g mask="url(#a)"><path fill="#555" d="M0 0h45v20H0z"/><path fill="%s" d="M45 0h45v20H45z"/><path fill="url(#b)" d="M0 0h90v20H0z"/></g>
+            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+            <text x="22.5" y="15" fill="#010101" fill-opacity=".3">lines</text>
+            <text x="22.5" y="14">lines</text>
+            <text x="67" y="15" fill="#010101" fill-opacity=".3">%s%%</text>
+            <text x="67" y="14">%s%%</text></g></svg>' "$LINES_COLOR" "$LINES" "$LINES" > assets/coverage-lines.svg
+
+            # Function coverage badge
+            printf '<svg xmlns="http://www.w3.org/2000/svg" width="106" height="20">
+            <linearGradient id="b" x2="0" y2="100%%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+            <mask id="a"><rect width="106" height="20" rx="3" fill="#fff"/></mask>
+            <g mask="url(#a)"><path fill="#555" d="M0 0h61v20H0z"/><path fill="%s" d="M61 0h45v20H61z"/><path fill="url(#b)" d="M0 0h106v20H0z"/></g>
+            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+            <text x="30.5" y="15" fill="#010101" fill-opacity=".3">functions</text>
+            <text x="30.5" y="14">functions</text>
+            <text x="83" y="15" fill="#010101" fill-opacity=".3">%s%%</text>
+            <text x="83" y="14">%s%%</text></g></svg>' "$FUNCS_COLOR" "$FUNCS" "$FUNCS" > assets/coverage-functions.svg
+          else
+            echo "Coverage report not available." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Commit coverage badges
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: implementations/cpp
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/coverage-lines.svg assets/coverage-functions.svg
+          git diff --staged --quiet || git commit -m "cpp: update coverage badges [skip ci]"
+          git push || true
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-cpp
+          path: implementations/cpp/build/docs/coverage/html
+          retention-days: 7
+
+  embedded-build:
+    runs-on: ubuntu-latest
+    name: Embedded Build (-fno-exceptions -fno-rtti)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Build with embedded flags
+        working-directory: implementations/cpp
+        run: |
+          cmake -B build-embedded \
+            -DCMAKE_CXX_FLAGS="-fno-exceptions -fno-rtti" \
+            -DPOCKET_BUILD_TESTS=OFF \
+            -DPOCKET_BUILD_CLI=OFF \
+            -DPOCKET_BUILD_BENCH=OFF
+          cmake --build build-embedded
+
+      - name: Report embedded build status
+        run: |
+          echo "## Embedded Build" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Build with \`-fno-exceptions -fno-rtti\` completed successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The library is suitable for embedded systems without exception or RTTI support." >> $GITHUB_STEP_SUMMARY
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    needs: format-check
+    name: Static Analysis (clang-tidy)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake clang-tidy
+
+      - name: Build with compile commands
+        working-directory: implementations/cpp
+        run: |
+          cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cmake --build build
+
+      - name: Run clang-tidy
+        working-directory: implementations/cpp
+        run: |
+          echo "## Static Analysis (clang-tidy)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run clang-tidy on source files
+          ISSUES=$(find src -name '*.cpp' -exec clang-tidy -p build {} \; 2>&1) || true
+
+          if echo "$ISSUES" | grep -q "warning:\|error:"; then
+            echo "**Issues found:**" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$ISSUES" | grep -E "warning:|error:" | head -50 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No issues found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    name: Sanitizers (ASan/UBSan)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
+      - name: Build with sanitizers
+        working-directory: implementations/cpp
+        run: |
+          cmake -B build-sanitizers \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+          cmake --build build-sanitizers
+
+      - name: Run tests with sanitizers
+        working-directory: implementations/cpp
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:abort_on_error=1
+        run: |
+          echo "## Sanitizer Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if ./build-sanitizers/tests 2>&1 | tee sanitizer-output.txt; then
+            echo "AddressSanitizer and UndefinedBehaviorSanitizer passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Sanitizer issues detected:**" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 sanitizer-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

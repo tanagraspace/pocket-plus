@@ -1,11 +1,11 @@
-# Doxyfile for POCKET+ C Implementation
+# Doxyfile for POCKET+ C++ Implementation
 # Generated for Doxygen 1.9+
 
 #---------------------------------------------------------------------------
 # Project related configuration options
 #---------------------------------------------------------------------------
 
-PROJECT_NAME           = "POCKET+ C"
+PROJECT_NAME           = "POCKET+ C++"
 PROJECT_NUMBER         = "1.0.0"
 PROJECT_BRIEF          = "CCSDS 124.0-B-1 Lossless Compression"
 PROJECT_LOGO           =
@@ -41,7 +41,7 @@ INHERIT_DOCS           = YES
 SEPARATE_MEMBER_PAGES  = NO
 TAB_SIZE               = 4
 ALIASES                =
-OPTIMIZE_OUTPUT_FOR_C  = YES
+OPTIMIZE_OUTPUT_FOR_C  = NO
 OPTIMIZE_OUTPUT_JAVA   = NO
 OPTIMIZE_FOR_FORTRAN   = NO
 OPTIMIZE_OUTPUT_VHDL   = NO
@@ -50,7 +50,7 @@ EXTENSION_MAPPING      =
 MARKDOWN_SUPPORT       = YES
 TOC_INCLUDE_HEADINGS   = 5
 AUTOLINK_SUPPORT       = YES
-BUILTIN_STL_SUPPORT    = NO
+BUILTIN_STL_SUPPORT    = YES
 CPP_CLI_SUPPORT        = NO
 SIP_SUPPORT            = NO
 IDL_PROPERTY_SUPPORT   = YES
@@ -68,7 +68,7 @@ NUM_PROC_THREADS       = 1
 #---------------------------------------------------------------------------
 
 EXTRACT_ALL            = YES
-EXTRACT_PRIVATE        = YES
+EXTRACT_PRIVATE        = NO
 EXTRACT_PRIV_VIRTUAL   = NO
 EXTRACT_PACKAGE        = NO
 EXTRACT_STATIC         = YES
@@ -130,7 +130,7 @@ WARN_LOGFILE           =
 INPUT                  = README.md include src
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    =
-FILE_PATTERNS          = *.c *.h *.md
+FILE_PATTERNS          = *.cpp *.hpp *.md
 RECURSIVE              = YES
 EXCLUDE                =
 EXCLUDE_SYMLINKS       = NO
@@ -253,12 +253,12 @@ GENERATE_PERLMOD       = NO
 #---------------------------------------------------------------------------
 
 ENABLE_PREPROCESSING   = YES
-MACRO_EXPANSION        = NO
+MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = NO
 SEARCH_INCLUDES        = YES
 INCLUDE_PATH           = include
 INCLUDE_FILE_PATTERNS  =
-PREDEFINED             =
+PREDEFINED             = DOXYGEN_RUNNING
 EXPAND_AS_DEFINED      =
 SKIP_FUNCTION_MACROS   = YES
 
@@ -278,8 +278,8 @@ EXTERNAL_PAGES         = YES
 
 DIA_PATH               =
 HIDE_UNDOC_RELATIONS   = YES
-HAVE_DOT               = NO
-DOT_NUM_THREADS        = 0
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 4
 DOT_COMMON_ATTR        = "fontname=Helvetica,fontsize=10"
 DOT_EDGE_ATTR          = "labelfontname=Helvetica,labelfontsize=10"
 DOT_NODE_ATTR          = "shape=box,height=0.2,width=0.4"
@@ -299,8 +299,8 @@ CALLER_GRAPH           = NO
 GRAPHICAL_HIERARCHY    = YES
 DIRECTORY_GRAPH        = YES
 DIR_GRAPH_MAX_DEPTH    = 1
-DOT_IMAGE_FORMAT       = png
-INTERACTIVE_SVG        = NO
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
 DOT_PATH               =
 DOTFILE_DIRS           =
 MSCFILE_DIRS           =

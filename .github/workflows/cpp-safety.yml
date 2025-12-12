@@ -1,0 +1,137 @@
+name: C++ Safety Checks
+
+on:
+  pull_request:
+    paths:
+      - 'implementations/cpp/**'
+      - '.github/workflows/cpp-safety.yml'
+
+jobs:
+  clang-tidy:
+    name: clang-tidy Safety Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy cmake
+
+      - name: Generate compile_commands.json
+        working-directory: implementations/cpp
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DPOCKET_BUILD_TESTS=OFF
+
+      - name: Run clang-tidy
+        working-directory: implementations/cpp
+        run: |
+          echo "## C++ Safety Analysis Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Checks enabled: CERT C++, HIC++, C++ Core Guidelines, bugprone, performance" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run clang-tidy on library source files
+          SOURCES=$(find include/pocketplus -name "*.hpp" | sort)
+
+          TOTAL_WARNINGS=0
+          REPORT=""
+
+          for src in $SOURCES; do
+            echo "Checking $src..."
+            OUTPUT=$(clang-tidy -p build "$src" 2>&1 || true)
+            WARNINGS=$(echo "$OUTPUT" | grep -c "warning:" || echo "0")
+            TOTAL_WARNINGS=$((TOTAL_WARNINGS + WARNINGS))
+
+            if [ "$WARNINGS" -gt 0 ]; then
+              REPORT="$REPORT\n### $src ($WARNINGS warnings)\n\`\`\`\n$(echo "$OUTPUT" | grep -A2 "warning:")\n\`\`\`\n"
+            fi
+          done
+
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Warnings | $TOTAL_WARNINGS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Files Checked | $(echo "$SOURCES" | wc -w) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$TOTAL_WARNINGS" -gt 0 ]; then
+            echo "### Warnings" >> $GITHUB_STEP_SUMMARY
+            echo -e "$REPORT" >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "::warning::Found $TOTAL_WARNINGS clang-tidy warnings"
+          else
+            echo ":white_check_mark: **No clang-tidy warnings found**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Don't fail the build for warnings (informational)
+          exit 0
+
+  cppcheck:
+    name: cppcheck Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        working-directory: implementations/cpp
+        run: |
+          echo "## cppcheck Static Analysis Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          mkdir -p build
+
+          # Run cppcheck with C++ checks
+          cppcheck --enable=all --std=c++17 \
+              --suppress=missingIncludeSystem \
+              --suppress=unmatchedSuppression \
+              --suppress=unusedFunction \
+              -Iinclude \
+              --output-file=build/cppcheck-report.txt \
+              include/pocketplus/*.hpp src/*.cpp 2>&1 || true
+
+          # Count issues (exclude style/information for summary)
+          ERRORS=$(grep -c "\(error\)" build/cppcheck-report.txt 2>/dev/null || echo "0")
+          WARNINGS=$(grep -c "\(warning\)" build/cppcheck-report.txt 2>/dev/null || echo "0")
+          PERF=$(grep -c "\(performance\)" build/cppcheck-report.txt 2>/dev/null || echo "0")
+
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Warnings | $WARNINGS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | $PERF |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "### Errors" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep "\(error\)" build/cppcheck-report.txt >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo ""
+            echo "::error::Found $ERRORS cppcheck errors"
+            exit 1
+          elif [ "$WARNINGS" -gt 0 ]; then
+            echo "### Warnings" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep "\(warning\)" build/cppcheck-report.txt >> $GITHUB_STEP_SUMMARY || true
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "::warning::Found $WARNINGS cppcheck warnings"
+          else
+            echo ":white_check_mark: **No cppcheck errors or warnings**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload cppcheck report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cppcheck-report
+          path: implementations/cpp/build/cppcheck-report.txt
+          retention-days: 7

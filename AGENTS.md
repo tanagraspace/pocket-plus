@@ -4,7 +4,7 @@ This file provides guidance for AI agents (like Claude Code) working on the POCK
 
 ## Project Overview
 
-POCKET+ is a multi-language implementation of the CCSDS 124.0-B-1 lossless compression algorithm designed for spacecraft housekeeping data. This is a **monorepo** with independent implementations in C, Python, Go, Rust, and Java.
+POCKET+ is a multi-language implementation of the CCSDS 124.0-B-1 lossless compression algorithm designed for spacecraft housekeeping data. This is a **monorepo** with independent implementations in C, C++, Python, Go, Rust, and Java.
 
 ## Repository Structure
 
@@ -12,6 +12,7 @@ POCKET+ is a multi-language implementation of the CCSDS 124.0-B-1 lossless compr
 pocket-plus/
 ├── implementations/
 │   ├── c/          # C implementation (embedded/flight)
+│   ├── cpp/        # C++ implementation (embedded/flight)
 │   ├── python/     # Python implementation (MicroPython compatible)
 │   ├── go/         # Go implementation
 │   ├── rust/       # Rust implementation
@@ -29,10 +30,11 @@ pocket-plus/
 
 ## Versioning Rules
 
-- Use **prefixed git tags**: `c/vX.Y.Z`, `python/vX.Y.Z`, `go/vX.Y.Z`, `rust/vX.Y.Z`, `java/vX.Y.Z`
+- Use **prefixed git tags**: `c/vX.Y.Z`, `cpp/vX.Y.Z`, `python/vX.Y.Z`, `go/vX.Y.Z`, `rust/vX.Y.Z`, `java/vX.Y.Z`
 - Follow [Semantic Versioning](https://semver.org/)
 - Update version in language-specific files:
   - C: `implementations/c/VERSION` and `implementations/c/include/pocket_plus.h`
+  - C++: `implementations/cpp/VERSION` and `implementations/cpp/include/pocketplus/pocketplus.hpp`
   - Python: `implementations/python/pyproject.toml` and `implementations/python/pocket_plus/__init__.py`
   - Go: Git tag (Go uses tags directly)
   - Rust: `implementations/rust/Cargo.toml`
@@ -66,6 +68,15 @@ python: fix decompression bug
 - Use fixed-size integer types (`uint8_t`, etc.)
 - Provide clear error codes
 - Test with Makefile: `cd implementations/c && make test`
+
+### C++ Implementation
+- Target embedded systems with C++17 support
+- Header-only templates for compile-time size optimization
+- Zero dynamic allocation (embedded-friendly)
+- Works with `-fno-exceptions -fno-rtti`
+- Uses Catch2 for testing
+- Test with Makefile: `cd implementations/cpp && make test`
+- Format code: `clang-format -i`
 
 ### Python Implementation
 - Include type hints for all public APIs

@@ -62,6 +62,32 @@ If simple passes but others fail, check Vt and ct calculations.
 - Minimize dynamic allocation
 - See `implementations/c/` for reference
 
+### C++
+
+**Compatibility:**
+- C++17 minimum (GCC 7+, Clang 5+, MSVC 2019+)
+- Zero runtime dependencies (standard library only)
+- Header-only templates for easy integration
+- Works with `-fno-exceptions -fno-rtti` (embedded systems)
+
+**Code Style:**
+- clang-format for formatting
+- clang-tidy for static analysis
+- Use `Error` enum for error handling (no exceptions)
+
+**Testing:**
+```bash
+cd implementations/cpp
+make build            # Build library, CLI, and tests
+make test             # Run tests
+make coverage         # Run tests with coverage
+```
+
+**Structure:**
+- Core library: `include/pocketplus/` (header-only)
+- CLI: `src/main.cpp`
+- Uses 32-bit word storage for bit vectors (same as C)
+
 ### Python
 
 **Compatibility:**
