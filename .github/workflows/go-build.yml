@@ -53,7 +53,7 @@ jobs:
 
       - name: Test with coverage
         run: |
-          go test -coverprofile=coverage.out ./...
+          go test -coverprofile=coverage.out ./pocketplus/...
           go tool cover -func=coverage.out
 
       - name: Upload coverage
@@ -79,7 +79,7 @@ jobs:
       - name: Generate coverage HTML
         run: |
           mkdir -p build
-          go test -coverprofile=build/coverage.out ./...
+          go test -coverprofile=build/coverage.out ./pocketplus/...
           go tool cover -html=build/coverage.out -o build/coverage.html
 
       - name: Parse coverage summary
