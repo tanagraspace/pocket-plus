@@ -338,7 +338,7 @@ jobs:
         working-directory: implementations/rust
         run: |
           mkdir -p build/docs/coverage
-          cargo tarpaulin --out Html --output-dir build/docs/coverage
+          cargo tarpaulin --out Html --output-dir build/docs/coverage --exclude-files "src/bin/*"
           mv build/docs/coverage/tarpaulin-report.html build/docs/coverage/index.html
 
       - name: Generate API docs
