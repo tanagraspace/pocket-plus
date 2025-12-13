@@ -56,7 +56,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Generate HTML test report
-        run: ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
+        run: ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html
 
       - name: Run CLI round-trip tests
         run: |
@@ -73,7 +73,7 @@ jobs:
           name: test-results-${{ matrix.os }}-${{ matrix.rust }}
           path: |
             implementations/rust/build/test-output.txt
-            implementations/rust/build/docs/tests/report.html
+            implementations/rust/build/docs/tests/index.html
           retention-days: 7
 
   security:
@@ -194,7 +194,9 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add assets/coverage.svg
           git diff --staged --quiet || git commit -m "chore(rust): update coverage badge [skip ci]"
-          git push
+          # Pull with rebase to handle concurrent badge updates, then push
+          git pull --rebase origin main || true
+          git push || true
 
   docs:
     runs-on: ubuntu-latest
@@ -211,7 +213,7 @@ jobs:
         run: |
           mkdir -p build/docs/tests
           cargo test --release 2>&1 | tee build/test-output.txt
-          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/report.html
+          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html
 
       - name: Generate API documentation
         run: |
@@ -224,7 +226,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Generated artifacts:" >> $GITHUB_STEP_SUMMARY
           echo "- **API docs**: \`build/docs/api/\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Test report**: \`build/docs/tests/report.html\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test report**: \`build/docs/tests/index.html\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Download the **docs** artifact to view all documentation." >> $GITHUB_STEP_SUMMARY
 
@@ -275,7 +277,7 @@ jobs:
             <h1>POCKET+ Rust Reports</h1>
             <ul>
               <li><a href="docs/api/pocketplus/index.html">API Documentation</a></li>
-              <li><a href="docs/tests/report.html">Unit Test Report</a></li>
+              <li><a href="docs/tests/">Unit Test Report</a></li>
               <li><a href="coverage/tarpaulin-report.html">Code Coverage Report</a></li>
             </ul>
           </body>

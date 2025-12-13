@@ -3,6 +3,7 @@
 [![Build](https://github.com/tanagraspace/pocket-plus/actions/workflows/c-build.yml/badge.svg)](https://github.com/tanagraspace/pocket-plus/actions/workflows/c-build.yml)
 ![Lines](assets/coverage-lines.svg)
 ![Functions](assets/coverage-functions.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A MISRA-C compliant C implementation of the [CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf) POCKET+ lossless compression algorithm of fixed-length housekeeping data.
 

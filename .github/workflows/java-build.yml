@@ -175,7 +175,9 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add assets/coverage.svg
           git diff --staged --quiet || git commit -m "chore(java): update coverage badge [skip ci]"
-          git push
+          # Pull with rebase to handle concurrent badge updates, then push
+          git pull --rebase origin main || true
+          git push || true
 
   docs:
     runs-on: ubuntu-latest
