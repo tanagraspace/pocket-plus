@@ -1,5 +1,7 @@
 # POCKET+
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 The definitive implementation of the [CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf) POCKET+ lossless compression algorithm of fixed-length housekeeping data.
 
 ## Citation
@@ -39,7 +41,7 @@ The algorithm has been standardized by CCSDS as **CCSDS 124.0-B-1** for compress
 | Python | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/python/`](implementations/python/) |
 | Go | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/go/`](implementations/go/) |
 | Rust | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/rust/`](implementations/rust/) |
-| Java | 1.0.0 | In Progress | Desktop / Server | [`implementations/java/`](implementations/java/) |
+| Java | 1.0.0 | Complete | Embedded Linux / Desktop / Server | [`implementations/java/`](implementations/java/) |
 
 ### Which implementation should I use?
 

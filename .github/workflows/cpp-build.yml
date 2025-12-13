@@ -177,9 +177,9 @@ jobs:
       - name: Generate coverage report
         working-directory: implementations/cpp
         run: |
-          mkdir -p build/coverage/html
+          mkdir -p build/docs/coverage/html
           lcov --capture --directory build --output-file build/coverage.info --include "*/include/pocketplus/*" 2>/dev/null || true
-          genhtml build/coverage.info --output-directory build/coverage/html 2>/dev/null || true
+          genhtml build/coverage.info --output-directory build/docs/coverage/html 2>/dev/null || true
 
       - name: Parse coverage summary and update badges
         working-directory: implementations/cpp
@@ -251,6 +251,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add assets/coverage-lines.svg assets/coverage-functions.svg
           git diff --staged --quiet || git commit -m "cpp: update coverage badges [skip ci]"
+          # Pull with rebase to handle concurrent badge updates, then push
+          git pull --rebase origin main || true
           git push || true
 
       - name: Upload coverage artifacts

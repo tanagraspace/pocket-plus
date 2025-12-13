@@ -128,10 +128,11 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           # Extract coverage percentage from JaCoCo CSV
+          # JaCoCo CSV columns: GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,...
           if [ -f target/site/jacoco/jacoco.csv ]; then
-            # Sum INSTRUCTION_COVERED and INSTRUCTION_MISSED from all rows
-            COVERED=$(awk -F',' 'NR>1 {sum+=$4} END {print sum}' target/site/jacoco/jacoco.csv)
-            MISSED=$(awk -F',' 'NR>1 {sum+=$5} END {print sum}' target/site/jacoco/jacoco.csv)
+            # Sum INSTRUCTION_COVERED ($5) and INSTRUCTION_MISSED ($4) from all rows
+            MISSED=$(awk -F',' 'NR>1 {sum+=$4} END {print sum}' target/site/jacoco/jacoco.csv)
+            COVERED=$(awk -F',' 'NR>1 {sum+=$5} END {print sum}' target/site/jacoco/jacoco.csv)
             if [ "$((COVERED + MISSED))" -gt 0 ]; then
               COVERAGE=$(awk "BEGIN {printf \"%.1f\", ($COVERED / ($COVERED + $MISSED)) * 100}")
             else
@@ -175,7 +176,9 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add assets/coverage.svg
           git diff --staged --quiet || git commit -m "chore(java): update coverage badge [skip ci]"
-          git push
+          # Pull with rebase to handle concurrent badge updates, then push
+          git pull --rebase origin main || true
+          git push || true
 
   docs:
     runs-on: ubuntu-latest

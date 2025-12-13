@@ -197,19 +197,19 @@ jobs:
       - name: Generate coverage HTML
         working-directory: implementations/cpp
         run: |
-          mkdir -p build/docs/coverage
+          mkdir -p build/docs/coverage/html
           lcov --capture --directory build --output-file build/coverage.info --include "*/include/pocketplus/*" 2>/dev/null || true
-          genhtml build/coverage.info --output-directory build/docs/coverage 2>/dev/null || true
+          genhtml build/coverage.info --output-directory build/docs/coverage/html 2>/dev/null || true
 
       - name: Generate API docs
         working-directory: implementations/cpp
         run: |
-          mkdir -p build/docs/api
+          mkdir -p build/docs/api/html
           # Generate Doxygen docs if Doxyfile exists, otherwise create simple index
           if [ -f Doxyfile ]; then
             doxygen Doxyfile
           else
-            cat > build/docs/api/index.html << 'HTMLEOF'
+            cat > build/docs/api/html/index.html << 'HTMLEOF'
           <!DOCTYPE html>
           <html><head><title>POCKET+ C++ API</title></head>
           <body>
@@ -221,10 +221,10 @@ jobs:
 
       - name: Prepare C++ artifacts
         run: |
-          mkdir -p _site/cpp
-          cp -r implementations/cpp/build/docs/api/html _site/cpp/api || mkdir -p _site/cpp/api
-          cp -r implementations/cpp/build/docs/coverage/html _site/cpp/coverage || mkdir -p _site/cpp/coverage
-          cp -r implementations/cpp/build/docs/tests _site/cpp/tests || mkdir -p _site/cpp/tests
+          mkdir -p _site/cpp/api _site/cpp/coverage _site/cpp/tests
+          cp -r implementations/cpp/build/docs/api/html/* _site/cpp/api/ 2>/dev/null || echo "No API docs"
+          cp -r implementations/cpp/build/docs/coverage/html/* _site/cpp/coverage/ 2>/dev/null || echo "No coverage report"
+          cp -r implementations/cpp/build/docs/tests/* _site/cpp/tests/ 2>/dev/null || echo "No test report"
 
       - name: Upload C++ docs artifact
         uses: actions/upload-artifact@v4
@@ -294,7 +294,7 @@ jobs:
         working-directory: implementations/go
         run: |
           mkdir -p build/docs/coverage
-          go test -coverprofile=build/coverage.out ./...
+          go test -coverprofile=build/coverage.out ./pocketplus/...
           go tool cover -html=build/coverage.out -o build/docs/coverage/index.html
 
       - name: Generate API docs
