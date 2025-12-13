@@ -135,7 +135,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           mkdir -p build/coverage
-          cargo tarpaulin --out Html --output-dir build/coverage 2>&1 | tee coverage-output.txt
+          cargo tarpaulin --out Html --output-dir build/coverage --exclude-files "src/bin/*" --exclude-files "tests/*" 2>&1 | tee coverage-output.txt
 
       - name: Parse coverage summary
         run: |
