@@ -51,7 +51,8 @@ static void print_help(const char* prog_name) {
     std::printf("=================================================\n\n");
     std::printf("References:\n");
     std::printf("  CCSDS 124.0-B-1: https://ccsds.org/Pubs/124x0b1.pdf\n");
-    std::printf("  ESA POCKET+: https://opssat.esa.int/pocket-plus/\n\n");
+    std::printf("  ESA POCKET+: https://opssat.esa.int/pocket-plus/\n");
+    std::printf("  Documentation: https://tanagraspace.com/pocket-plus\n\n");
     std::printf("Usage:\n");
     std::printf("  %s <input> <packet_size> <pt> <ft> <rt> <robustness>\n", prog_name);
     std::printf("  %s -d <input.pkt> <packet_size> <robustness>\n\n", prog_name);

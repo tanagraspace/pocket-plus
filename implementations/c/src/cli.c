@@ -62,7 +62,8 @@ static void print_help(const char *prog_name) {
     printf("=================================================\n\n");
     printf("References:\n");
     printf("  CCSDS 124.0-B-1: https://ccsds.org/Pubs/124x0b1.pdf\n");
-    printf("  ESA POCKET+: https://opssat.esa.int/pocket-plus/\n\n");
+    printf("  ESA POCKET+: https://opssat.esa.int/pocket-plus/\n");
+    printf("  Documentation: https://tanagraspace.com/pocket-plus\n\n");
     printf("Citation:\n");
     printf("  D. Evans, G. Labreche, D. Marszk, S. Bammens, M. Hernandez-Cabronero,\n");
     printf("  V. Zelenevskiy, V. Shiradhonkar, M. Starcik, and M. Henkel. 2022.\n");

@@ -196,6 +196,7 @@ public final class Main {
     System.out.println("References:");
     System.out.println("  CCSDS 124.0-B-1: https://ccsds.org/Pubs/124x0b1.pdf");
     System.out.println("  ESA POCKET+: https://opssat.esa.int/pocket-plus/");
+    System.out.println("  Documentation: https://tanagraspace.com/pocket-plus");
     System.out.println();
     System.out.println("Citation:");
     System.out.println("  D. Evans, G. Labreche, D. Marszk, S. Bammens, M. Hernandez-Cabronero,");
