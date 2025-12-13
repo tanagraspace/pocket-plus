@@ -7,6 +7,7 @@ WORKDIR /app/implementations/c
 
 COPY implementations/c/ ./
 COPY test-vectors/ /app/test-vectors/
+COPY scripts/ /app/scripts/
 
 # Copy root README for Doxygen main page (creates ../../README.md relative to WORKDIR)
 COPY README.md /app/README.md

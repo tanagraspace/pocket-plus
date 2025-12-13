@@ -23,6 +23,9 @@ COPY implementations/cpp/ .
 # Copy test vectors for reference tests
 COPY test-vectors/ /app/test-vectors/
 
+# Copy shared scripts
+COPY scripts/ /app/scripts/
+
 # Set test vectors path for Docker environment
 ENV TEST_VECTORS_DIR=/app/test-vectors
 
