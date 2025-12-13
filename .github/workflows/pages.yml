@@ -23,7 +23,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y doxygen lcov
+        run: |
+          sudo apt-get update && sudo apt-get install -y doxygen lcov
+          pip install junit2html
 
       - name: Build and test with coverage
         working-directory: implementations/c
@@ -32,93 +34,8 @@ jobs:
       - name: Run tests and generate HTML report
         working-directory: implementations/c
         run: |
-          mkdir -p build/docs/tests
-          make test 2>&1 | tee build/test-output.txt
-
-          # Generate HTML test report
-          cat > build/docs/tests/index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>POCKET+ C Test Report</title>
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; background: #f8f9fa; }
-              h1 { color: #333; border-bottom: 2px solid #28a745; padding-bottom: 0.5rem; }
-              .summary { background: #28a745; color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
-              .summary.fail { background: #dc3545; }
-              .suite { background: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-              .suite h2 { margin-top: 0; color: #555; font-size: 1.2rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
-              .test { padding: 0.25rem 0; font-family: monospace; }
-              .test.pass::before { content: "✓ "; color: #28a745; }
-              .test.fail::before { content: "✗ "; color: #dc3545; }
-              .stats { color: #666; font-size: 0.9rem; margin-top: 0.5rem; }
-              pre { background: #f1f1f1; padding: 1rem; border-radius: 4px; overflow-x: auto; }
-            </style>
-          </head>
-          <body>
-            <h1>POCKET+ C Test Report</h1>
-          HTMLEOF
-
-          # Parse test output and generate HTML
-          total_passed=0
-          total_tests=0
-          current_suite=""
-
-          while IFS= read -r line; do
-            # Check for suite header (line followed by ===)
-            if [[ "$line" =~ ^[A-Z] ]] && [[ ! "$line" =~ "Running" ]] && [[ ! "$line" =~ "tests passed" ]]; then
-              if [[ "$current_suite" != "" ]]; then
-                echo '</div>' >> build/docs/tests/index.html
-              fi
-              suite_name=$(echo "$line" | sed 's/Tests$//' | sed 's/:$//')
-              if [[ "$suite_name" != "" ]] && [[ ! "$suite_name" =~ "=" ]]; then
-                current_suite="$suite_name"
-                echo "<div class=\"suite\"><h2>$suite_name</h2>" >> build/docs/tests/index.html
-              fi
-            fi
-
-            # Check for test result
-            if [[ "$line" =~ "test_" ]]; then
-              test_name=$(echo "$line" | sed 's/^[[:space:]]*//' | sed 's/\.\.\..*//')
-              if [[ "$line" =~ "✓" ]]; then
-                echo "<div class=\"test pass\">$test_name</div>" >> build/docs/tests/index.html
-              elif [[ "$line" =~ "✗" ]]; then
-                echo "<div class=\"test fail\">$test_name</div>" >> build/docs/tests/index.html
-              fi
-            fi
-
-            # Check for summary line
-            if [[ "$line" =~ ([0-9]+)/([0-9]+)" tests passed" ]]; then
-              passed="${BASH_REMATCH[1]}"
-              tests="${BASH_REMATCH[2]}"
-              total_passed=$((total_passed + passed))
-              total_tests=$((total_tests + tests))
-              echo "<div class=\"stats\">$passed/$tests tests passed</div>" >> build/docs/tests/index.html
-            fi
-          done < build/test-output.txt
-
-          # Close last suite
-          if [[ "$current_suite" != "" ]]; then
-            echo '</div>' >> build/docs/tests/index.html
-          fi
-
-          # Add summary
-          if [[ $total_passed -eq $total_tests ]]; then
-            summary_class="summary"
-          else
-            summary_class="summary fail"
-          fi
-
-          cat >> build/docs/tests/index.html << HTMLEOF
-            <div class="$summary_class">
-              <strong>Total: $total_passed/$total_tests tests passed</strong>
-            </div>
-            <p style="color: #666; font-size: 0.8rem;">Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')</p>
-          </body>
-          </html>
-          HTMLEOF
+          make test-report
+          cp build/docs/tests/html/index.html build/docs/tests/index.html
 
       - name: Generate coverage HTML
         working-directory: implementations/c
@@ -147,7 +64,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake lcov doxygen graphviz
+        run: |
+          sudo apt-get update && sudo apt-get install -y cmake lcov doxygen graphviz
+          pip install junit2html
 
       - name: Build and test with coverage
         working-directory: implementations/cpp
@@ -156,68 +75,16 @@ jobs:
       - name: Run tests and generate HTML report
         working-directory: implementations/cpp
         run: |
-          mkdir -p build/docs/tests
-          ./build/tests 2>&1 | tee build/test-output.txt
-
-          # Generate HTML test report
-          cat > build/docs/tests/index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>POCKET+ C++ Test Report</title>
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; background: #f8f9fa; }
-              h1 { color: #333; border-bottom: 2px solid #28a745; padding-bottom: 0.5rem; }
-              .summary { background: #28a745; color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
-              .summary.fail { background: #dc3545; }
-              pre { background: #f1f1f1; padding: 1rem; border-radius: 4px; overflow-x: auto; }
-            </style>
-          </head>
-          <body>
-            <h1>POCKET+ C++ Test Report</h1>
-          HTMLEOF
-
-          # Parse Catch2 output
-          if grep -q "All tests passed" build/test-output.txt; then
-            PASSED=$(grep -oE "[0-9]+ assertions" build/test-output.txt | head -1 | grep -oE "[0-9]+")
-            TESTS=$(grep -oE "[0-9]+ test cases" build/test-output.txt | head -1 | grep -oE "[0-9]+")
-            echo "<div class=\"summary\"><strong>All $TESTS test cases passed ($PASSED assertions)</strong></div>" >> build/docs/tests/index.html
-          else
-            echo "<div class=\"summary fail\"><strong>Some tests failed</strong></div>" >> build/docs/tests/index.html
-          fi
-
-          echo "<h2>Full Output</h2><pre>" >> build/docs/tests/index.html
-          cat build/test-output.txt >> build/docs/tests/index.html
-          echo "</pre>" >> build/docs/tests/index.html
-          echo "<p style=\"color: #666; font-size: 0.8rem;\">Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')</p>" >> build/docs/tests/index.html
-          echo "</body></html>" >> build/docs/tests/index.html
+          make test-report
+          cp build/docs/tests/html/index.html build/docs/tests/index.html
 
       - name: Generate coverage HTML
         working-directory: implementations/cpp
-        run: |
-          mkdir -p build/docs/coverage/html
-          lcov --capture --directory build --output-file build/coverage.info --include "*/include/pocketplus/*" 2>/dev/null || true
-          genhtml build/coverage.info --output-directory build/docs/coverage/html 2>/dev/null || true
+        run: make coverage-html
 
       - name: Generate API docs
         working-directory: implementations/cpp
-        run: |
-          mkdir -p build/docs/api/html
-          # Generate Doxygen docs if Doxyfile exists, otherwise create simple index
-          if [ -f Doxyfile ]; then
-            doxygen Doxyfile
-          else
-            cat > build/docs/api/html/index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html><head><title>POCKET+ C++ API</title></head>
-          <body>
-            <h1>POCKET+ C++ API Documentation</h1>
-            <p>Header-only library. See <a href="https://github.com/tanagraspace/pocket-plus/tree/main/implementations/cpp/include/pocketplus">include/pocketplus/</a> for source.</p>
-          </body></html>
-          HTMLEOF
-          fi
+        run: make docs
 
       - name: Prepare C++ artifacts
         run: |
