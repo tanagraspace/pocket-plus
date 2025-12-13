@@ -1,0 +1,6 @@
+# Configuration for cargo-nextest
+# https://nexte.st/book/configuration.html
+
+[profile.ci]
+# JUnit output for CI integration
+junit.path = "junit.xml"
