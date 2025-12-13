@@ -44,7 +44,8 @@ fn print_help(prog_name: &str) {
     println!("=================================================\n");
     println!("References:");
     println!("  CCSDS 124.0-B-1: https://ccsds.org/Pubs/124x0b1.pdf");
-    println!("  ESA POCKET+: https://opssat.esa.int/pocket-plus/\n");
+    println!("  ESA POCKET+: https://opssat.esa.int/pocket-plus/");
+    println!("  Documentation: https://tanagraspace.com/pocket-plus\n");
     println!("Citation:");
     println!("  D. Evans, G. Labreche, D. Marszk, S. Bammens, M. Hernandez-Cabronero,");
     println!("  V. Zelenevskiy, V. Shiradhonkar, M. Starcik, and M. Henkel. 2022.");

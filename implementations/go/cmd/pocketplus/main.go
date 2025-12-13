@@ -34,6 +34,7 @@ func printHelp(progName string) {
 	fmt.Println("References:")
 	fmt.Println("  CCSDS 124.0-B-1: https://ccsds.org/Pubs/124x0b1.pdf")
 	fmt.Println("  ESA POCKET+: https://opssat.esa.int/pocket-plus/")
+	fmt.Println("  Documentation: https://tanagraspace.com/pocket-plus")
 	fmt.Println()
 	fmt.Println("Citation:")
 	fmt.Println("  D. Evans, G. Labreche, D. Marszk, S. Bammens, M. Hernandez-Cabronero,")

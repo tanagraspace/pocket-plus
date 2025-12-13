@@ -47,6 +47,7 @@ def print_help(prog_name: str) -> None:
     print("References:")
     print("  CCSDS 124.0-B-1: https://ccsds.org/Pubs/124x0b1.pdf")
     print("  ESA POCKET+: https://opssat.esa.int/pocket-plus/")
+    print("  Documentation: https://tanagraspace.com/pocket-plus")
     print()
     print("Citation:")
     print("  D. Evans, G. Labreche, D. Marszk, S. Bammens, M. Hernandez-Cabronero,")
