@@ -23,9 +23,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install -y doxygen lcov
-          pip install junit2html
+        run: sudo apt-get update && sudo apt-get install -y doxygen lcov
 
       - name: Build and test with coverage
         working-directory: implementations/c
@@ -34,8 +32,9 @@ jobs:
       - name: Run tests and generate HTML report
         working-directory: implementations/c
         run: |
-          make test-report
-          cp build/docs/tests/html/index.html build/docs/tests/index.html
+          mkdir -p build/docs/tests
+          make test 2>&1 | tee build/test-output.txt
+          ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html "POCKET+ C Test Report"
 
       - name: Generate coverage HTML
         working-directory: implementations/c
@@ -64,9 +63,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install -y cmake lcov doxygen graphviz
-          pip install junit2html
+        run: sudo apt-get update && sudo apt-get install -y cmake lcov doxygen graphviz
 
       - name: Build and test with coverage
         working-directory: implementations/cpp
@@ -75,8 +72,9 @@ jobs:
       - name: Run tests and generate HTML report
         working-directory: implementations/cpp
         run: |
-          make test-report
-          cp build/docs/tests/html/index.html build/docs/tests/index.html
+          mkdir -p build/docs/tests
+          make test 2>&1 | tee build/test-output.txt
+          ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html "POCKET+ C++ Test Report"
 
       - name: Generate coverage HTML
         working-directory: implementations/cpp
