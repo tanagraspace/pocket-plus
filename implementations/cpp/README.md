@@ -1,8 +1,8 @@
 # POCKET+ C++ Implementation
 
 [![C++ Build](https://github.com/tanagraspace/pocket-plus/actions/workflows/cpp-build.yml/badge.svg)](https://github.com/tanagraspace/pocket-plus/actions/workflows/cpp-build.yml)
-![Lines](assets/coverage-lines.svg)
-![Functions](assets/coverage-functions.svg)
+[![Lines](assets/coverage-lines.svg)](https://tanagraspace.com/pocket-plus/cpp/coverage/)
+[![Functions](assets/coverage-functions.svg)](https://tanagraspace.com/pocket-plus/cpp/coverage/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Header-only C++17 implementation of CCSDS 124.0-B-1 POCKET+ lossless compression algorithm.

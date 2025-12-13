@@ -1,7 +1,7 @@
 # POCKET+ Java Implementation
 
 [![Build](https://github.com/tanagraspace/pocket-plus/actions/workflows/java-build.yml/badge.svg)](https://github.com/tanagraspace/pocket-plus/actions/workflows/java-build.yml)
-![Coverage](assets/coverage.svg)
+[![Coverage](assets/coverage.svg)](https://tanagraspace.com/pocket-plus/java/coverage/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Java implementation of the [CCSDS 124.0-B-1](https://ccsds.org/Pubs/124x0b1.pdf) POCKET+ lossless compression algorithm for satellite housekeeping telemetry.
