@@ -2,9 +2,10 @@
 # Generate HTML test report from test output
 # Usage: ./generate-test-report.sh <input-file> <output-file> <title>
 #
-# Supports two test output formats:
+# Supports three test output formats:
 # 1. C format: Suite headers with === separator, test_* lines with checkmarks
-# 2. C++ Catch2 format: "All tests passed" summary with assertion counts
+# 2. CTest format: CMake/CTest output with "Test #N: name ... Passed/Failed"
+# 3. Catch2 format: "All tests passed" summary with assertion counts
 
 set -e
 
@@ -27,6 +28,8 @@ mkdir -p "$(dirname "$OUTPUT_FILE")"
 # Detect format based on content
 if grep -q "^=\+$" "$INPUT_FILE"; then
     FORMAT="c"
+elif grep -q "tests passed, .* tests failed out of" "$INPUT_FILE"; then
+    FORMAT="ctest"
 elif grep -q "test cases\|assertions" "$INPUT_FILE"; then
     FORMAT="catch2"
 else
@@ -128,6 +131,42 @@ if [ "$FORMAT" = "c" ]; then
         fi
     fi
 
+elif [ "$FORMAT" = "ctest" ]; then
+    # Parse ctest output (CMake/CTest test runner)
+    # Format: "  1/110 Test   #1: BitVector construction ...   Passed    0.01 sec"
+    total_passed=0
+    total_failed=0
+
+    echo "<div class=\"suite\"><h2>Test Results</h2>" >> "$OUTPUT_FILE"
+
+    while IFS= read -r line; do
+        # Match test result lines
+        if [[ "$line" =~ Test[[:space:]]+#[0-9]+:[[:space:]]+(.+)[[:space:]]+\.+[[:space:]]+(Passed|Failed) ]]; then
+            test_name="${BASH_REMATCH[1]}"
+            # Clean up test name (remove trailing dots and spaces)
+            test_name=$(echo "$test_name" | sed 's/[[:space:]\.]*$//')
+            result="${BASH_REMATCH[2]}"
+            if [[ "$result" == "Passed" ]]; then
+                echo "<div class=\"test pass\">$test_name</div>" >> "$OUTPUT_FILE"
+                total_passed=$((total_passed + 1))
+            else
+                echo "<div class=\"test fail\">$test_name</div>" >> "$OUTPUT_FILE"
+                total_failed=$((total_failed + 1))
+            fi
+        fi
+    done < "$INPUT_FILE"
+
+    total_tests=$((total_passed + total_failed))
+    echo "<div class=\"stats\">$total_passed/$total_tests tests passed</div>" >> "$OUTPUT_FILE"
+    echo "</div>" >> "$OUTPUT_FILE"
+
+    # Add summary
+    if [[ $total_failed -eq 0 ]]; then
+        echo "<div class=\"summary\"><strong>Total: $total_passed/$total_tests tests passed</strong></div>" >> "$OUTPUT_FILE"
+    else
+        echo "<div class=\"summary fail\"><strong>Total: $total_passed/$total_tests tests passed ($total_failed failed)</strong></div>" >> "$OUTPUT_FILE"
+    fi
+
 elif [ "$FORMAT" = "catch2" ]; then
     # Parse Catch2 test output
     if grep -q "All tests passed" "$INPUT_FILE"; then
@@ -137,7 +176,7 @@ elif [ "$FORMAT" = "catch2" ]; then
     else
         echo "<div class=\"summary fail\"><strong>Some tests failed</strong></div>" >> "$OUTPUT_FILE"
     fi
-    
+
     echo "<h2>Full Output</h2>" >> "$OUTPUT_FILE"
     echo "<pre>" >> "$OUTPUT_FILE"
     cat "$INPUT_FILE" >> "$OUTPUT_FILE"

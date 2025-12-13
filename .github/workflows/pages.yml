@@ -32,9 +32,9 @@ jobs:
       - name: Run tests and generate HTML report
         working-directory: implementations/c
         run: |
-          mkdir -p build/docs/tests
+          mkdir -p build/docs/tests/html
           make test 2>&1 | tee build/test-output.txt
-          ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html "POCKET+ C Test Report"
+          ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/html/index.html "POCKET+ C Test Report"
 
       - name: Generate coverage HTML
         working-directory: implementations/c
@@ -72,9 +72,9 @@ jobs:
       - name: Run tests and generate HTML report
         working-directory: implementations/cpp
         run: |
-          mkdir -p build/docs/tests
+          mkdir -p build/docs/tests/html
           make test 2>&1 | tee build/test-output.txt
-          ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html "POCKET+ C++ Test Report"
+          ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/html/index.html "POCKET+ C++ Test Report"
 
       - name: Generate coverage HTML
         working-directory: implementations/cpp

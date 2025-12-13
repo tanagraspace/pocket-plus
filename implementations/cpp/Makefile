@@ -31,14 +31,11 @@ embedded:
 test: build
 	@cd $(BUILD_DIR) && ctest --output-on-failure
 
-# Run tests with JUnit XML and HTML report
+# Run tests with HTML report
 test-report: build
 	@mkdir -p $(DOCS_DIR)/tests/html
-	@cd $(BUILD_DIR) && ctest --output-on-failure --output-junit test-report.xml
-	@cp $(BUILD_DIR)/test-report.xml $(DOCS_DIR)/tests/report.xml
-	@junit2html $(DOCS_DIR)/tests/report.xml $(DOCS_DIR)/tests/html/index.html
-	@echo "Test report XML: $(DOCS_DIR)/tests/report.xml"
-	@echo "Test report HTML: $(DOCS_DIR)/tests/html/index.html"
+	@$(MAKE) test 2>&1 | tee $(BUILD_DIR)/test-output.txt
+	@../../scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/html/index.html "POCKET+ C++ Test Report"
 
 # Run tests with coverage (text summary)
 coverage:
@@ -111,7 +108,7 @@ help:
 	@echo "  make debug        - Build with debug symbols"
 	@echo "  make embedded     - Build without exceptions/RTTI"
 	@echo "  make test         - Run unit tests"
-	@echo "  make test-report  - Run tests with JUnit XML report"
+	@echo "  make test-report  - Run tests with HTML report"
 	@echo "  make test-cli     - Run CLI integration tests"
 	@echo "  make coverage     - Run tests with coverage (text summary)"
 	@echo "  make coverage-html- Generate HTML coverage report"

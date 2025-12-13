@@ -71,27 +71,9 @@ test: $(TEST_BINS)
 	done
 
 test-report: $(TEST_BINS)
-	@mkdir -p $(DOCS_DIR)/tests
-	@echo '<?xml version="1.0" encoding="UTF-8"?>' > $(DOCS_DIR)/tests/report.xml
-	@echo '<testsuites>' >> $(DOCS_DIR)/tests/report.xml
-	@for test in $(TEST_BINS); do \
-		name=$$(basename $$test); \
-		echo "Running $$name..."; \
-		if $$test > /dev/null 2>&1; then \
-			echo "  <testsuite name=\"$$name\" tests=\"1\" failures=\"0\">" >> $(DOCS_DIR)/tests/report.xml; \
-			echo "    <testcase name=\"$$name\"/>" >> $(DOCS_DIR)/tests/report.xml; \
-			echo "  </testsuite>" >> $(DOCS_DIR)/tests/report.xml; \
-		else \
-			echo "  <testsuite name=\"$$name\" tests=\"1\" failures=\"1\">" >> $(DOCS_DIR)/tests/report.xml; \
-			echo "    <testcase name=\"$$name\"><failure message=\"Test failed\"/></testcase>" >> $(DOCS_DIR)/tests/report.xml; \
-			echo "  </testsuite>" >> $(DOCS_DIR)/tests/report.xml; \
-		fi; \
-	done
-	@echo '</testsuites>' >> $(DOCS_DIR)/tests/report.xml
 	@mkdir -p $(DOCS_DIR)/tests/html
-	@junit2html $(DOCS_DIR)/tests/report.xml $(DOCS_DIR)/tests/html/index.html
-	@echo "Test report XML: $(DOCS_DIR)/tests/report.xml"
-	@echo "Test report HTML: $(DOCS_DIR)/tests/html/index.html"
+	@$(MAKE) test 2>&1 | tee $(BUILD_DIR)/test-output.txt
+	@../../scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/html/index.html "POCKET+ C Test Report"
 
 test-cli: $(CLI)
 	@$(TEST_DIR)/test_cli.sh
