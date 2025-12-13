@@ -76,10 +76,22 @@ jobs:
         with:
           go-version: '1.22'
 
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@v1.12.0
+
+      - name: Install junit2html
+        run: pip install junit2html
+
+      - name: Run tests with JUnit output
+        run: |
+          mkdir -p build/docs/tests
+          gotestsum --junitfile build/docs/tests/report.xml --format testname -- -coverprofile=build/coverage.out ./pocketplus/...
+
+      - name: Generate HTML test report
+        run: junit2html build/docs/tests/report.xml build/docs/tests/index.html
+
       - name: Generate coverage HTML
         run: |
-          mkdir -p build
-          go test -coverprofile=build/coverage.out ./pocketplus/...
           go tool cover -html=build/coverage.out -o build/coverage.html
 
       - name: Parse coverage summary
