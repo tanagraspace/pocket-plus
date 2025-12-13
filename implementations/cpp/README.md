@@ -188,7 +188,3 @@ clang-tidy -p build ../include/pocketplus/*.hpp
 # Run cppcheck
 cppcheck --enable=all --std=c++17 -Iinclude include/pocketplus/*.hpp
 ```
-
-## License
-
-MIT License - See [LICENSE](../../LICENSE) for details.

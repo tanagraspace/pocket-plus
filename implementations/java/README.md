@@ -161,9 +161,3 @@ docker-compose run java
 
 - [CCSDS 124.0-B-1 Standard](https://ccsds.org/Pubs/124x0b1.pdf)
 - [POCKET+ on OPS-SAT-1](https://digitalcommons.usu.edu/smallsat/2022/all2022/133/)
-
-## License
-
-MIT License - see [LICENSE](../../LICENSE) for details.
-
-Copyright (c) 2025 Tanagra Space
