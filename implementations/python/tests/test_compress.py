@@ -330,13 +330,13 @@ class TestCompressEdgeCases:
 class TestEffectiveRobustnessCap:
     """Test Vt capping at 15."""
 
-    def test_vt_capped_at_15(self) -> None:
-        """Test that Vt is capped at 15 (4 bits max).
+    def test_vt_max_at_15(self) -> None:
+        """Test that Vt maxes at 15 (4 bits max).
 
-        This tests compress.py line 383: Vt = 15 when Vt > 15.
+        Ct is capped at (15 - Rt) so Vt = Rt + Ct <= 15.
         """
         comp = Compressor(packet_length=8, robustness=7)
-        # Set t large enough and ensure Ct accumulates to push Vt > 15
+        # Set t large enough and ensure Ct accumulates to maximum
         comp.t = 50
 
         # All zeros in history = Ct accumulates to maximum
@@ -347,5 +347,5 @@ class TestEffectiveRobustnessCap:
         change = BitVector(8)
         Vt = compute_effective_robustness(comp, change)
         # Rt=7, Ct can be up to (15-Rt)=8
-        # So Vt = Rt + Ct = 7 + 8 = 15 (capped)
+        # So Vt = Rt + Ct = 7 + 8 = 15 (max)
         assert Vt == 15

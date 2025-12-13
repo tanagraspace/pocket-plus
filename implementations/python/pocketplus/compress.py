@@ -379,8 +379,7 @@ def compute_effective_robustness(comp: Compressor, current_change: "BitVector") 
                 break  # Cap at maximum Ct value
 
         Vt = Rt + Ct
-        if Vt > 15:
-            Vt = 15  # Cap at 15 (4 bits)
+        # Note: Vt cannot exceed 15 since Ct is capped at (15 - Rt) above
 
     return Vt
 
