@@ -285,7 +285,7 @@ jobs:
 
       - name: Install gotestsum and junit2html
         run: |
-          go install gotest.tools/gotestsum@latest
+          go install gotest.tools/gotestsum@v1.12.0
           pip install junit2html
 
       - name: Run tests and generate report
