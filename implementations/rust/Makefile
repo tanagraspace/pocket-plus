@@ -20,9 +20,9 @@ test-cli: build
 test-report:
 	@mkdir -p $(DOCS_DIR)/tests
 	@echo "Running tests and generating report..."
-	@cargo test --release 2>&1 | tee $(BUILD_DIR)/test-output.txt
+	@cargo nextest run --release --profile ci
 	@echo "Generating HTML report..."
-	@./scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/index.html
+	@junit2html target/nextest/ci/junit.xml $(DOCS_DIR)/tests/index.html
 
 bench:
 	cargo build --release --bin bench

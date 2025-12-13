@@ -283,12 +283,17 @@ jobs:
         with:
           go-version: '1.22'
 
+      - name: Install gotestsum and junit2html
+        run: |
+          go install gotest.tools/gotestsum@latest
+          pip install junit2html
+
       - name: Run tests and generate report
         working-directory: implementations/go
         run: |
           mkdir -p build/docs/tests
-          go test -v ./pocketplus/ 2>&1 | tee build/test-output.txt
-          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html
+          gotestsum --junitfile build/docs/tests/report.xml --format testname -- -v ./pocketplus/
+          junit2html build/docs/tests/report.xml build/docs/tests/index.html
 
       - name: Generate coverage HTML
         working-directory: implementations/go
@@ -324,15 +329,20 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+      - name: Install cargo-tarpaulin and cargo-nextest
+        run: |
+          cargo install cargo-tarpaulin
+          cargo install cargo-nextest
+
+      - name: Install junit2html
+        run: pip install junit2html
 
       - name: Run tests and generate report
         working-directory: implementations/rust
         run: |
           mkdir -p build/docs/tests
-          cargo test --release 2>&1 | tee build/test-output.txt
-          ./scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html
+          cargo nextest run --release --profile ci
+          junit2html target/nextest/ci/junit.xml build/docs/tests/index.html
 
       - name: Generate coverage HTML
         working-directory: implementations/rust

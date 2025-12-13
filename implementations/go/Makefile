@@ -21,9 +21,9 @@ test-race:
 test-report:
 	@mkdir -p $(DOCS_DIR)/tests
 	@echo "Running tests and generating report..."
-	@go test -v ./pocketplus/ 2>&1 | tee $(BUILD_DIR)/test-output.txt
+	@gotestsum --junitfile $(DOCS_DIR)/tests/report.xml --format testname -- -v ./pocketplus/
 	@echo "Generating HTML report..."
-	@./scripts/generate-test-report.sh $(BUILD_DIR)/test-output.txt $(DOCS_DIR)/tests/index.html
+	@junit2html $(DOCS_DIR)/tests/report.xml $(DOCS_DIR)/tests/index.html
 
 coverage:
 	mkdir -p $(BUILD_DIR)
