@@ -389,6 +389,7 @@ jobs:
           mvn test surefire-report:report-only site -DgenerateReports=false
           cp target/site/surefire-report.html build/docs/tests/index.html
           cp -r target/site/css build/docs/tests/ 2>/dev/null || true
+          cp -r target/site/images build/docs/tests/ 2>/dev/null || true
 
       - name: Generate coverage HTML
         working-directory: implementations/java
