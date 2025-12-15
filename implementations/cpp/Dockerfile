@@ -11,8 +11,7 @@ RUN apk add --no-cache \
     clang-extra-tools \
     cppcheck \
     valgrind \
-    py3-pip \
-    && pip3 install --break-system-packages junit2html
+    bash
 
 # Set working directory
 WORKDIR /app/implementations/cpp

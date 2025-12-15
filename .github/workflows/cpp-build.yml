@@ -90,6 +90,17 @@ jobs:
         working-directory: implementations/cpp
         run: make test-report
 
+      - name: Run CLI round-trip tests
+        working-directory: implementations/cpp
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## CLI Round-trip Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          make test-cli 2>&1 | tee cli-test-output.txt
+          cat cli-test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Parse test results
         working-directory: implementations/cpp
         run: |

@@ -29,9 +29,6 @@ jobs:
         working-directory: implementations/c
         run: make
 
-      - name: Install junit2html
-        run: pip3 install --break-system-packages junit2html || pip3 install junit2html
-
       - name: Run unit tests
         working-directory: implementations/c
         run: |
@@ -95,6 +92,13 @@ jobs:
             ratio=$(echo "$line" | sed 's/.*ratio: //' | sed 's/).*//')
             echo "| $name | $input bytes | $output bytes | $ratio | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
           done
+
+      - name: Run MISRA check
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: implementations/c
+        run: |
+          sudo apt-get install -y cppcheck
+          make misra
 
       - name: Run valgrind memory check
         if: matrix.os == 'ubuntu-latest'

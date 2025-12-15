@@ -18,5 +18,5 @@ COPY implementations/java/tests ./tests
 # Make test scripts executable
 RUN chmod +x tests/*.sh
 
-# Build and test
-ENTRYPOINT ["sh", "-c", "make clean && make fmt-check && make checkstyle && make build && make test && make coverage && make docs"]
+# Build and test (includes spotbugs and CLI tests for consistency with CI)
+ENTRYPOINT ["sh", "-c", "make clean && make fmt-check && make checkstyle && make spotbugs && make build && make test && make test-cli && make coverage && make docs"]
