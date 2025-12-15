@@ -7,6 +7,7 @@ Shared documentation for all POCKET+ implementations.
 - [ALGORITHM.md](ALGORITHM.md) - Algorithm specification and details
 - [GUIDELINES.md](GUIDELINES.md) - Implementation quick start
 - [GOTCHAS.md](GOTCHAS.md) - Critical pitfalls (read this first!)
+- [BENCHMARK.md](BENCHMARK.md) - Performance comparison across implementations
 - [Test Vectors](../test-vectors/README.md) - Validation data
 
 ## About POCKET+

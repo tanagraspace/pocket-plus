@@ -164,6 +164,7 @@ All vectors are synthetic test data except for venus-express, which contains rea
 |--------|---------|------|---|----|----|-----|
 | simple | 100 | 9 KB | 1 | 10 | 20 | 50 |
 | hiro | 100 | 9 KB | 7 | 10 | 20 | 50 |
+| edge-cases | 500 | 45 KB | 1 | 10 | 20 | 50 |
 | housekeeping | 10,000 | 900 KB | 2 | 20 | 50 | 100 |
 | venus-express | 151,200 | 13.6 MB | 2 | 20 | 50 | 100 |
 

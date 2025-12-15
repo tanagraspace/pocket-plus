@@ -2,7 +2,7 @@
 
 ## Before You Start
 
-**Read [GOTCHAS.md](GOTCHAS.md) first!** It documents 8 critical pitfalls that will cause your implementation to fail silently.
+**Read [GOTCHAS.md](GOTCHAS.md) first!** It documents 18 critical pitfalls that will cause your implementation to fail silently.
 
 ## Validation Requirements
 
@@ -11,6 +11,7 @@ Your implementation must produce **byte-for-byte identical output** to the refer
 | Test Vector | Input | Expected Output | Parameters |
 |-------------|-------|-----------------|------------|
 | simple | 9,000 bytes | 641 bytes | R=1, pt=10, ft=20, rt=50 |
+| hiro | 9,000 bytes | 1,533 bytes | R=7, pt=10, ft=20, rt=50 |
 | housekeeping | 900,000 bytes | 223,078 bytes | R=2, pt=20, ft=50, rt=100 |
 | edge-cases | 45,000 bytes | 10,124 bytes | R=1, pt=10, ft=20, rt=50 |
 | venus-express | 13,608,000 bytes | 5,891,500 bytes | R=2, pt=20, ft=50, rt=100 |
@@ -31,27 +32,28 @@ These are **not obvious** from the CCSDS spec:
 ## Implementation Checklist
 
 ### Core
-- [ ] Compression produces identical output to reference
-- [ ] Both R=1 and R=2 robustness levels work
-- [ ] All 4 test vectors pass
+- Compression produces identical output to reference
+- Robustness levels R=1, R=2, and R=7 work
+- All 5 test vectors pass
 
 ### Components
-- [ ] COUNT encoding (variable-length integer)
-- [ ] RLE encoding (run-length with terminator)
-- [ ] BE (bit extraction) - reverse order
-- [ ] kt extraction - forward order with mask inversion
+- COUNT encoding (variable-length integer)
+- RLE encoding (run-length with terminator)
+- BE (bit extraction) - reverse order
+- kt extraction - forward order with mask inversion
 
 ### State Management
-- [ ] Change history buffer (16 entries for Vt)
-- [ ] Flag history buffer (16 entries for ct)
-- [ ] Countdown counters (pt, ft, rt)
+- Change history buffer (16 entries for Vt)
+- Flag history buffer (16 entries for ct)
+- Countdown counters (pt, ft, rt)
 
 ## Testing Strategy
 
 1. **Start with simple.bin** (R=1) - validates basic algorithm
-2. **Then housekeeping.bin** (R=2) - validates Vt calculation
-3. **Then edge-cases.bin** (R=1) - validates ct calculation
-4. **Finally venus-express** (R=2, large) - validates at scale
+2. **Then hiro.bin** (R=7) - validates high robustness levels
+3. **Then housekeeping.bin** (R=2) - validates Vt calculation
+4. **Then edge-cases.bin** (R=1) - validates ct calculation
+5. **Finally venus-express** (R=2, large) - validates at scale
 
 If simple passes but others fail, check Vt and ct calculations.
 
@@ -85,7 +87,7 @@ make coverage         # Run tests with coverage
 
 **Structure:**
 - Core library: `include/pocketplus/` (header-only)
-- CLI: `src/main.cpp`
+- CLI: `src/cli.cpp`
 - Uses 32-bit word storage for bit vectors (same as C)
 
 ### Python
@@ -203,7 +205,6 @@ mvn checkstyle:check      # Check style
 
 - `ALGORITHM.md` - Detailed algorithm description
 - `GOTCHAS.md` - Critical implementation pitfalls
-- `implementation-guide.md` - Additional technical details
 
 ## Quick Debugging
 

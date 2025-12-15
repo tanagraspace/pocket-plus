@@ -995,17 +995,17 @@ bit_insert(reader, output, &extraction_mask);
 
 Before declaring your decompressor "working":
 
-- [ ] Round-trip test: compress → decompress → compare with original
-- [ ] All test vectors decompress correctly
-- [ ] First 3 packets (init phase) decompress correctly
-- [ ] Packets with ft=1 (full mask) decompress correctly
-- [ ] Packets with rt=1 (uncompressed) handled correctly
-- [ ] Packets with dt=1 (optimized) don't read extra ft/rt bits
-- [ ] Vt=0 packets toggle mask without reading et/kt
-- [ ] kₜ read in forward order, applied as inverted values
-- [ ] Unpredictable bits inserted in reverse order (BE)
-- [ ] Horizontal XOR mask properly reversed
-- [ ] ct=1 uses extended extraction mask (Xt OR Mt)
+- Round-trip test: compress → decompress → compare with original
+- All test vectors decompress correctly
+- First 3 packets (init phase) decompress correctly
+- Packets with ft=1 (full mask) decompress correctly
+- Packets with rt=1 (uncompressed) handled correctly
+- Packets with dt=1 (optimized) don't read extra ft/rt bits
+- Vt=0 packets toggle mask without reading et/kt
+- kₜ read in forward order, applied as inverted values
+- Unpredictable bits inserted in reverse order (BE)
+- Horizontal XOR mask properly reversed
+- ct=1 uses extended extraction mask (Xt OR Mt)
 
 ---
 

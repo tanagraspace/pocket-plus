@@ -4,7 +4,7 @@ Deterministic, containerized test vector generation for POCKET+ compression algo
 
 ## Overview
 
-This directory contains a complete Docker-based system for generating test vectors that validate POCKET+ implementations across different programming languages (C, Python, Go). The generator ensures:
+This directory contains a complete Docker-based system for generating test vectors that validate POCKET+ implementations across different programming languages (C, C++, Python, Go, Rust, Java). The generator ensures:
 
 - **Deterministic builds** - Pinned dependencies (Alpine 3.18, GCC 12.2.1, Python 3.11)
 - **Reproducible results** - Fixed seeds for all random generation
@@ -22,6 +22,7 @@ make test
 
 # Generate specific test vector
 make generate-simple
+make generate-hiro
 make generate-housekeeping
 make generate-edge-cases
 make generate-venus-express
@@ -36,14 +37,15 @@ make copy-to-repo
 
 | Test Vector | Input Size | Compressed | Ratio | Description |
 |-------------|-----------|------------|-------|-------------|
-| **simple** | 9 KB (100 packets) | 643 bytes | **13.99×** | High compressibility patterns |
+| **simple** | 9 KB (100 packets) | 641 bytes | **14.04×** | High compressibility patterns |
+| **hiro** | 9 KB (100 packets) | 1,533 bytes | **5.87×** | High robustness (R=7) |
 | **housekeeping** | 900 KB (10,000 packets) | 223 KB | **4.03×** | Realistic telemetry simulation |
 | **edge-cases** | 45 KB (500 packets) | 10.1 KB | **4.44×** | Mixed stable/changing sections |
-| **venus-express** | 13.6 MB (151,200 packets) | 5.9 MB | **2.30×** | Real spacecraft data |
+| **venus-express** | 13.6 MB (151,200 packets) | 5.9 MB | **2.31×** | Real spacecraft data |
 
 ### 1. simple (Synthetic - High Compressibility)
 - **Size**: 100 packets (9 KB)
-- **Compression**: 13.99× (9 KB → 643 bytes)
+- **Compression**: 14.04× (9 KB → 641 bytes)
 - **Parameters**: pt=10, ft=20, rt=50, robustness=1
 - **Patterns**:
   - Repeating sequences (0x08, 0xD4, 0xF1, 0xAB)
@@ -53,7 +55,14 @@ make copy-to-repo
   - Simple repeating sequences (0x01, 0x02, 0x03, 0x04)
 - **Purpose**: Quick validation and testing; demonstrates excellent compression with highly predictable data
 
-### 2. housekeeping (Synthetic - Realistic)
+### 2. hiro (Synthetic - High Robustness)
+- **Size**: 100 packets (9 KB)
+- **Compression**: 5.87× (9 KB → 1,533 bytes)
+- **Parameters**: pt=10, ft=20, rt=50, robustness=7
+- **Patterns**: Same as simple
+- **Purpose**: Tests high robustness level (R=7) which increases compressed output size for better error resilience
+
+### 3. housekeeping (Synthetic - Realistic)
 - **Size**: 10,000 packets (900 KB)
 - **Compression**: 4.03× (900 KB → 223 KB)
 - **Parameters**: pt=20, ft=50, rt=100, robustness=2
@@ -69,7 +78,7 @@ make copy-to-repo
   - **Status flags**: Occasional bit flips
 - **Purpose**: Represents realistic spacecraft behavior with slowly changing sensor values; validates compression on typical telemetry patterns
 
-### 3. edge-cases (Synthetic - Mixed Patterns)
+### 4. edge-cases (Synthetic - Mixed Patterns)
 - **Size**: 500 packets (45 KB)
 - **Compression**: 4.44× (45 KB → 10.1 KB)
 - **Parameters**: pt=10, ft=20, rt=50, robustness=1
@@ -79,10 +88,10 @@ make copy-to-repo
   - **Bytes 60-89**: Completely stable (always 0xFF)
 - **Purpose**: Tests algorithm efficiency when only a portion of each packet changes while the rest remains constant; demonstrates compression with gradual transitions
 
-### 4. venus-express (Real Data)
+### 5. venus-express (Real Data)
 - **Source**: Actual Venus Express spacecraft ADCS (Attitude Determination and Control System) telemetry
 - **Size**: 13.6 MB (151,200 packets × 90 bytes)
-- **Compression**: 2.30× (13.6 MB → 5.9 MB)
+- **Compression**: 2.31× (13.6 MB → 5.9 MB)
 - **Parameters**: pt=20, ft=50, rt=100, robustness=2
 - **Duration**: 1 week's worth of packet ID 1028
 - **MD5**: ac0ce25d660efa5ee18f92b71aa9a85d
@@ -271,7 +280,7 @@ Each test vector produces a `metadata.json`:
   "output": {
     "compressed": {
       "file": "simple.bin.pkt",
-      "size": 643,
+      "size": 641,
       "md5": "..."
     },
     "decompressed": {
@@ -281,7 +290,7 @@ Each test vector produces a `metadata.json`:
     }
   },
   "results": {
-    "compression_ratio": 13.99,
+    "compression_ratio": 14.04,
     "roundtrip_verified": true
   }
 }
