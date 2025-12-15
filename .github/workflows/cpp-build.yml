@@ -323,13 +323,22 @@ jobs:
           # Run clang-tidy on source files
           ISSUES=$(find src -name '*.cpp' -exec clang-tidy -p build {} \; 2>&1) || true
 
-          if echo "$ISSUES" | grep -q "warning:\|error:"; then
+          ERRORS=$(echo "$ISSUES" | grep -c "error:" || echo "0")
+          WARNINGS=$(echo "$ISSUES" | grep -c "warning:" || echo "0")
+
+          if [ "$ERRORS" -gt 0 ] || [ "$WARNINGS" -gt 0 ]; then
             echo "**Issues found:**" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "$ISSUES" | grep -E "warning:|error:" | head -50 >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "No issues found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Fail the build if errors found (warnings are informational)
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::Found $ERRORS clang-tidy errors"
+            exit 1
           fi
 
   sanitizers:
