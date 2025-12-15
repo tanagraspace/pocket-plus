@@ -76,19 +76,16 @@ jobs:
         with:
           go-version: '1.22'
 
-      - name: Install gotestsum
-        run: go install gotest.tools/gotestsum@v1.12.0
+      - name: Install go-test-report
+        run: go install github.com/vakenbolt/go-test-report@latest
 
-      - name: Install junit2html
-        run: pip install junit2html
-
-      - name: Run tests with JUnit output
+      - name: Run tests with coverage
         run: |
           mkdir -p build/docs/tests
-          gotestsum --junitfile build/docs/tests/report.xml --format testname -- -coverprofile=build/coverage.out ./pocketplus/...
+          go test -coverprofile=build/coverage.out ./pocketplus/...
 
       - name: Generate HTML test report
-        run: junit2html build/docs/tests/report.xml build/docs/tests/index.html
+        run: go test -json ./pocketplus/... | go-test-report -o build/docs/tests/index.html -t "POCKET+ Go Test Report"
 
       - name: Generate coverage HTML
         run: |

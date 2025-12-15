@@ -72,9 +72,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y cmake
 
-      - name: Install junit2html
-        run: pip3 install --break-system-packages junit2html || pip3 install junit2html
-
       - name: Build library and tests
         working-directory: implementations/cpp
         run: make build

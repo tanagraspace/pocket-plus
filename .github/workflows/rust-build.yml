@@ -45,24 +45,18 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Install junit2html
-        run: pip install junit2html
-
-      - name: Run tests with JUnit output
+      - name: Run tests
         run: |
           echo "## Unit Test Results (${{ matrix.os }} - ${{ matrix.rust }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           mkdir -p build/docs/tests
-          cargo nextest run --release --profile ci 2>&1 | tee build/test-output.txt
+          cargo test --release 2>&1 | tee build/test-output.txt
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat build/test-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Generate HTML test report
-        run: junit2html target/nextest/ci/junit.xml build/docs/tests/index.html
+        run: ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html "POCKET+ Rust Test Report"
 
       - name: Run CLI round-trip tests
         run: |
@@ -215,17 +209,11 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Install junit2html
-        run: pip install junit2html
-
       - name: Run tests and generate HTML report
         run: |
           mkdir -p build/docs/tests
-          cargo nextest run --release --profile ci
-          junit2html target/nextest/ci/junit.xml build/docs/tests/index.html
+          cargo test --release 2>&1 | tee build/test-output.txt
+          ../../scripts/generate-test-report.sh build/test-output.txt build/docs/tests/index.html "POCKET+ Rust Test Report"
 
       - name: Generate API documentation
         run: |
