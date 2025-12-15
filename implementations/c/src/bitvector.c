@@ -79,56 +79,7 @@ void bitvector_copy(bitvector_t *dest, const bitvector_t *src) {
 
 /** @} */ /* End of Initialization Functions */
 
-/**
- * @name Bit Access Functions
- *
- * Big-endian word packing maps bytes to word bits as follows:
- * - Word[i] contains Bytes [4i, 4i+1, 4i+2, 4i+3]
- * - Byte 4i at bits 24-31 (most significant)
- * - Byte 4i+1 at bits 16-23
- * - Byte 4i+2 at bits 8-15
- * - Byte 4i+3 at bits 0-7 (least significant)
- * @{
- */
-
-
-int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
-    int result = 0;
-
-    if ((bv != NULL) && (pos < bv->length)) {
-        /* Direct bit-to-word mapping (optimized):
-         * word_index = pos / 32, bit_in_word = 31 - (pos % 32)
-         * MSB-first: bit 0 is at position 31 in word 0 */
-        size_t word_index = pos >> 5U;
-        size_t bit_in_word = 31U - (pos & 31U);
-
-        uint32_t shifted = bv->data[word_index] >> bit_in_word;
-        if ((shifted & 1U) != 0U) {
-            result = 1;
-        }
-    }
-
-    return result;
-}
-
-
-void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
-    if ((bv != NULL) && (pos < bv->length)) {
-        /* Direct bit-to-word mapping (optimized):
-         * word_index = pos / 32, bit_in_word = 31 - (pos % 32)
-         * MSB-first: bit 0 is at position 31 in word 0 */
-        size_t word_index = pos >> 5U;
-        size_t bit_in_word = 31U - (pos & 31U);
-
-        if (value != 0) {
-            bv->data[word_index] |= (1U << bit_in_word);
-        } else {
-            bv->data[word_index] &= ~(1U << bit_in_word);
-        }
-    }
-}
-
-/** @} */ /* End of Bit Access Functions */
+/* Note: bitvector_get_bit and bitvector_set_bit are now static inline in pocketplus.h */
 
 /**
  * @name Bitwise Operations

@@ -30,6 +30,56 @@
 #include <string.h>
 
 /**
+ * @name Internal Helper Functions
+ * @{
+ */
+
+/**
+ * @brief Extract positions of all set bits in a bitvector using word-level processing.
+ *
+ * Much faster than iterating bit-by-bit when the bitvector is sparse.
+ * Uses __builtin_clz for O(1) MSB position finding.
+ *
+ * @param[in]  bv         Bitvector to scan
+ * @param[out] positions  Array to store positions (must be at least hamming_weight elements)
+ * @param[in]  max_pos    Maximum positions to extract
+ * @return Number of positions extracted
+ */
+static size_t bitvector_get_set_positions(
+    const bitvector_t *bv,
+    size_t *positions,
+    size_t max_pos
+) {
+    size_t count = 0U;
+
+    /* Process words in forward order to get positions in ascending order */
+    for (size_t word = 0U; (word < bv->num_words) && (count < max_pos); word++) {
+        uint32_t word_data = bv->data[word];
+
+        while ((word_data != 0U) && (count < max_pos)) {
+            /* Find MSB position using count leading zeros */
+            int clz = __builtin_clz(word_data);
+            size_t bit_pos_in_word = (size_t)clz;
+
+            /* Global position */
+            size_t global_pos = (word * 32U) + bit_pos_in_word;
+
+            if (global_pos < bv->length) {
+                positions[count] = global_pos;
+                count++;
+            }
+
+            /* Clear the MSB we just processed */
+            word_data &= ~(1U << (31U - (uint32_t)clz));
+        }
+    }
+
+    return count;
+}
+
+/** @} */ /* End of Internal Helper Functions */
+
+/**
  * @name Bit Reader Functions
  * @{
  */
@@ -234,16 +284,9 @@ int pocket_bit_insert(bitreader_t *reader, bitvector_t *data, const bitvector_t 
         return POCKET_OK;
     }
 
-    /* Collect positions of '1' bits in mask */
+    /* Collect positions of '1' bits in mask using word-level processing */
     size_t positions[POCKET_MAX_PACKET_LENGTH];
-    size_t pos_count = 0U;
-
-    for (size_t i = 0U; (i < mask->length) && (pos_count < hamming); i++) {
-        if (bitvector_get_bit(mask, i) != 0) {
-            positions[pos_count] = i;
-            pos_count++;
-        }
-    }
+    size_t pos_count = bitvector_get_set_positions(mask, positions, hamming);
 
     /* Insert bits in reverse order (matching BE extraction) */
     for (size_t i = pos_count; i > 0U; i--) {
@@ -367,34 +410,31 @@ int pocket_decompress_packet(
         /* Read eₜ */
         int et = bitreader_read_bit(reader);
 
+        /* Pre-extract positions of set bits in Xt (word-level, much faster than bit-by-bit) */
+        size_t change_positions[POCKET_MAX_PACKET_LENGTH];
+        size_t num_changes = bitvector_get_set_positions(&Xt, change_positions, change_count);
+
         if (et == 1) {
             /* Read kₜ - determines positive/negative updates */
             /* kₜ has one bit per change in Xt */
             uint8_t kt_bits[POCKET_MAX_PACKET_LENGTH];
-            size_t kt_count = 0U;
 
-            /* Read kt bits (forward order) */
-            for (size_t i = 0U; i < decomp->F; i++) {
-                if (bitvector_get_bit(&Xt, i) != 0) {
-                    int bit_val = bitreader_read_bit(reader);
-                    kt_bits[kt_count] = (bit_val > 0) ? 1U : 0U;
-                    kt_count++;
-                }
+            /* Read kt bits using pre-extracted positions */
+            for (size_t idx = 0U; idx < num_changes; idx++) {
+                int bit_val = bitreader_read_bit(reader);
+                kt_bits[idx] = (bit_val > 0) ? 1U : 0U;
             }
 
-            /* Apply mask updates based on kₜ */
-            size_t kt_idx = 0U;
-            for (size_t i = 0U; i < decomp->F; i++) {
-                if (bitvector_get_bit(&Xt, i) != 0) {
-                    /* kt=1 means positive update (mask becomes 0) */
-                    /* kt=0 means negative update (mask becomes 1) */
-                    if (kt_bits[kt_idx] != 0U) {
-                        bitvector_set_bit(&decomp->mask, i, 0);
-                        bitvector_set_bit(&decomp->Xt, i, 1);  /* Track positive change */
-                    } else {
-                        bitvector_set_bit(&decomp->mask, i, 1);
-                    }
-                    kt_idx++;
+            /* Apply mask updates using pre-extracted positions */
+            for (size_t idx = 0U; idx < num_changes; idx++) {
+                size_t pos = change_positions[idx];
+                /* kt=1 means positive update (mask becomes 0) */
+                /* kt=0 means negative update (mask becomes 1) */
+                if (kt_bits[idx] != 0U) {
+                    bitvector_set_bit(&decomp->mask, pos, 0);
+                    bitvector_set_bit(&decomp->Xt, pos, 1);  /* Track positive change */
+                } else {
+                    bitvector_set_bit(&decomp->mask, pos, 1);
                 }
             }
 
@@ -402,23 +442,24 @@ int pocket_decompress_packet(
             ct = bitreader_read_bit(reader);
         } else {
             /* et = 0: all updates are negative (mask bits become 1) */
-            for (size_t i = 0U; i < decomp->F; i++) {
-                if (bitvector_get_bit(&Xt, i) != 0) {
-                    bitvector_set_bit(&decomp->mask, i, 1);
-                }
+            for (size_t idx = 0U; idx < num_changes; idx++) {
+                bitvector_set_bit(&decomp->mask, change_positions[idx], 1);
             }
         }
     } else if ((Vt == 0U) && (change_count > 0U)) {
         /* Vt = 0: toggle mask bits at change positions */
-        for (size_t i = 0U; i < decomp->F; i++) {
-            if (bitvector_get_bit(&Xt, i) != 0) {
-                int current_val = bitvector_get_bit(&decomp->mask, i);
-                int toggled = 0;
-                if (current_val == 0) {
-                    toggled = 1;
-                }
-                bitvector_set_bit(&decomp->mask, i, toggled);
+        /* Pre-extract positions of set bits in Xt */
+        size_t change_positions[POCKET_MAX_PACKET_LENGTH];
+        size_t num_changes = bitvector_get_set_positions(&Xt, change_positions, change_count);
+
+        for (size_t idx = 0U; idx < num_changes; idx++) {
+            size_t pos = change_positions[idx];
+            int current_val = bitvector_get_bit(&decomp->mask, pos);
+            int toggled = 0;
+            if (current_val == 0) {
+                toggled = 1;
             }
+            bitvector_set_bit(&decomp->mask, pos, toggled);
         }
     } else {
         /* No changes to apply (change_count == 0) */

@@ -138,20 +138,41 @@ void bitvector_zero(bitvector_t *bv);
 void bitvector_copy(bitvector_t *dest, const bitvector_t *src);
 
 /**
- * @brief Get bit value at position.
+ * @brief Get bit value at position (inline for performance).
  * @param[in] bv  Bit vector
  * @param[in] pos Bit position (0 = LSB, length-1 = MSB)
  * @return Bit value (0 or 1)
  */
-int bitvector_get_bit(const bitvector_t *bv, size_t pos);
+static inline int bitvector_get_bit(const bitvector_t *bv, size_t pos) {
+    int result = 0;
+    if ((bv != NULL) && (pos < bv->length)) {
+        size_t word_index = pos >> 5U;
+        size_t bit_in_word = 31U - (pos & 31U);
+        uint32_t shifted = bv->data[word_index] >> bit_in_word;
+        if ((shifted & 1U) != 0U) {
+            result = 1;
+        }
+    }
+    return result;
+}
 
 /**
- * @brief Set bit value at position.
+ * @brief Set bit value at position (inline for performance).
  * @param[out] bv    Bit vector to modify
  * @param[in]  pos   Bit position (0 = LSB, length-1 = MSB)
  * @param[in]  value Bit value (0 or 1)
  */
-void bitvector_set_bit(bitvector_t *bv, size_t pos, int value);
+static inline void bitvector_set_bit(bitvector_t *bv, size_t pos, int value) {
+    if ((bv != NULL) && (pos < bv->length)) {
+        size_t word_index = pos >> 5U;
+        size_t bit_in_word = 31U - (pos & 31U);
+        if (value != 0) {
+            bv->data[word_index] |= (1U << bit_in_word);
+        } else {
+            bv->data[word_index] &= ~(1U << bit_in_word);
+        }
+    }
+}
 
 /**
  * @brief Bitwise XOR operation.
