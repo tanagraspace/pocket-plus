@@ -76,19 +76,15 @@ jobs:
         working-directory: implementations/cpp
         run: make build
 
-      - name: Run unit tests
+      - name: Run unit tests and generate report
         working-directory: implementations/cpp
         run: |
           echo "## Unit Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          make test 2>&1 | tee test-output.txt
+          make test-report 2>&1 | tee test-output.txt
           cat test-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Generate test report
-        working-directory: implementations/cpp
-        run: make test-report
 
       - name: Run CLI round-trip tests
         working-directory: implementations/cpp
