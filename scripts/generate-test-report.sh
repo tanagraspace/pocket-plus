@@ -2,10 +2,11 @@
 # Generate HTML test report from test output
 # Usage: ./generate-test-report.sh <input-file> <output-file> <title>
 #
-# Supports three test output formats:
+# Supports four test output formats:
 # 1. C format: Suite headers with === separator, test_* lines with checkmarks
 # 2. CTest format: CMake/CTest output with "Test #N: name ... Passed/Failed"
-# 3. Catch2 format: "All tests passed" summary with assertion counts
+# 3. Rust format: cargo test output with "test module::test_name ... ok/FAILED"
+# 4. Catch2 format: "All tests passed" summary with assertion counts
 
 set -e
 
@@ -30,6 +31,8 @@ if grep -q "^=\+$" "$INPUT_FILE"; then
     FORMAT="c"
 elif grep -q "tests passed, .* tests failed out of" "$INPUT_FILE"; then
     FORMAT="ctest"
+elif grep -q "^test result:" "$INPUT_FILE" && grep -q "\.\.\. ok\|\.\.\..*FAILED" "$INPUT_FILE"; then
+    FORMAT="rust"
 elif grep -q "test cases\|assertions" "$INPUT_FILE"; then
     FORMAT="catch2"
 else
@@ -159,6 +162,66 @@ elif [ "$FORMAT" = "ctest" ]; then
     total_tests=$((total_passed + total_failed))
     echo "<div class=\"stats\">$total_passed/$total_tests tests passed</div>" >> "$OUTPUT_FILE"
     echo "</div>" >> "$OUTPUT_FILE"
+
+    # Add summary
+    if [[ $total_failed -eq 0 ]]; then
+        echo "<div class=\"summary\"><strong>Total: $total_passed/$total_tests tests passed</strong></div>" >> "$OUTPUT_FILE"
+    else
+        echo "<div class=\"summary fail\"><strong>Total: $total_passed/$total_tests tests passed ($total_failed failed)</strong></div>" >> "$OUTPUT_FILE"
+    fi
+
+elif [ "$FORMAT" = "rust" ]; then
+    # Parse Rust cargo test output
+    # Format: "test module::tests::test_name ... ok" or "... FAILED"
+    total_passed=0
+    total_failed=0
+    current_module=""
+
+    # Sort tests by module and output
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^test[[:space:]]+([a-zA-Z0-9_:]+)[[:space:]]+\.\.\.[[:space:]]+(ok|FAILED|ignored) ]]; then
+            full_name="${BASH_REMATCH[1]}"
+            result="${BASH_REMATCH[2]}"
+
+            # Extract module name (everything before ::tests:: or the last ::)
+            if [[ "$full_name" =~ ^([a-zA-Z0-9_]+)::tests::(.+)$ ]]; then
+                module="${BASH_REMATCH[1]}"
+                test_name="${BASH_REMATCH[2]}"
+            elif [[ "$full_name" =~ ^([a-zA-Z0-9_]+)::(.+)$ ]]; then
+                module="${BASH_REMATCH[1]}"
+                test_name="${BASH_REMATCH[2]}"
+            else
+                module="tests"
+                test_name="$full_name"
+            fi
+
+            # Start new module section if needed
+            if [[ "$module" != "$current_module" ]]; then
+                if [[ "$current_module" != "" ]]; then
+                    echo "</div>" >> "$OUTPUT_FILE"
+                fi
+                echo "<div class=\"suite\"><h2>$module</h2>" >> "$OUTPUT_FILE"
+                current_module="$module"
+            fi
+
+            # Output test result
+            if [[ "$result" == "ok" ]]; then
+                echo "<div class=\"test pass\">$test_name</div>" >> "$OUTPUT_FILE"
+                total_passed=$((total_passed + 1))
+            elif [[ "$result" == "FAILED" ]]; then
+                echo "<div class=\"test fail\">$test_name</div>" >> "$OUTPUT_FILE"
+                total_failed=$((total_failed + 1))
+            fi
+            # Skip ignored tests
+        fi
+    done < <(grep "^test " "$INPUT_FILE" | sort)
+
+    # Close last module
+    if [[ "$current_module" != "" ]]; then
+        echo "</div>" >> "$OUTPUT_FILE"
+    fi
+
+    total_tests=$((total_passed + total_failed))
 
     # Add summary
     if [[ $total_failed -eq 0 ]]; then
