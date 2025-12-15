@@ -146,11 +146,11 @@ mvn javadoc:javadoc    # Generate documentation
 ## Performance
 
 **Key findings** (venus-express dataset, 151K packets, 13.6 MB):
-- **C++** is the fastest implementation (~140 MB/s compression, ~146 MB/s decompression), also suitable for embedded systems
-- **Java** offers strong performance (~86 MB/s) with JVM convenience
-- **Rust** provides good performance (~65 MB/s)
-- **C** delivers reliable embedded-friendly performance (~58 MB/s)
-- **Go** trades some speed (~49 MB/s) for simplicity and fast compilation
+- **C++** is the fastest implementation (~143 MB/s compression, ~146 MB/s decompression), also suitable for embedded systems
+- **Java** offers strong performance (~86 MB/s compression) with JVM convenience
+- **C** delivers reliable embedded-friendly performance (~59 MB/s compression, ~80 MB/s decompression)
+- **Rust** provides good performance (~64 MB/s compression)
+- **Go** trades some speed (~49 MB/s compression) for simplicity and fast compilation
 
 All implementations produce identical compression output. Choose based on your deployment constraints and language ecosystem.
 

@@ -368,6 +368,32 @@ get_system_info() {
     printf 'MEM_INFO=%q\n' "$mem_info"
 }
 
+# Gather compiler/runtime versions
+get_compiler_info() {
+    local gcc_version gxx_version go_version rust_version java_version
+
+    # GCC version (for C) - extract just X.Y.Z version number
+    gcc_version=$(gcc --version 2>/dev/null | head -1 | sed 's/.*) //' | awk '{print $1}' | cut -d'_' -f1 || echo "unknown")
+
+    # G++ version (for C++) - extract just X.Y.Z version number
+    gxx_version=$(g++ --version 2>/dev/null | head -1 | sed 's/.*) //' | awk '{print $1}' | cut -d'_' -f1 || echo "unknown")
+
+    # Go version
+    go_version=$(go version 2>/dev/null | awk '{print $3}' | sed 's/go//' || echo "unknown")
+
+    # Rust version
+    rust_version=$(rustc --version 2>/dev/null | awk '{print $2}' || echo "unknown")
+
+    # Java version
+    java_version=$(java -version 2>&1 | head -1 | awk -F '"' '{print $2}' || echo "unknown")
+
+    printf 'GCC_VERSION=%q\n' "$gcc_version"
+    printf 'GXX_VERSION=%q\n' "$gxx_version"
+    printf 'GO_VERSION=%q\n' "$go_version"
+    printf 'RUST_VERSION=%q\n' "$rust_version"
+    printf 'JAVA_VERSION=%q\n' "$java_version"
+}
+
 # Generate the markdown report
 generate_markdown() {
     echo "Generating benchmark report..."
@@ -376,6 +402,7 @@ generate_markdown() {
 
     # Gather system info
     eval "$(get_system_info)"
+    eval "$(get_compiler_info)"
 
     cat > "$OUTPUT_FILE" << EOF
 # POCKET+ Benchmark Results
@@ -393,6 +420,16 @@ Performance comparison across POCKET+ implementations.
 | Memory | $MEM_INFO |
 | Container | Docker (Alpine 3.20) |
 | Date | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |
+
+## Build Settings
+
+| Language | Compiler/Runtime | Version | Optimization Flags |
+|----------|------------------|---------|-------------------|
+| C | GCC | $GCC_VERSION | \`-O3 -flto\` |
+| C++ | G++ | $GXX_VERSION | \`-O3\` (CMake Release) |
+| Go | Go | $GO_VERSION | Default |
+| Rust | rustc | $RUST_VERSION | \`--release\` (opt-level=3) |
+| Java | OpenJDK | $JAVA_VERSION | Default (JIT) |
 
 ## Test Vectors
 
