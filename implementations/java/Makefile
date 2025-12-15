@@ -16,21 +16,21 @@ test:
 	mvn test
 
 test-report:
-	mkdir -p $(BUILD_DIR)/tests
+	mkdir -p $(DOCS_DIR)/tests
 	mvn test surefire-report:report-only site -DgenerateReports=false
-	cp target/site/surefire-report.html $(BUILD_DIR)/tests/index.html
-	cp -r target/site/css $(BUILD_DIR)/tests/ 2>/dev/null || true
-	cp -r target/site/images $(BUILD_DIR)/tests/ 2>/dev/null || true
-	@echo "Test report at $(BUILD_DIR)/tests/index.html"
+	cp target/site/surefire-report.html $(DOCS_DIR)/tests/index.html
+	cp -r target/site/css $(DOCS_DIR)/tests/ 2>/dev/null || true
+	cp -r target/site/images $(DOCS_DIR)/tests/ 2>/dev/null || true
+	@echo "Test report at $(DOCS_DIR)/tests/index.html"
 
 test-cli: cli
 	./tests/test_cli.sh
 
 coverage:
-	mkdir -p $(BUILD_DIR)/coverage
+	mkdir -p $(DOCS_DIR)/coverage
 	mvn verify jacoco:report
-	cp -r target/site/jacoco/* $(BUILD_DIR)/coverage/
-	@echo "Coverage report at $(BUILD_DIR)/coverage/index.html"
+	cp -r target/site/jacoco/* $(DOCS_DIR)/coverage/
+	@echo "Coverage report at $(DOCS_DIR)/coverage/index.html"
 
 coverage-html:
 	mkdir -p $(DOCS_DIR)/coverage
@@ -40,10 +40,10 @@ coverage-html:
 docs: coverage test-report api-docs
 
 api-docs:
-	@mkdir -p $(BUILD_DIR)/api
+	@mkdir -p $(DOCS_DIR)/api
 	@echo "Generating API documentation..."
 	mvn javadoc:javadoc
-	cp -r target/site/apidocs/* $(BUILD_DIR)/api/
+	cp -r target/site/apidocs/* $(DOCS_DIR)/api/
 
 fmt:
 	mvn spotless:apply

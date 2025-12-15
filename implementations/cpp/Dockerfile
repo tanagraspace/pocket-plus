@@ -6,6 +6,7 @@ RUN apk add --no-cache \
     cmake \
     git \
     lcov \
+    gzip \
     doxygen \
     graphviz \
     clang-extra-tools \
