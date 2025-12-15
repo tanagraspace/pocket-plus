@@ -1,7 +1,6 @@
 FROM alpine:edge
 
-RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck python3 py3-pip valgrind --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing && \
-    pip3 install --break-system-packages junit2html
+RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck bash valgrind --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
 
 WORKDIR /app/implementations/c
 

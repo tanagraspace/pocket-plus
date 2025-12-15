@@ -18,5 +18,5 @@ COPY implementations/rust/ ./
 COPY test-vectors/ /app/test-vectors/
 COPY scripts/ /app/scripts/
 
-# Build, test, coverage, and docs (includes test-report)
-CMD ["sh", "-c", "make clean && make fmt-check && make clippy && make build && make coverage && make docs"]
+# Build, test, coverage, and docs (includes test-report and CLI tests)
+CMD ["sh", "-c", "make clean && make fmt-check && make clippy && make build && make test-cli && make coverage && make docs"]
