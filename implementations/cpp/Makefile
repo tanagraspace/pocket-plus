@@ -72,7 +72,7 @@ fmt-check:
 
 # Run clang-tidy
 lint: build
-	@find src -name '*.cpp' | xargs clang-tidy -p $(BUILD_DIR) --
+	@find src -name '*.cpp' | xargs clang-tidy -p $(BUILD_DIR)
 
 # Generate Doxygen documentation
 docs: build

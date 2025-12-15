@@ -15,6 +15,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Generate compile_commands.json for clang-tidy
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Options
 option(POCKET_NO_EXCEPTIONS "Disable exceptions for embedded use" OFF)
 option(POCKET_NO_RTTI "Disable RTTI for embedded use" OFF)
