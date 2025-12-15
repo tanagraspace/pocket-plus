@@ -28,9 +28,9 @@ bench:
 	./target/release/bench
 
 coverage:
-	mkdir -p $(BUILD_DIR)/coverage
-	cargo tarpaulin --out Html --output-dir $(BUILD_DIR)/coverage --exclude-files "src/bin/*" --exclude-files "tests/*"
-	@mv $(BUILD_DIR)/coverage/tarpaulin-report.html $(BUILD_DIR)/coverage/index.html 2>/dev/null || true
+	mkdir -p $(DOCS_DIR)/coverage
+	cargo tarpaulin --out Html --output-dir $(DOCS_DIR)/coverage --exclude-files "src/bin/*" --exclude-files "tests/*"
+	@mv $(DOCS_DIR)/coverage/tarpaulin-report.html $(DOCS_DIR)/coverage/index.html 2>/dev/null || true
 
 fmt:
 	cargo fmt
