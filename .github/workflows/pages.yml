@@ -46,10 +46,10 @@ jobs:
 
       - name: Prepare C artifacts
         run: |
-          mkdir -p _site/c
+          mkdir -p _site/c/tests
           cp -r implementations/c/build/docs/api/html _site/c/api
           cp -r implementations/c/build/docs/coverage/html _site/c/coverage
-          cp -r implementations/c/build/docs/tests _site/c/tests
+          cp -r implementations/c/build/docs/tests/html/* _site/c/tests/
 
       - name: Upload C docs artifact
         uses: actions/upload-artifact@v4
@@ -89,7 +89,7 @@ jobs:
           mkdir -p _site/cpp/api _site/cpp/coverage _site/cpp/tests
           cp -r implementations/cpp/build/docs/api/html/* _site/cpp/api/ 2>/dev/null || echo "No API docs"
           cp -r implementations/cpp/build/docs/coverage/html/* _site/cpp/coverage/ 2>/dev/null || echo "No coverage report"
-          cp -r implementations/cpp/build/docs/tests/* _site/cpp/tests/ 2>/dev/null || echo "No test report"
+          cp -r implementations/cpp/build/docs/tests/html/* _site/cpp/tests/ 2>/dev/null || echo "No test report"
 
       - name: Upload C++ docs artifact
         uses: actions/upload-artifact@v4
