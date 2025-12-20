@@ -1,4 +1,11 @@
 services:
+  c-fuzz:
+    build:
+      context: ./implementations/c
+      dockerfile: fuzz/Dockerfile
+    environment:
+      - FUZZ_DURATION=${FUZZ_DURATION:-60}
+
   c:
     build:
       context: .

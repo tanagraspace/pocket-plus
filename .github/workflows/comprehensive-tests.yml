@@ -1,0 +1,369 @@
+name: Comprehensive Tests
+
+on:
+  schedule:
+    # Run weekly on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      fuzz_duration:
+        description: 'Fuzzing duration in seconds (max 600)'
+        required: false
+        default: '60'
+      run_large_scale:
+        description: 'Run large-scale test generation (100MB)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  malformed-input-tests:
+    name: Malformed Input Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build test binary
+        working-directory: implementations/c
+        run: make
+
+      - name: Run malformed input tests
+        working-directory: implementations/c
+        run: |
+          echo "## Malformed Input Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ./build/test_malformed 2>&1 | tee malformed-output.txt
+          cat malformed-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Parse malformed test results
+        working-directory: implementations/c
+        run: |
+          PASSED=$(grep -o '[0-9]*/[0-9]* tests passed' malformed-output.txt | awk -F'/' '{sum+=$1} END {print sum}')
+          TOTAL=$(grep -o '[0-9]*/[0-9]* tests passed' malformed-output.txt | awk -F'/' '{s+=$2} END {print s}' | awk '{print $1}')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Tests | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run with valgrind
+        working-directory: implementations/c
+        run: |
+          sudo apt-get install -y valgrind
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Valgrind Memory Check (Malformed)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          valgrind --leak-check=full --error-exitcode=1 ./build/test_malformed 2>&1 | tee valgrind-malformed.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E "ERROR SUMMARY|definitely lost|indirectly lost|possibly lost" valgrind-malformed.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: malformed-test-results
+          path: |
+            implementations/c/malformed-output.txt
+            implementations/c/valgrind-malformed.txt
+          retention-days: 30
+
+  robustness-tests:
+    name: Robustness Tests (R=0-7)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build test binary
+        working-directory: implementations/c
+        run: make
+
+      - name: Run robustness tests
+        working-directory: implementations/c
+        run: |
+          echo "## Robustness Tests (All R Values)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ./build/test_robustness 2>&1 | tee robustness-output.txt
+          cat robustness-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Parse robustness results
+        working-directory: implementations/c
+        run: |
+          PASSED=$(grep -o '[0-9]*/[0-9]* tests passed' robustness-output.txt | awk -F'/' '{sum+=$1} END {print sum}')
+          TOTAL=$(grep -o '[0-9]*/[0-9]* tests passed' robustness-output.txt | awk -F'/' '{s+=$2} END {print s}' | awk '{print $1}')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| R Value | Tests | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse per-R results
+          for r in 0 1 2 3 4 5 6 7; do
+            COUNT=$(grep -c "R${r}" robustness-output.txt 2>/dev/null || echo "0")
+            if [ "$COUNT" -gt 0 ]; then
+              echo "| R=$r | Tested | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Tests | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run with valgrind
+        working-directory: implementations/c
+        run: |
+          sudo apt-get install -y valgrind
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Valgrind Memory Check (Robustness)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          valgrind --leak-check=full --error-exitcode=1 ./build/test_robustness 2>&1 | tee valgrind-robustness.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E "ERROR SUMMARY|definitely lost|indirectly lost|possibly lost" valgrind-robustness.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: robustness-test-results
+          path: |
+            implementations/c/robustness-output.txt
+            implementations/c/valgrind-robustness.txt
+          retention-days: 30
+
+  fuzzing:
+    name: Fuzz Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install LLVM/Clang with libFuzzer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm
+
+      - name: Build fuzz harnesses
+        working-directory: implementations/c/fuzz
+        run: |
+          # Use system clang with libFuzzer
+          export CC=clang
+          make
+
+      - name: Create corpus
+        working-directory: implementations/c/fuzz
+        run: make corpus
+
+      - name: Run decompress fuzzer
+        working-directory: implementations/c/fuzz
+        run: |
+          DURATION=${{ github.event.inputs.fuzz_duration || '60' }}
+          echo "## Fuzzing Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Decompressor Fuzzing (${DURATION}s)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          timeout ${DURATION}s ./fuzz_decompress corpus_decompress/ -max_len=4096 -max_total_time=$DURATION 2>&1 | tee fuzz-decompress.txt || true
+          tail -20 fuzz-decompress.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run roundtrip fuzzer
+        working-directory: implementations/c/fuzz
+        run: |
+          DURATION=${{ github.event.inputs.fuzz_duration || '60' }}
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Roundtrip Fuzzing (${DURATION}s)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          timeout ${DURATION}s ./fuzz_roundtrip corpus_roundtrip/ -max_len=4096 -max_total_time=$DURATION 2>&1 | tee fuzz-roundtrip.txt || true
+          tail -20 fuzz-roundtrip.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for crashes
+        working-directory: implementations/c/fuzz
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Crash Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          CRASHES=$(find . -name 'crash-*' -type f 2>/dev/null | wc -l)
+          LEAKS=$(find . -name 'leak-*' -type f 2>/dev/null | wc -l)
+          TIMEOUTS=$(find . -name 'timeout-*' -type f 2>/dev/null | wc -l)
+
+          echo "| Type | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Crashes | $CRASHES |" >> $GITHUB_STEP_SUMMARY
+          echo "| Memory Leaks | $LEAKS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timeouts | $TIMEOUTS |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRASHES" -gt 0 ] || [ "$LEAKS" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo ":warning: **Issues found during fuzzing!**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo ":white_check_mark: **No crashes or leaks detected**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload crash artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-crashes
+          path: |
+            implementations/c/fuzz/crash-*
+            implementations/c/fuzz/leak-*
+            implementations/c/fuzz/timeout-*
+          retention-days: 90
+
+      - name: Upload fuzz logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fuzz-logs
+          path: |
+            implementations/c/fuzz/fuzz-*.txt
+          retention-days: 30
+
+  large-scale-generation:
+    name: Large-Scale Test Generation
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_large_scale == 'true' || github.event_name == 'schedule' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install numpy
+
+      - name: Generate large-scale test vectors
+        working-directory: test-vector-generator/input-generators
+        run: |
+          echo "## Large-Scale Test Generation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          python generate_large_scale.py --output-dir ../../test-vectors/large-scale --size 100MB 2>&1 | tee generate-output.txt
+
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat generate-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Build C implementation
+        working-directory: implementations/c
+        run: make
+
+      - name: Validate with C implementation
+        working-directory: implementations/c
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| R Value | Pattern | Files | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          PASS=0
+          FAIL=0
+
+          for pattern in predictable housekeeping entropy edge; do
+            for r in 0 1 2 3 4 5 6 7; do
+              FILES=$(ls ../../test-vectors/large-scale/R${r}_*_${pattern}.bin 2>/dev/null | wc -l)
+              if [ "$FILES" -gt 0 ]; then
+                # Test a sample file from each category
+                SAMPLE=$(ls ../../test-vectors/large-scale/R${r}_*_${pattern}.bin | head -1)
+                # Extract F value from filename (e.g., R0_F64_predictable.bin -> F=64 bits = 8 bytes)
+                F_BITS=$(basename "$SAMPLE" | sed 's/R[0-7]_F//' | sed 's/_.*//')
+                F_BYTES=$((F_BITS / 8))
+
+                # Run compression test
+                if ./build/pocketplus compress "$SAMPLE" /tmp/test_compressed.pkt -r $r -f $F_BITS 2>/dev/null; then
+                  if ./build/pocketplus decompress /tmp/test_compressed.pkt /tmp/test_decompressed.bin -r $r -f $F_BITS 2>/dev/null; then
+                    if cmp -s "$SAMPLE" /tmp/test_decompressed.bin; then
+                      echo "| R=$r | $pattern | $FILES | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY
+                      PASS=$((PASS + 1))
+                    else
+                      echo "| R=$r | $pattern | $FILES | :x: mismatch |" >> $GITHUB_STEP_SUMMARY
+                      FAIL=$((FAIL + 1))
+                    fi
+                  else
+                    echo "| R=$r | $pattern | $FILES | :x: decompress |" >> $GITHUB_STEP_SUMMARY
+                    FAIL=$((FAIL + 1))
+                  fi
+                else
+                  echo "| R=$r | $pattern | $FILES | :x: compress |" >> $GITHUB_STEP_SUMMARY
+                  FAIL=$((FAIL + 1))
+                fi
+              fi
+            done
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Results: $PASS passed, $FAIL failed**" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAIL" -gt 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: large-scale-manifest
+          path: test-vectors/large-scale/manifest.txt
+          retention-days: 30
+
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [malformed-input-tests, robustness-tests, fuzzing]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Comprehensive Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.malformed-input-tests.result }}" == "success" ]; then
+            echo "| Malformed Input Tests | :white_check_mark: Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Malformed Input Tests | :x: Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.robustness-tests.result }}" == "success" ]; then
+            echo "| Robustness Tests (R=0-7) | :white_check_mark: Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Robustness Tests (R=0-7) | :x: Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.fuzzing.result }}" == "success" ]; then
+            echo "| Fuzz Testing | :white_check_mark: No crashes |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Fuzz Testing | :x: Issues found |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run triggered: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
