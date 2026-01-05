@@ -895,6 +895,33 @@ int pocket_decompressor_init(
 void pocket_decompressor_reset(pocket_decompressor_t *decomp);
 
 /**
+ * @brief Notify decompressor of packet loss.
+ *
+ * Informs the decompressor that one or more packets were lost.
+ * The decompressor advances its internal time index and prepares
+ * for recovery using the next received packet's robustness info.
+ *
+ * Per CCSDS 124.0-B-1 Section 2.2: "The Recommended Standard does
+ * not provide a mechanism for identifying the number of sequential
+ * output binary vectors that were lost. Such mechanisms are assumed
+ * to be mission specific." This function provides that mechanism.
+ *
+ * Recovery behavior:
+ * - If lost_count <= effective robustness (Vt), the next packet's
+ *   Xt window contains all mask changes, enabling mask recovery.
+ * - For full data recovery, the next packet should have rt=1
+ *   (uncompressed) to provide a valid prediction base.
+ *
+ * @param[in,out] decomp     Decompressor state (updated in place)
+ * @param[in]     lost_count Number of consecutive packets lost (1+)
+ * @return POCKET_OK on success, error code otherwise
+ */
+int pocket_decompressor_notify_packet_loss(
+    pocket_decompressor_t *decomp,
+    uint32_t lost_count
+);
+
+/**
  * @brief Decompress a single compressed packet.
  *
  * Decompresses one packet according to CCSDS 124.0-B-1 Section 5.3.

@@ -122,6 +122,7 @@ test-vector-generator/
 │
 ├── input-generators/          # Python generators for synthetic data
 │   ├── common.py              # Shared utilities
+│   ├── generate.py            # Unified generator with fault injection
 │   ├── generate_simple.py     # Simple patterns
 │   ├── generate_housekeeping.py  # Realistic telemetry
 │   ├── generate_edge-cases.py    # Mixed stable/changing patterns
@@ -130,6 +131,7 @@ test-vector-generator/
 ├── scripts/                   # Orchestration scripts
 │   ├── generate-all.sh        # Main generation script
 │   ├── verify-vector.sh       # Compress/decompress/verify
+│   ├── validate_ccsds_style.py   # CCSDS-style fault injection validator
 │   └── copy-to-repo.sh        # Copy to test-vectors/
 │
 └── output/                    # Generated test vectors (gitignored)

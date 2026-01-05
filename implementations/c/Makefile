@@ -37,7 +37,7 @@ COV_LIB = $(COV_DIR)/libpocketplus.a
 MISRA_SRCS = $(SRC_DIR)/bitvector.c $(SRC_DIR)/bitbuffer.c $(SRC_DIR)/compress.c \
              $(SRC_DIR)/decompress.c $(SRC_DIR)/encode.c $(SRC_DIR)/mask.c
 
-.PHONY: all clean test test-report test-cli cli coverage coverage-html docs misra valgrind bench
+.PHONY: all clean test test-report test-cli test-reference cli coverage coverage-html docs misra valgrind bench
 
 all: $(LIB) $(CLI)
 
@@ -77,6 +77,9 @@ test-report: $(TEST_BINS)
 
 test-cli: $(CLI)
 	@$(TEST_DIR)/test_cli.sh
+
+test-reference: $(CLI)
+	@$(TEST_DIR)/test_reference.sh
 
 bench: $(BUILD_DIR)/test_bench
 	@$(BUILD_DIR)/test_bench

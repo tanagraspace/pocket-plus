@@ -1,12 +1,16 @@
 FROM alpine:edge
 
-RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck bash valgrind --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
+RUN apk add --no-cache gcc musl-dev make lcov bc gzip doxygen curl ca-certificates cppcheck bash valgrind python3 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
 
 WORKDIR /app/implementations/c
 
 COPY implementations/c/ ./
 COPY test-vectors/ /app/test-vectors/
+COPY test-vector-generator/c-reference/ /app/test-vector-generator/c-reference/
 COPY scripts/ /app/scripts/
+
+# Build ESA C reference implementation (clean first to avoid cached macOS binaries)
+RUN cd /app/test-vector-generator/c-reference && make clean && make
 
 # Copy root README for Doxygen main page (creates ../../README.md relative to WORKDIR)
 COPY README.md /app/README.md
