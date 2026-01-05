@@ -445,7 +445,7 @@ static void test_decompress_output_buffer_too_small(void) {
 
 static void test_compress_input_not_multiple_of_packet_size(void) {
     pocket_compressor_t comp;
-    uint8_t input[11];  /* 11 bytes, not multiple of 2 */
+    uint8_t input[11] = {0};  /* 11 bytes, not multiple of 2 */
     uint8_t output[100];
     size_t output_size = 0;
 

@@ -106,6 +106,16 @@ docker-compose run --rm c make misra # Docker
 
 CI automatically runs MISRA checks on every push/PR to C code.
 
+## Testing
+
+See [docs/TESTING.md](../../docs/TESTING.md) for detailed test documentation including:
+- Unit tests for all components
+- Malformed input handling
+- Robustness parameter (R=0-7) validation against ESA reference
+- Packet loss recovery simulation
+- Fuzzing results
+- CCSDS-style GB-scale validation
+
 ## File Structure
 
 ```
@@ -119,7 +129,8 @@ implementations/c/
 │   ├── compress.c           # Compression algorithm
 │   ├── decompress.c         # Decompression algorithm
 │   └── cli.c                # Command-line interface
-└── tests/                   # Unit and integration tests
+├── tests/                   # Unit and integration tests
+└── fuzz/                    # Fuzzing harnesses
 ```
 
 ## API

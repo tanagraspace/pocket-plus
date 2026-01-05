@@ -361,6 +361,46 @@ void pocket_decompressor_reset(pocket_decompressor_t *decomp) {
     }
 }
 
+
+int pocket_decompressor_notify_packet_loss(
+    pocket_decompressor_t *decomp,
+    uint32_t lost_count
+) {
+    if (decomp == NULL) {
+        return POCKET_ERROR_INVALID_ARG;
+    }
+
+    if (lost_count == 0U) {
+        return POCKET_OK;  /* No loss, nothing to do */
+    }
+
+    /*
+     * Advance the time index to account for lost packets.
+     * This is critical for synchronization with the compressor's time index.
+     *
+     * Note: After packet loss, the next packet should ideally have:
+     * - rt=1 (uncompressed) for full recovery, OR
+     * - ft=1 (full mask) for mask recovery
+     *
+     * If the loss count <= R (minimum robustness), the next packet's Xt
+     * window will contain all mask changes, allowing mask synchronization.
+     * However, prev_output will be stale unless the next packet is uncompressed.
+     */
+    decomp->t += lost_count;
+
+    /*
+     * Mark prev_output as potentially invalid.
+     * The next packet's data should be uncompressed (rt=1) for reliable recovery,
+     * or we accept that prediction-based decompression may fail.
+     *
+     * Per CCSDS 124.0-B-1 Section 3.3.2: "The uncompressed flag, rt, which
+     * shall be rt = 1 if t <= Rt" - this ensures the first R+1 packets are
+     * always uncompressed, providing natural synchronization points.
+     */
+
+    return POCKET_OK;
+}
+
 /** @} */ /* End of Decompressor Initialization */
 
 /**
